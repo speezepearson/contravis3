@@ -113,12 +113,14 @@
 - Information that is salient to every dancer at every time: consider, wlog., Alice: Alice knows:
 
     - her x-coordinate (but not her y-coordinate, since the set has so much translational symmetry it's hard to tell)
+    - her velocity (x and y)
     - the angle she's facing, relative to "up the hall"
     - the distance, and [direction relative to her facing], and [direction relative to up the hall], to every dancer less than two meters away
     - whose hands she's holding, if any
 
     For example, if Alice is an up-robin, and the hands-four is in Beckett formation, and the caller has just told everybody to take hands in long lines, then she knows:
     - I'm at x=-0.5 (on the west side of the set)
+    - I'm at rest
     - I'm facing across the set
     - my partner is 1m away, to my left (up the set), holding my left hand in their right
     - my neighbor is 1m away, in front of me (across the set)
@@ -128,16 +130,19 @@
 
     In a more complicated formation, partway through the dance, when people have shuffled somewhat and the dancers are in short wavy lines, Alice might know:
     - I'm at x=-0.25
+    - I'm at rest
     - I'm facing down the set
     - my neighbor +1 is 0.5m to my left, holding my left hand in their right
     - my opposite +1 is 0.5m to my right, holding my right hand in their left
     - my shadow +1 is 1m to my right
 
 - Example sanity checks you might do:
-    - dancers should never get closer than 0.3m to each other
+    - dancers shouldn't get closer than 0.3m to each other
+    - dancers shouldn't move faster than 1m/beat, and seldom more than 0.5
+    - dancers shouldn't turn faster than 180deg/beat
     - if a figure calls for Alice and Bob to "pass right shoulders" then, cos(angle from Alice's facing direction towards Bob) should start positive and go negative, while the sin should stay non-negative the whole time
 
-    In general, your sanity checks should be *warnings only*: contra dance has very few hard rules, and the many rules-of-thumb get broken as reality tramples theory. (The one exception I can think of is that, after 64 beats, each dancer should be displaced from their starting position by exactly 2 or 4 meters, directly up or down the hall.)
+    In general, your sanity checks should be *warnings only*: contra dance has very few hard rules, and the many rules-of-thumb get broken as reality tramples theory. (The one exception I can think of is that, after 64 beats, each dancer should be displaced from their starting position by exactly 1 or 2 meters, directly up or down the hall.)
 
 
 # Dance description
@@ -145,6 +150,7 @@
 Here's a way I might describe a dance:
 
 ```
+[formation: improper]
 [beat 0]
 neighbors take right hands and balance
 [beat 4]
