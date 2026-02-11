@@ -148,6 +148,7 @@ input[type="range"] {
 <script>
 const KEYFRAMES = %%KEYFRAMES_JSON%%;
 const DANCE_TITLE = "%%DANCE_TITLE%%";
+const PROGRESSION_RATE = %%PROGRESSION_RATE%%;  // meters per beat (negative = camera pans south)
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
@@ -177,22 +178,21 @@ const COLORS = {
 };
 
 // Coordinate transform: world → canvas
-// We show 3 hands-fours: y from -3 to +3 (6m), x range chosen for equal scale
 const MARGIN = 40;
 const Y_RANGE = 6;  // meters shown vertically
-const Y_MIN = -3, Y_MAX = 3;
 // Compute x range to give equal px/m in both axes
 const usableW = canvas.width - 2 * MARGIN;
 const usableH = canvas.height - 2 * MARGIN;
 const pxPerMeter = usableH / Y_RANGE;
 const X_RANGE = usableW / pxPerMeter;
-const X_MIN = -X_RANGE / 2, X_MAX = X_RANGE / 2;
-const VIEW = { xMin: X_MIN, xMax: X_MAX, yMin: Y_MIN, yMax: Y_MAX };
+
+// Camera: tracks the "down" dancers' progression (pans south over time)
+let cameraY = 0;  // world y at the center of the viewport
 
 function worldToCanvas(wx, wy) {
-    const cx = MARGIN + (wx - VIEW.xMin) / (VIEW.xMax - VIEW.xMin) * usableW;
-    // y inverted: north (positive y) at top of screen
-    const cy = MARGIN + (VIEW.yMax - wy) / (VIEW.yMax - VIEW.yMin) * usableH;
+    const cx = MARGIN + (wx - (-X_RANGE / 2)) / X_RANGE * usableW;
+    // y inverted: north (positive y) at top of screen, camera-relative
+    const cy = MARGIN + ((cameraY + Y_RANGE / 2) - wy) / Y_RANGE * usableH;
     return [cx, cy];
 }
 
@@ -237,28 +237,32 @@ function drawFrame(frame) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!frame) return;
 
-    const cw = canvas.width;
-    const ch = canvas.height;
+    // Update camera: pan to track the "down" dancers' progression
+    cameraY = PROGRESSION_RATE * frame.beat;
 
-    // Draw grid lines (set lines)
+    const viewYMin = cameraY - Y_RANGE / 2;
+    const viewYMax = cameraY + Y_RANGE / 2;
+
+    // Draw grid lines (set lines) — full height of canvas
     ctx.strokeStyle = '#222';
     ctx.lineWidth = 1;
-
-    // West and east lines
     for (const x of [-0.5, 0.5]) {
-        const [cx1, cy1] = worldToCanvas(x, VIEW.yMax);
-        const [cx2, cy2] = worldToCanvas(x, VIEW.yMin);
+        const [cx1, cy1] = worldToCanvas(x, viewYMax + 1);
+        const [cx2, cy2] = worldToCanvas(x, viewYMin - 1);
         ctx.beginPath();
         ctx.moveTo(cx1, cy1);
         ctx.lineTo(cx2, cy2);
         ctx.stroke();
     }
 
-    // Horizontal dividers between hands-fours
+    // Horizontal dividers between hands-fours — tile around camera
     ctx.setLineDash([5, 5]);
-    for (let y = -4; y <= 4; y += 2) {
-        const [cx1, cy1] = worldToCanvas(VIEW.xMin, y);
-        const [cx2, cy2] = worldToCanvas(VIEW.xMax, y);
+    ctx.strokeStyle = '#222';
+    // Hands-fours repeat every 2m; find the nearest divider to the view
+    const firstDivider = Math.floor((viewYMin - 1) / 2) * 2;
+    for (let y = firstDivider; y <= viewYMax + 1; y += 2) {
+        const [cx1, cy1] = worldToCanvas(-X_RANGE / 2, y);
+        const [cx2, cy2] = worldToCanvas(X_RANGE / 2, y);
         ctx.beginPath();
         ctx.moveTo(cx1, cy1);
         ctx.lineTo(cx2, cy2);
@@ -266,12 +270,12 @@ function drawFrame(frame) {
     }
     ctx.setLineDash([]);
 
-    // Draw "up" arrow on the left
+    // Draw "up" arrow
     ctx.fillStyle = '#444';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
-    const [ax, ay] = worldToCanvas(VIEW.xMin + 0.15, VIEW.yMax - 0.3);
-    ctx.fillText('↑ up', ax, ay);
+    const [arx, ary] = worldToCanvas(-X_RANGE / 2 + 0.15, viewYMax - 0.3);
+    ctx.fillText('↑ up', arx, ary);
 
     // Draw hand connections
     ctx.strokeStyle = '#666';
@@ -280,15 +284,16 @@ function drawFrame(frame) {
         const da = frame.dancers[h.a];
         const db = frame.dancers[h.b];
         if (da && db) {
-            drawHandsForAllCopies(da, db);
+            drawHandsForAllCopies(da, h.ha, db, h.hb);
         }
     }
 
-    // Draw dancers (3 copies: original + ±2m offset)
-    for (const offset of [-2, 0, 2]) {
-        const alpha = offset === 0 ? 1.0 : 0.35;
+    // Draw dancers: tile copies every 2m to fill the viewport
+    const firstCopy = Math.floor((viewYMin - 1) / 2) * 2;
+    const lastCopy = Math.ceil((viewYMax + 1) / 2) * 2;
+    for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
         for (const [id, d] of Object.entries(frame.dancers)) {
-            drawDancer(id, d.x, d.y + offset, d.facing, alpha);
+            drawDancer(id, d.x, d.y + offset, d.facing, 1.0);
         }
     }
 
@@ -308,12 +313,21 @@ function drawFrame(frame) {
         ctx.globalAlpha = 0.3;
         ctx.beginPath();
         for (let i = 0; i < trail.length; i++) {
-            const [cx, cy] = worldToCanvas(trail[i].x, trail[i].y);
-            if (i === 0) ctx.moveTo(cx, cy);
-            else ctx.lineTo(cx, cy);
+            const [tcx, tcy] = worldToCanvas(trail[i].x, trail[i].y);
+            if (i === 0) ctx.moveTo(tcx, tcy);
+            else ctx.lineTo(tcx, tcy);
         }
         ctx.stroke();
         ctx.globalAlpha = 1.0;
+    }
+
+    // Draw hands for copies too
+    for (const h of (frame.hands || [])) {
+        const da = frame.dancers[h.a];
+        const db = frame.dancers[h.b];
+        if (da && db) {
+            drawHandsForAllCopies(da, h.ha, db, h.hb);
+        }
     }
 
     // Beat display
@@ -325,15 +339,32 @@ function drawFrame(frame) {
     scrubber.value = Math.round(pct);
 }
 
-function drawHandsForAllCopies(da, db) {
-    for (const offset of [-2, 0, 2]) {
-        const alpha = offset === 0 ? 1.0 : 0.25;
-        ctx.globalAlpha = alpha;
+function handAnchorOffset(facing, hand, r) {
+    // Compute canvas-pixel offset for a hand anchor point on the circle edge.
+    // "right" = 90° clockwise from facing; "left" = 90° counter-clockwise.
+    const fRad = facing * Math.PI / 180;
+    const sign = (hand === 'right') ? 1 : -1;
+    // On canvas: right of facing direction
+    //   dx = cos(facing) * sign * r
+    //   dy = sin(facing) * sign * r   (canvas y is inverted from world y)
+    return [Math.cos(fRad) * sign * r, Math.sin(fRad) * sign * r];
+}
+
+function drawHandsForAllCopies(da, handA, db, handB) {
+    const viewYMin = cameraY - Y_RANGE / 2;
+    const viewYMax = cameraY + Y_RANGE / 2;
+    const firstCopy = Math.floor((viewYMin - 1) / 2) * 2;
+    const lastCopy = Math.ceil((viewYMax + 1) / 2) * 2;
+    const r = 14;  // dancer circle radius in pixels
+    const [dxA, dyA] = handAnchorOffset(da.facing, handA, r);
+    const [dxB, dyB] = handAnchorOffset(db.facing, handB, r);
+    for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
+        ctx.globalAlpha = 1.0;
         const [ax, ay] = worldToCanvas(da.x, da.y + offset);
         const [bx, by] = worldToCanvas(db.x, db.y + offset);
         ctx.beginPath();
-        ctx.moveTo(ax, ay);
-        ctx.lineTo(bx, by);
+        ctx.moveTo(ax + dxA, ay + dyA);
+        ctx.lineTo(bx + dxB, by + dyB);
         ctx.stroke();
     }
     ctx.globalAlpha = 1.0;
@@ -472,6 +503,7 @@ def render_html(
     keyframes: list[Keyframe],
     output_path: str | Path,
     title: str = "Contra Dance",
+    progression_rate: float = -1.0 / 64,
 ) -> Path:
     """Render keyframes to a self-contained HTML file.
 
@@ -479,6 +511,8 @@ def render_html(
         keyframes: List of animation keyframes.
         output_path: Where to write the HTML file.
         title: Dance title shown in the header.
+        progression_rate: Camera pan speed in meters/beat. Negative = south.
+            Default: -1/64 (single progression, tracking "down" dancers).
 
     Returns:
         Path to the written HTML file.
@@ -487,5 +521,6 @@ def render_html(
     kf_json = keyframes_to_json(keyframes)
     html = _HTML_TEMPLATE.replace("%%KEYFRAMES_JSON%%", kf_json)
     html = html.replace("%%DANCE_TITLE%%", title)
+    html = html.replace("%%PROGRESSION_RATE%%", str(progression_rate))
     output_path.write_text(html)
     return output_path
