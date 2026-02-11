@@ -31,4 +31,6 @@ def complete(
         messages=[{"role": "user", "content": user}],
         temperature=temperature,
     )
-    return msg.content[0].text
+    block = msg.content[0]
+    assert hasattr(block, "text"), f"Expected TextBlock, got {type(block).__name__}"
+    return block.text
