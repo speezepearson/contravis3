@@ -517,7 +517,28 @@ function instructionDuration(instr: Instruction): number {
       instr.listA.reduce((s, i) => s + i.beats, 0),
       instr.listB.reduce((s, i) => s + i.beats, 0)
     );
+  if (instr.type === 'group')
+    return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
   return instr.beats;
+}
+
+/** Flatten instructions into leaf-level beat ranges (recurses into groups). */
+function buildBeatRanges(instructions: Instruction[]): { id: number; start: number; end: number }[] {
+  const ranges: { id: number; start: number; end: number }[] = [];
+  let cumBeat = 0;
+  function walk(instrs: Instruction[]) {
+    for (const instr of instrs) {
+      if (instr.type === 'group') {
+        walk(instr.instructions);
+      } else {
+        const dur = instructionDuration(instr);
+        ranges.push({ id: instr.id, start: cumBeat, end: cumBeat + dur });
+        cumBeat += dur;
+      }
+    }
+  }
+  walk(instructions);
+  return ranges;
 }
 
 export function validateHandDistances(
@@ -525,14 +546,7 @@ export function validateHandDistances(
   keyframes: Keyframe[],
   maxDistance = 1.2
 ): Map<number, string> {
-  // Build instruction beat ranges
-  const ranges: { id: number; start: number; end: number }[] = [];
-  let cumBeat = 0;
-  for (const instr of instructions) {
-    const dur = instructionDuration(instr);
-    ranges.push({ id: instr.id, start: cumBeat, end: cumBeat + dur });
-    cumBeat += dur;
-  }
+  const ranges = buildBeatRanges(instructions);
 
   const warnings = new Map<number, string>();
 
@@ -558,19 +572,31 @@ export function validateHandDistances(
   return warnings;
 }
 
+function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyframe[] {
+  if (instr.type === 'split') {
+    return generateSplit(prev, instr);
+  } else if (instr.type === 'group') {
+    const result: Keyframe[] = [];
+    let current = prev;
+    for (const child of instr.instructions) {
+      const childFrames = processTopLevelInstruction(current, child);
+      result.push(...childFrames);
+      if (childFrames.length > 0) {
+        current = childFrames[childFrames.length - 1];
+      }
+    }
+    return result;
+  } else {
+    return processAtomicInstruction(prev, instr, ALL_DANCERS);
+  }
+}
+
 export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
   const result: Keyframe[] = [initialKeyframe()];
 
   for (const instr of instructions) {
     const prev = result[result.length - 1];
-    let newFrames: Keyframe[];
-
-    if (instr.type === 'split') {
-      newFrames = generateSplit(prev, instr);
-    } else {
-      newFrames = processAtomicInstruction(prev, instr, ALL_DANCERS);
-    }
-
+    const newFrames = processTopLevelInstruction(prev, instr);
     result.push(...newFrames);
   }
 

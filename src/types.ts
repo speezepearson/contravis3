@@ -48,7 +48,8 @@ export type SplitBy = 'role' | 'position';
 
 export type Instruction =
   | AtomicInstruction
-  | { id: number; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] };
+  | { id: number; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] }
+  | { id: number; type: 'group'; label: string; instructions: Instruction[] };
 
 export interface DancerState {
   x: number;

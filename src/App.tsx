@@ -8,17 +8,27 @@ const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 700;
 const PROGRESSION_RATE = -1 / 64;
 
+function instructionDuration(instr: Instruction): number {
+  if (instr.type === 'split')
+    return Math.max(instr.listA.reduce((s, i) => s + i.beats, 0),
+                    instr.listB.reduce((s, i) => s + i.beats, 0));
+  if (instr.type === 'group')
+    return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
+  return instr.beats;
+}
+
 function activeInstructionId(instructions: Instruction[], beat: number): number | null {
   let currentBeat = 0;
   let activeId: number | null = null;
   for (const instr of instructions) {
     if (currentBeat > beat + 1e-9) break;
     activeId = instr.id;
-    const duration = instr.type === 'split'
-      ? Math.max(instr.listA.reduce((s, i) => s + i.beats, 0),
-                  instr.listB.reduce((s, i) => s + i.beats, 0))
-      : instr.beats;
-    currentBeat += duration;
+    if (instr.type === 'group') {
+      // Recurse into group children to find the active leaf
+      const childId = activeInstructionId(instr.instructions, beat - currentBeat);
+      if (childId !== null) activeId = childId;
+    }
+    currentBeat += instructionDuration(instr);
   }
   return activeId;
 }

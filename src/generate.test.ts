@@ -904,6 +904,61 @@ describe('generateAllKeyframes', () => {
     });
   });
 
+  describe('group', () => {
+    it('processes children sequentially', () => {
+      const instructions: Instruction[] = [{
+        id: 1, type: 'group', label: 'Allemande figure',
+        instructions: [
+          { id: 10, beats: 2, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+          { id: 11, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+        ],
+      }];
+      const kfs = generateAllKeyframes(instructions);
+      // Should produce keyframes spanning 10 beats total (2 + 8)
+      expect(kfs[kfs.length - 1].beat).toBeCloseTo(10, 5);
+      expect(kfs.length).toBeGreaterThan(2);
+    });
+
+    it('beats accumulate across groups and other instructions', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 0.5 },
+        {
+          id: 2, type: 'group', label: 'My group',
+          instructions: [
+            { id: 20, beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 },
+          ],
+        },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      expect(kfs[kfs.length - 1].beat).toBeCloseTo(8, 5);
+    });
+
+    it('group can contain a split', () => {
+      const instructions: Instruction[] = [{
+        id: 1, type: 'group', label: 'Split group',
+        instructions: [{
+          id: 10, type: 'split', by: 'role',
+          listA: [{ id: 100, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+          listB: [{ id: 101, beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+        }],
+      }];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers['up_lark'].y).toBeCloseTo(init.dancers['up_lark'].y + 1, 5);
+      expect(last.dancers['up_robin'].y).toBeCloseTo(init.dancers['up_robin'].y - 1, 5);
+    });
+
+    it('empty group produces no keyframes', () => {
+      const instructions: Instruction[] = [{
+        id: 1, type: 'group', label: 'Empty',
+        instructions: [],
+      }];
+      const kfs = generateAllKeyframes(instructions);
+      expect(kfs).toHaveLength(1); // just the initial keyframe
+    });
+  });
+
   describe('validateHandDistances', () => {
     it('no warning when neighbors take hands (distance ~1.0m)', () => {
       const instructions: Instruction[] = [

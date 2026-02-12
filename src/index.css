@@ -290,6 +290,20 @@ input[type="range"] {
 }
 .split-add-btn:hover { background: #3a4a5a; }
 
+/* Group nesting */
+
+.group-body {
+  margin-left: 12px;
+  border-left: 2px solid #5a5a3a;
+  padding-left: 8px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.group-child-item {
+  margin-left: 4px;
+}
+
 /* JSON import/export */
 
 .json-io {
