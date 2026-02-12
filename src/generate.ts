@@ -367,6 +367,53 @@ function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'spli
 
 // --- Top-level generator ---
 
+function instructionDuration(instr: Instruction): number {
+  if (instr.type === 'split')
+    return Math.max(
+      instr.listA.reduce((s, i) => s + i.beats, 0),
+      instr.listB.reduce((s, i) => s + i.beats, 0)
+    );
+  return instr.beats;
+}
+
+export function validateHandDistances(
+  instructions: Instruction[],
+  keyframes: Keyframe[],
+  maxDistance = 1.2
+): Map<number, string> {
+  // Build instruction beat ranges
+  const ranges: { id: number; start: number; end: number }[] = [];
+  let cumBeat = 0;
+  for (const instr of instructions) {
+    const dur = instructionDuration(instr);
+    ranges.push({ id: instr.id, start: cumBeat, end: cumBeat + dur });
+    cumBeat += dur;
+  }
+
+  const warnings = new Map<number, string>();
+
+  for (const kf of keyframes) {
+    for (const hand of kf.hands) {
+      const posA = dancerPosition(hand.a, kf.dancers);
+      const posB = dancerPosition(hand.b, kf.dancers);
+      const dist = Math.hypot(posA.x - posB.x, posA.y - posB.y);
+      if (dist > maxDistance) {
+        // Find the instruction owning this beat
+        for (const r of ranges) {
+          if (kf.beat >= r.start - 1e-9 && kf.beat <= r.end + 1e-9) {
+            if (!warnings.has(r.id)) {
+              warnings.set(r.id, `Hands too far apart (${dist.toFixed(2)}m)`);
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return warnings;
+}
+
 export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
   const result: Keyframe[] = [initialKeyframe()];
 

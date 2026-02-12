@@ -75,6 +75,7 @@ interface Props {
   instructions: Instruction[];
   setInstructions: (instructions: Instruction[]) => void;
   activeId: number | null;
+  warnings: Map<number, string>;
 }
 
 type BuilderContext =
@@ -149,7 +150,7 @@ function SortableItem({ id, children }: { id: number; children: (dragHandleProps
   );
 }
 
-export default function CommandPane({ instructions, setInstructions, activeId }: Props) {
+export default function CommandPane({ instructions, setInstructions, activeId, warnings }: Props) {
   const [context, setContext] = useState<BuilderContext>({ level: 'top' });
   const [action, setAction] = useState<ActionType | 'split'>('take_hands');
   const [relationship, setRelationship] = useState<Relationship>('neighbor');
@@ -563,6 +564,9 @@ export default function CommandPane({ instructions, setInstructions, activeId }:
                         <button onClick={() => remove(instr.id)} title="Delete">{'\u00D7'}</button>
                       </div>
                     </div>
+                    {warnings.get(instr.id) && (
+                      <div className="instruction-warning">{warnings.get(instr.id)}</div>
+                    )}
                     {instr.type === 'split' && renderSplitBody(instr)}
                   </>
                 )}

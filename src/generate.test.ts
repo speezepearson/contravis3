@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes } from './generate';
+import { generateAllKeyframes, validateHandDistances } from './generate';
 import type { Instruction, Keyframe } from './types';
 import { parseDancerId } from './types';
 
@@ -755,6 +755,37 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       expect(kfs[kfs.length - 1].beat).toBeCloseTo(6, 5);
+    });
+  });
+
+  describe('validateHandDistances', () => {
+    it('no warning when neighbors take hands (distance ~1.0m)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
+      ];
+      const keyframes = generateAllKeyframes(instructions);
+      const warnings = validateHandDistances(instructions, keyframes);
+      expect(warnings.size).toBe(0);
+    });
+
+    it('warns when dancers step apart while holding hands', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
+        { id: 2, beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4 },
+      ];
+      const keyframes = generateAllKeyframes(instructions);
+      const warnings = validateHandDistances(instructions, keyframes);
+      expect(warnings.has(2)).toBe(true);
+      expect(warnings.get(2)).toMatch(/Hands too far apart/);
+    });
+
+    it('no warning when stepping without hands', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4 },
+      ];
+      const keyframes = generateAllKeyframes(instructions);
+      const warnings = validateHandDistances(instructions, keyframes);
+      expect(warnings.size).toBe(0);
     });
   });
 });

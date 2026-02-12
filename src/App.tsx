@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
-import { generateAllKeyframes } from './generate';
+import { generateAllKeyframes, validateHandDistances } from './generate';
 import CommandPane from './CommandPane';
 import type { Instruction } from './types';
 
@@ -40,6 +40,7 @@ export default function App() {
   const bpmRef = useRef(120);
 
   const keyframes = useMemo(() => generateAllKeyframes(instructions), [instructions]);
+  const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
 
   const minBeat = keyframes.length > 0 ? keyframes[0].beat : 0;
   const maxBeat = keyframes.length > 0 ? keyframes[keyframes.length - 1].beat : 0;
@@ -207,7 +208,7 @@ export default function App() {
         </div>
         {annotation && <div className="annotation">{annotation}</div>}
       </div>
-      <CommandPane instructions={instructions} setInstructions={setInstructions} activeId={activeInstructionId(instructions, beat)} />
+      <CommandPane instructions={instructions} setInstructions={setInstructions} activeId={activeInstructionId(instructions, beat)} warnings={warnings} />
     </div>
   );
 }
