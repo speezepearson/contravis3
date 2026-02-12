@@ -43,24 +43,36 @@ describe('SearchableDropdown', () => {
     expect(items[0].textContent).toBe('blueberry');
   });
 
-  it('allows free-form text that does not match any option', async () => {
+  it('typing reopens the popover after a selection', async () => {
     const onChange = vi.fn();
-    render(<SearchableDropdown options={OPTIONS} value="xyz" onChange={onChange} />);
-    const input = screen.getByRole('textbox');
-    await userEvent.setup().click(input);
-    // Popover should show but be empty (no matches)
-    const items = screen.queryAllByRole('option');
-    expect(items).toHaveLength(0);
-    // The input value should remain "xyz" - not forced to an option
-    expect(input.getAttribute('value')).toBe('xyz');
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <SearchableDropdown options={OPTIONS} value="" onChange={onChange} />
+    );
+    await user.click(screen.getByRole('textbox'));
+    await user.keyboard('{Enter}'); // selects 'apple'
+    expect(screen.queryByRole('listbox')).toBeNull();
+    // Simulate parent updating value, then user types more
+    rerender(<SearchableDropdown options={OPTIONS} value="apple" onChange={onChange} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'b' } });
+    rerender(<SearchableDropdown options={OPTIONS} value="b" onChange={onChange} />);
+    expect(screen.getByRole('listbox')).toBeDefined();
   });
 
-  it('calls onChange when user types', async () => {
+  it('does not call onChange with values outside the options on blur', async () => {
     const onChange = vi.fn();
-    render(<SearchableDropdown options={OPTIONS} value="" onChange={onChange} />);
-    const input = screen.getByRole('textbox');
-    fireEvent.change(input, { target: { value: 'ban' } });
-    expect(onChange).toHaveBeenCalledWith('ban');
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <SearchableDropdown options={OPTIONS} value="" onChange={onChange} />
+    );
+    await user.click(screen.getByRole('textbox'));
+    // Type something that doesn't match
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'xyz' } });
+    rerender(<SearchableDropdown options={OPTIONS} value="xyz" onChange={onChange} />);
+    onChange.mockClear();
+    // Blur the input — should revert to empty (last valid value)
+    await user.tab();
+    expect(onChange).toHaveBeenCalledWith('');
   });
 
   it('navigates down with ArrowDown and highlights option', async () => {
@@ -170,6 +182,19 @@ describe('SearchableDropdown', () => {
     await user.tab();
     expect(onChange).toHaveBeenCalledWith('apple');
     expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('filters by word boundary: "ne" matches "neighbor" but not "partner"', async () => {
+    const dirOptions = ['partner', 'neighbor', 'opposite'];
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <SearchableDropdown options={dirOptions} value="" onChange={() => {}} />
+    );
+    await user.click(screen.getByRole('textbox'));
+    rerender(<SearchableDropdown options={dirOptions} value="ne" onChange={() => {}} />);
+    const items = screen.getAllByRole('option');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toBe('neighbor');
   });
 
   it('accepts a placeholder prop', () => {

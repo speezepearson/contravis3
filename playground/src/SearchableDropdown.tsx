@@ -14,9 +14,10 @@ export default function SearchableDropdown({ options, value, onChange, placehold
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const filtered = options.filter(opt =>
-    opt.toLowerCase().includes(value.toLowerCase())
-  );
+  const query = value.toLowerCase();
+  const filtered = query
+    ? options.filter(opt => new RegExp('\\b' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(opt.toLowerCase()))
+    : options;
 
   // Reset highlight to first item when filtered results change
   const prevFilteredKey = useRef(filtered.join('\0'));
@@ -46,6 +47,10 @@ export default function SearchableDropdown({ options, value, onChange, placehold
     if (containerRef.current?.contains(e.relatedTarget as Node)) return;
     setOpen(false);
     setHighlightIndex(-1);
+    // Revert to empty if current value isn't a valid option
+    if (!options.includes(value)) {
+      onChange('');
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -89,7 +94,7 @@ export default function SearchableDropdown({ options, value, onChange, placehold
         type="text"
         value={value}
         placeholder={placeholder}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={handleFocus}
         onKeyDown={handleKeyDown}
         autoComplete="off"

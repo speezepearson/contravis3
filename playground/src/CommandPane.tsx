@@ -17,8 +17,6 @@ function parseDirection(text: string): RelativeDirection | null {
   const relationships = new Set(['partner', 'neighbor', 'opposite']);
   if (directions.has(trimmed)) return { kind: 'direction', value: trimmed as RelativeDirection & { kind: 'direction' } extends { value: infer V } ? V : never };
   if (relationships.has(trimmed)) return { kind: 'relationship', value: trimmed as Relationship };
-  const num = Number(trimmed);
-  if (!isNaN(num)) return { kind: 'cw', value: num };
   return null;
 }
 
