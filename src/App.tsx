@@ -13,12 +13,10 @@ export default function App() {
   const rendererRef = useRef<Renderer | null>(null);
   const beatRef = useRef(0);
   const playingRef = useRef(false);
-  const speedRef = useRef(1);
   const lastTimestampRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
 
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
   const [bpm, setBpm] = useState(120);
   const [beat, setBeat] = useState(0);
   const [annotation, setAnnotation] = useState('');
@@ -77,7 +75,7 @@ export default function App() {
     const dt = (timestamp - lastTimestampRef.current) / 1000;
     lastTimestampRef.current = timestamp;
 
-    beatRef.current += dt * speedRef.current * (bpmRef.current / 60);
+    beatRef.current += dt * (bpmRef.current / 60);
     if (beatRef.current > maxBeatRef.current) {
       beatRef.current = minBeatRef.current;
       rendererRef.current?.clearTrails();
@@ -98,11 +96,6 @@ export default function App() {
       cancelAnimationFrame(rafRef.current);
     }
   }, [animate]);
-
-  const changeSpeed = useCallback((s: number) => {
-    speedRef.current = s;
-    setSpeed(s);
-  }, []);
 
   const stepFwd = useCallback(() => {
     beatRef.current = Math.min(beatRef.current + 0.25, maxBeatRef.current);
@@ -174,27 +167,14 @@ export default function App() {
           <div className="beat-display">Beat {beat.toFixed(1)}</div>
         </div>
         <div className="controls">
-          <label className="speed-display">
-            BPM:
-            <input
-              type="number"
-              min={30}
-              max={600}
-              value={bpm}
-              onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
-              style={{ width: '4em', marginLeft: 4 }}
-            />
-          </label>
-          <span className="speed-display">Speed:</span>
-          {[0.25, 0.5, 1, 2, 4].map(s => (
-            <button
-              key={s}
-              className={speed === s ? 'active' : ''}
-              onClick={() => changeSpeed(s)}
-            >
-              {s}x
-            </button>
-          ))}
+          <span className="speed-display">{bpm} BPM</span>
+          <input
+            type="range"
+            min={60}
+            max={120}
+            value={bpm}
+            onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
+          />
         </div>
         <div className="legend">
           <div className="legend-item">
