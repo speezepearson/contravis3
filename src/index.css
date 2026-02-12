@@ -190,6 +190,10 @@ input[type="range"] {
   background: #2a2a55;
 }
 
+.instruction-item.active {
+  border-left: 3px solid #a0c4ff;
+}
+
 .drag-handle {
   cursor: grab;
   color: #666;

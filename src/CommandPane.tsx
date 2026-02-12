@@ -74,6 +74,7 @@ let nextId = 1;
 interface Props {
   instructions: Instruction[];
   setInstructions: (instructions: Instruction[]) => void;
+  activeId: number | null;
 }
 
 type BuilderContext =
@@ -148,7 +149,7 @@ function SortableItem({ id, children }: { id: number; children: (dragHandleProps
   );
 }
 
-export default function CommandPane({ instructions, setInstructions }: Props) {
+export default function CommandPane({ instructions, setInstructions, activeId }: Props) {
   const [context, setContext] = useState<BuilderContext>({ level: 'top' });
   const [action, setAction] = useState<ActionType | 'split'>('take_hands');
   const [relationship, setRelationship] = useState<Relationship>('neighbor');
@@ -164,7 +165,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [beats, setBeats] = useState('0');
   const [splitBy, setSplitBy] = useState<SplitBy>('role');
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [importText, setImportText] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState('');
 
   function loadAtomicIntoForm(instr: AtomicInstruction) {
     setAction(instr.type);
@@ -332,11 +333,13 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
 
   function copyJson() {
     navigator.clipboard.writeText(JSON.stringify(instructions, null, 2));
+    setCopyFeedback('Copied!');
+    setTimeout(() => setCopyFeedback(''), 1500);
   }
 
-  function loadJson() {
+  function tryLoadJson(text: string) {
     try {
-      const parsed = JSON.parse(importText) as Instruction[];
+      const parsed = JSON.parse(text) as Instruction[];
       if (!Array.isArray(parsed)) return;
       setInstructions(parsed);
       // Advance nextId past all loaded IDs
@@ -351,7 +354,6 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         return m;
       }
       nextId = maxId(parsed) + 1;
-      setImportText('');
       setEditingId(null);
       setContext({ level: 'top' });
     } catch { /* invalid JSON, ignore */ }
@@ -553,7 +555,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
               <SortableItem key={instr.id} id={instr.id}>
                 {(dragHandleProps) => (
                   <>
-                    <div className={`instruction-item${editingId === instr.id && context.level === 'top' ? ' editing' : ''}`}>
+                    <div className={`instruction-item${editingId === instr.id && context.level === 'top' ? ' editing' : ''}${instr.id === activeId ? ' active' : ''}`}>
                       <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
                       <span className="instruction-summary">{summarize(instr)}</span>
                       <div className="instruction-actions">
@@ -574,14 +576,18 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       </div>
 
       <div className="json-io">
-        <button onClick={copyJson}>Copy JSON</button>
+        <button onClick={copyJson}>{copyFeedback || 'Copy JSON'}</button>
         <textarea
-          value={importText}
-          onChange={e => setImportText(e.target.value)}
+          value=""
+          onChange={() => {}}
+          onPaste={e => {
+            e.preventDefault();
+            const text = e.clipboardData.getData('text');
+            tryLoadJson(text);
+          }}
           placeholder="Paste JSON here to load"
           rows={3}
         />
-        {importText && <button onClick={loadJson}>Load</button>}
       </div>
     </div>
   );

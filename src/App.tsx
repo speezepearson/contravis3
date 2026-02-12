@@ -8,6 +8,21 @@ const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 700;
 const PROGRESSION_RATE = -1 / 64;
 
+function activeInstructionId(instructions: Instruction[], beat: number): number | null {
+  let currentBeat = 0;
+  let activeId: number | null = null;
+  for (const instr of instructions) {
+    if (currentBeat > beat + 1e-9) break;
+    activeId = instr.id;
+    const duration = instr.type === 'split'
+      ? Math.max(instr.listA.reduce((s, i) => s + i.beats, 0),
+                  instr.listB.reduce((s, i) => s + i.beats, 0))
+      : instr.beats;
+    currentBeat += duration;
+  }
+  return activeId;
+}
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
@@ -192,7 +207,7 @@ export default function App() {
         </div>
         {annotation && <div className="annotation">{annotation}</div>}
       </div>
-      <CommandPane instructions={instructions} setInstructions={setInstructions} />
+      <CommandPane instructions={instructions} setInstructions={setInstructions} activeId={activeInstructionId(instructions, beat)} />
     </div>
   );
 }

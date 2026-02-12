@@ -98,7 +98,7 @@ export class Renderer {
     const lastCopy = Math.ceil((viewYMax + 1) / 2) * 2;
     for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
       for (const [id, d] of Object.entries(frame.dancers) as [ProtoDancerId, DancerState][]) {
-        this.drawDancer(id, d.x, d.y + offset, d.facing, 1.0);
+        this.drawDancer(id, d.x, d.y + offset, d.facing, offset === 0 ? 1.0 : 0.35);
       }
     }
 
@@ -141,7 +141,7 @@ export class Renderer {
     const [dxA, dyA] = this.handAnchorOffset(da.facing, handA, r);
     const [dxB, dyB] = this.handAnchorOffset(db.facing, handB, r);
     for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
-      ctx.globalAlpha = 1.0;
+      ctx.globalAlpha = offset === 0 ? 1.0 : 0.35;
       const [ax, ay] = this.worldToCanvas(da.x, da.y + offset);
       const [bx, by] = this.worldToCanvas(db.x, db.y + offset);
       ctx.beginPath();
