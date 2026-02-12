@@ -46,8 +46,10 @@ export default function App() {
   const [beat, setBeat] = useState(0);
   const [annotation, setAnnotation] = useState('');
   const [instructions, setInstructions] = useState<Instruction[]>([]);
+  const [smoothness, setSmoothness] = useState(0);
 
   const bpmRef = useRef(120);
+  const smoothnessRef = useRef(0);
 
   const keyframes = useMemo(() => generateAllKeyframes(instructions), [instructions]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
@@ -66,7 +68,7 @@ export default function App() {
   const draw = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    const frame = getFrameAtBeat(keyframesRef.current, beatRef.current);
+    const frame = getFrameAtBeat(keyframesRef.current, beatRef.current, smoothnessRef.current);
     if (frame) {
       renderer.drawFrame(frame, PROGRESSION_RATE);
       setAnnotation(frame.annotation || '');
@@ -200,6 +202,16 @@ export default function App() {
             max={120}
             value={bpm}
             onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
+          />
+        </div>
+        <div className="controls">
+          <span className="speed-display">Smooth {(smoothness / 100).toFixed(1)} beats</span>
+          <input
+            type="range"
+            min={0}
+            max={200}
+            value={smoothness}
+            onChange={e => { const v = Number(e.target.value); smoothnessRef.current = v / 100; setSmoothness(v); }}
           />
         </div>
         <div className="legend">

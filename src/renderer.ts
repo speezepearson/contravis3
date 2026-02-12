@@ -210,7 +210,15 @@ function lerpAngle(a: number, b: number, t: number): number {
   return (a + diff * t + 360) % 360;
 }
 
-export function getFrameAtBeat(keyframes: Keyframe[], beat: number): Keyframe | null {
+/** Unwrap an angle relative to a reference so the difference is in (-180, 180]. */
+function unwrapAngle(angle: number, ref: number): number {
+  let diff = ((angle - ref + 180) % 360) - 180;
+  if (diff < -180) diff += 360;
+  return ref + diff;
+}
+
+/** Linear interpolation between keyframes (no smoothing). */
+function rawFrameAtBeat(keyframes: Keyframe[], beat: number): Keyframe | null {
   if (keyframes.length === 0) return null;
   if (beat <= keyframes[0].beat) return keyframes[0];
   if (beat >= keyframes[keyframes.length - 1].beat) return keyframes[keyframes.length - 1];
@@ -238,12 +246,71 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number): Keyframe | 
     };
   }
 
-  const frame: Keyframe = {
+  return {
     beat,
     dancers,
     hands: f1.hands,
     annotation: f0.annotation || f1.annotation || '',
   };
+}
 
-  return frame;
+const SMOOTH_SAMPLES = 10;
+
+/**
+ * Get an interpolated frame at `beat`.
+ * `smoothness` is the width of a moving-average window in beats (0 = raw linear).
+ */
+export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: number = 0): Keyframe | null {
+  if (keyframes.length === 0) return null;
+
+  if (smoothness === 0) {
+    return rawFrameAtBeat(keyframes, beat);
+  }
+
+  // Sample raw interpolation at evenly spaced points across the window
+  const halfWindow = smoothness / 2;
+  const start = beat - halfWindow;
+  const step = smoothness / (SMOOTH_SAMPLES - 1);
+
+  // Collect all samples
+  const samples: Keyframe[] = [];
+  for (let i = 0; i < SMOOTH_SAMPLES; i++) {
+    const s = rawFrameAtBeat(keyframes, start + i * step);
+    if (!s) return null;
+    samples.push(s);
+  }
+
+  // Average x, y per dancer; angle-aware average for facing
+  const ids = Object.keys(samples[0].dancers) as ProtoDancerId[];
+  const dancers = {} as Record<ProtoDancerId, DancerState>;
+
+  for (const id of ids) {
+    let sumX = 0, sumY = 0;
+    // Unwrap all facing angles relative to the first sample to avoid 0/360 jumps
+    const refFacing = samples[0].dancers[id].facing;
+    let sumFacing = 0;
+
+    for (const s of samples) {
+      const d = s.dancers[id];
+      sumX += d.x;
+      sumY += d.y;
+      sumFacing += unwrapAngle(d.facing, refFacing);
+    }
+
+    const n = SMOOTH_SAMPLES;
+    dancers[id] = {
+      x: sumX / n,
+      y: sumY / n,
+      facing: ((sumFacing / n % 360) + 360) % 360,
+    };
+  }
+
+  // Use the center sample for hands/annotation
+  const center = samples[Math.floor(SMOOTH_SAMPLES / 2)];
+  return {
+    beat,
+    dancers,
+    hands: center.hands,
+    annotation: center.annotation || '',
+  };
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -75,6 +75,127 @@ function defaultBeats(action: string): string {
 }
 
 let nextId = 1;
+
+// --- Tree manipulation helpers for cross-container drag ---
+
+function parseContainerId(id: string):
+  | { type: 'top' }
+  | { type: 'group'; groupId: number }
+  | { type: 'split'; splitId: number; list: 'A' | 'B' }
+{
+  if (id === 'top') return { type: 'top' };
+  const groupMatch = id.match(/^group-(\d+)$/);
+  if (groupMatch) return { type: 'group', groupId: Number(groupMatch[1]) };
+  const splitMatch = id.match(/^split-(\d+)-(A|B)$/);
+  if (splitMatch) return { type: 'split', splitId: Number(splitMatch[1]), list: splitMatch[2] as 'A' | 'B' };
+  return { type: 'top' };
+}
+
+function findInstructionById(instrs: Instruction[], id: number): Instruction | null {
+  for (const i of instrs) {
+    if (i.id === id) return i;
+    if (i.type === 'group') {
+      const found = findInstructionById(i.instructions, id);
+      if (found) return found;
+    }
+    if (i.type === 'split') {
+      for (const s of [...i.listA, ...i.listB]) {
+        if (s.id === id) return s;
+      }
+    }
+  }
+  return null;
+}
+
+function instructionContainsId(instr: Instruction, id: number): boolean {
+  if (instr.id === id) return true;
+  if (instr.type === 'group') return instr.instructions.some(c => instructionContainsId(c, id));
+  if (instr.type === 'split') return [...instr.listA, ...instr.listB].some(c => instructionContainsId(c, id));
+  return false;
+}
+
+function removeFromTree(instrs: Instruction[], targetId: number): [Instruction[], Instruction | null] {
+  const topIdx = instrs.findIndex(i => i.id === targetId);
+  if (topIdx !== -1) {
+    return [[...instrs.slice(0, topIdx), ...instrs.slice(topIdx + 1)], instrs[topIdx]];
+  }
+  let removed: Instruction | null = null;
+  const mapped = instrs.map(i => {
+    if (removed) return i;
+    if (i.type === 'split') {
+      const aIdx = i.listA.findIndex(s => s.id === targetId);
+      if (aIdx !== -1) { removed = i.listA[aIdx]; return { ...i, listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)] }; }
+      const bIdx = i.listB.findIndex(s => s.id === targetId);
+      if (bIdx !== -1) { removed = i.listB[bIdx]; return { ...i, listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)] }; }
+    }
+    if (i.type === 'group') {
+      const [newChildren, r] = removeFromTree(i.instructions, targetId);
+      if (r) { removed = r; return { ...i, instructions: newChildren }; }
+    }
+    return i;
+  });
+  return [mapped, removed];
+}
+
+function insertIntoContainer(instrs: Instruction[], containerId: string, item: Instruction, index: number): Instruction[] {
+  const parsed = parseContainerId(containerId);
+  if (parsed.type === 'top') {
+    const copy = [...instrs];
+    copy.splice(index, 0, item);
+    return copy;
+  }
+  return instrs.map(i => {
+    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) {
+      const copy = [...i.instructions];
+      copy.splice(index, 0, item);
+      return { ...i, instructions: copy };
+    }
+    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
+      const key = parsed.list === 'A' ? 'listA' : 'listB';
+      const copy = [...i[key]];
+      copy.splice(index, 0, item as AtomicInstruction);
+      return { ...i, [key]: copy };
+    }
+    if (i.type === 'group') {
+      return { ...i, instructions: insertIntoContainer(i.instructions, containerId, item, index) };
+    }
+    return i;
+  });
+}
+
+function reorderInContainer(instrs: Instruction[], containerId: string, oldIndex: number, newIndex: number): Instruction[] {
+  const parsed = parseContainerId(containerId);
+  if (parsed.type === 'top') return arrayMove(instrs, oldIndex, newIndex);
+  return instrs.map(i => {
+    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) {
+      return { ...i, instructions: arrayMove(i.instructions, oldIndex, newIndex) };
+    }
+    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
+      const key = parsed.list === 'A' ? 'listA' : 'listB';
+      return { ...i, [key]: arrayMove(i[key], oldIndex, newIndex) };
+    }
+    if (i.type === 'group') {
+      return { ...i, instructions: reorderInContainer(i.instructions, containerId, oldIndex, newIndex) };
+    }
+    return i;
+  });
+}
+
+function getContainerItems(instrs: Instruction[], containerId: string): Instruction[] | null {
+  const parsed = parseContainerId(containerId);
+  if (parsed.type === 'top') return instrs;
+  for (const i of instrs) {
+    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) return i.instructions;
+    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
+      return parsed.list === 'A' ? i.listA : i.listB;
+    }
+    if (i.type === 'group') {
+      const found = getContainerItems(i.instructions, containerId);
+      if (found !== null) return found;
+    }
+  }
+  return null;
+}
 
 interface Props {
   instructions: Instruction[];
@@ -176,6 +297,11 @@ function SortableItem({ id, children }: { id: number; children: (dragHandleProps
       {children({ ...attributes, ...listeners })}
     </div>
   );
+}
+
+function DropZone({ containerId }: { containerId: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id: containerId });
+  return <div ref={setNodeRef} className={`drop-zone${isOver ? ' drop-zone-active' : ''}`} />;
 }
 
 export default function CommandPane({ instructions, setInstructions, activeId, warnings }: Props) {
@@ -377,30 +503,63 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     }
   }
 
-  function handleTopLevelDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = instructions.findIndex(i => i.id === active.id);
-    const newIndex = instructions.findIndex(i => i.id === over.id);
-    if (oldIndex !== -1 && newIndex !== -1) {
-      setInstructions(arrayMove(instructions, oldIndex, newIndex));
-    }
-  }
+    if (!over) return;
 
-  function handleSubDragEnd(splitId: number, list: 'A' | 'B', event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setInstructions(instructions.map(i => {
-      if (i.type !== 'split' || i.id !== splitId) return i;
-      const key = list === 'A' ? 'listA' : 'listB';
-      const arr = i[key];
-      const oldIndex = arr.findIndex(sub => sub.id === active.id);
-      const newIndex = arr.findIndex(sub => sub.id === over.id);
+    const srcContainer = (active.data.current?.sortable?.containerId as string) ?? 'top';
+    const overSortableContainer = over.data.current?.sortable?.containerId as string | undefined;
+    const destContainer = overSortableContainer ?? String(over.id);
+
+    // Dropping on itself
+    if (active.id === over.id) return;
+
+    // Same-container reorder (only when over is a sortable item, not a drop zone)
+    if (srcContainer === destContainer && overSortableContainer) {
+      const items = getContainerItems(instructions, srcContainer);
+      if (!items) return;
+      const oldIndex = items.findIndex(i => i.id === active.id);
+      const newIndex = items.findIndex(i => i.id === over.id);
       if (oldIndex !== -1 && newIndex !== -1) {
-        return { ...i, [key]: arrayMove(arr, oldIndex, newIndex) };
+        setInstructions(reorderInContainer(instructions, srcContainer, oldIndex, newIndex));
       }
-      return i;
-    }));
+      return;
+    }
+
+    // Cross-container move (or drop on a DropZone)
+    const activeId = active.id as number;
+    const draggedInstr = findInstructionById(instructions, activeId);
+    if (!draggedInstr) return;
+
+    const destParsed = parseContainerId(destContainer);
+
+    // Splits only accept atomic instructions
+    if (destParsed.type === 'split' && (draggedInstr.type === 'group' || draggedInstr.type === 'split')) return;
+
+    // Prevent cycles: can't drop a container into itself or its descendants
+    if (destParsed.type === 'group' && instructionContainsId(draggedInstr, destParsed.groupId)) return;
+    if (destParsed.type === 'split' && instructionContainsId(draggedInstr, destParsed.splitId)) return;
+
+    const [treeWithout, removed] = removeFromTree(instructions, activeId);
+    if (!removed) return;
+
+    let insertIdx: number;
+    if (overSortableContainer) {
+      // Dropped on a specific item in the destination container
+      const destItems = getContainerItems(treeWithout, destContainer);
+      const overIdx = destItems ? destItems.findIndex(i => i.id === over.id) : -1;
+      insertIdx = overIdx !== -1 ? overIdx : (destItems?.length ?? 0);
+    } else {
+      // Dropped on a DropZone — append at end
+      insertIdx = getContainerItems(treeWithout, destContainer)?.length ?? 0;
+    }
+
+    setInstructions(insertIntoContainer(treeWithout, destContainer, removed, insertIdx));
+    // Cancel any active edit since the item moved
+    if (editingId === activeId) {
+      setEditingId(null);
+      setContext({ level: 'top' });
+    }
   }
 
   function enterSubContext(splitId: number, list: 'A' | 'B') {
@@ -429,19 +588,6 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
       setEditingId(null);
       setContext({ level: 'top' });
     }
-  }
-
-  function handleGroupDragEnd(groupId: number, event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setInstructions(updateGroup(instructions, groupId, children => {
-      const oldIndex = children.findIndex(i => i.id === active.id);
-      const newIndex = children.findIndex(i => i.id === over.id);
-      if (oldIndex !== -1 && newIndex !== -1) {
-        return arrayMove(children, oldIndex, newIndex);
-      }
-      return children;
-    }));
   }
 
   function copyJson() {
@@ -728,9 +874,9 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         </div>
       </div>
 
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <div className="instruction-list">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTopLevelDragEnd}>
-          <SortableContext items={instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext id="top" items={instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {instructions.map(instr => (
               <SortableItem key={instr.id} id={instr.id}>
                 {(dragHandleProps) => (
@@ -753,7 +899,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               </SortableItem>
             ))}
           </SortableContext>
-        </DndContext>
+          <DropZone containerId="top" />
         {instructions.length === 0 && (
           <div className="instruction-empty">No instructions yet. Add one above.</div>
         )}
@@ -773,37 +919,38 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           rows={3}
         />
       </div>
+      </DndContext>
     </div>
   );
 
   function renderGroupBody(group: Extract<Instruction, { type: 'group' }>) {
+    const containerId = `group-${group.id}`;
     return (
       <div className="group-body">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => handleGroupDragEnd(group.id, e)}>
-          <SortableContext items={group.instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            {group.instructions.map(child => (
-              <SortableItem key={child.id} id={child.id}>
-                {(dragHandleProps) => (
-                  <>
-                    <div className={`instruction-item group-child-item${editingId === child.id ? ' editing' : ''}${child.id === activeId ? ' active' : ''}`}>
-                      <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                      <span className="instruction-summary">{summarize(child)}</span>
-                      <div className="instruction-actions">
-                        <button onClick={() => startGroupChildEdit(group.id, child)} title="Edit">{'\u270E'}</button>
-                        <button onClick={() => removeGroupChild(group.id, child.id)} title="Delete">{'\u00D7'}</button>
-                      </div>
+        <SortableContext id={containerId} items={group.instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          {group.instructions.map(child => (
+            <SortableItem key={child.id} id={child.id}>
+              {(dragHandleProps) => (
+                <>
+                  <div className={`instruction-item group-child-item${editingId === child.id ? ' editing' : ''}${child.id === activeId ? ' active' : ''}`}>
+                    <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
+                    <span className="instruction-summary">{summarize(child)}</span>
+                    <div className="instruction-actions">
+                      <button onClick={() => startGroupChildEdit(group.id, child)} title="Edit">{'\u270E'}</button>
+                      <button onClick={() => removeGroupChild(group.id, child.id)} title="Delete">{'\u00D7'}</button>
                     </div>
-                    {warnings.get(child.id) && (
-                      <div className="instruction-warning">{warnings.get(child.id)}</div>
-                    )}
-                    {child.type === 'split' && renderSplitBody(child)}
-                    {child.type === 'group' && renderGroupBody(child)}
-                  </>
-                )}
-              </SortableItem>
-            ))}
-          </SortableContext>
-        </DndContext>
+                  </div>
+                  {warnings.get(child.id) && (
+                    <div className="instruction-warning">{warnings.get(child.id)}</div>
+                  )}
+                  {child.type === 'split' && renderSplitBody(child)}
+                  {child.type === 'group' && renderGroupBody(child)}
+                </>
+              )}
+            </SortableItem>
+          ))}
+        </SortableContext>
+        <DropZone containerId={containerId} />
         <button
           className="split-add-btn"
           onClick={() => enterGroupContext(group.id)}
@@ -820,27 +967,27 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         {(['A', 'B'] as const).map(list => {
           const subList = list === 'A' ? split.listA : split.listB;
           const label = splitGroupLabel(split.by, list);
+          const containerId = `split-${split.id}-${list}`;
           return (
             <div key={list} className="split-group">
               <div className="split-group-header">{label}:</div>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => handleSubDragEnd(split.id, list, e)}>
-                <SortableContext items={subList.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                  {subList.map(sub => (
-                    <SortableItem key={sub.id} id={sub.id}>
-                      {(dragHandleProps) => (
-                        <div className={`instruction-item split-sub-item${editingId === sub.id ? ' editing' : ''}`}>
-                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                          <span className="instruction-summary">{summarizeAtomic(sub)}</span>
-                          <div className="instruction-actions">
-                            <button onClick={() => startSubEdit(split.id, list, sub)} title="Edit">{'\u270E'}</button>
-                            <button onClick={() => removeSub(split.id, list, sub.id)} title="Delete">{'\u00D7'}</button>
-                          </div>
+              <SortableContext id={containerId} items={subList.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                {subList.map(sub => (
+                  <SortableItem key={sub.id} id={sub.id}>
+                    {(dragHandleProps) => (
+                      <div className={`instruction-item split-sub-item${editingId === sub.id ? ' editing' : ''}`}>
+                        <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
+                        <span className="instruction-summary">{summarizeAtomic(sub)}</span>
+                        <div className="instruction-actions">
+                          <button onClick={() => startSubEdit(split.id, list, sub)} title="Edit">{'\u270E'}</button>
+                          <button onClick={() => removeSub(split.id, list, sub.id)} title="Delete">{'\u00D7'}</button>
                         </div>
-                      )}
-                    </SortableItem>
-                  ))}
-                </SortableContext>
-              </DndContext>
+                      </div>
+                    )}
+                  </SortableItem>
+                ))}
+              </SortableContext>
+              <DropZone containerId={containerId} />
               <button
                 className="split-add-btn"
                 onClick={() => enterSubContext(split.id, list)}
