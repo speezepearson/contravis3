@@ -149,29 +149,6 @@ input[type="range"] {
   width: 80px;
 }
 
-.face-input-wrap {
-  position: relative;
-  width: 140px;
-}
-
-.face-input {
-  position: relative;
-  z-index: 1;
-  background: transparent !important;
-  width: 100% !important;
-}
-
-.face-ghost {
-  position: absolute;
-  left: 0;
-  top: 0;
-  padding: 4px 8px;
-  font-size: 13px;
-  color: #666;
-  pointer-events: none;
-  white-space: pre;
-}
-
 .builder-buttons {
   display: flex;
   gap: 8px;

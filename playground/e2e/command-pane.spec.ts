@@ -116,7 +116,7 @@ test.describe('number input free-form typing', () => {
     await beatsInput.fill('.25');
 
     // Type a direction for the turn
-    const targetInput = page.locator('.face-input');
+    const targetInput = page.locator('.searchable-dropdown input');
     await targetInput.fill('up');
 
     await page.locator('.add-btn').click();
@@ -143,7 +143,7 @@ test.describe('balance action', () => {
     await actionSelect.selectOption('balance');
 
     // Should show a direction input
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
     await expect(dirInput).toBeVisible();
   });
 
@@ -152,7 +152,7 @@ test.describe('balance action', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('balance');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
     await dirInput.fill('across');
 
     await page.locator('.add-btn').click();
@@ -166,7 +166,7 @@ test.describe('balance action', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('balance');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
     await dirInput.fill('forward');
 
     await page.locator('.add-btn').click();
@@ -182,7 +182,7 @@ test.describe('new facing-relative directions', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('step');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
     await dirInput.fill('forward');
 
     await page.locator('.add-btn').click();
@@ -196,7 +196,7 @@ test.describe('new facing-relative directions', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('step');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
     await dirInput.fill('back');
 
     await page.locator('.add-btn').click();
@@ -210,7 +210,7 @@ test.describe('new facing-relative directions', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('step');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
     await dirInput.fill('right');
 
     await page.locator('.add-btn').click();
@@ -224,7 +224,7 @@ test.describe('new facing-relative directions', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('step');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
     await dirInput.fill('left');
 
     await page.locator('.add-btn').click();
@@ -238,7 +238,7 @@ test.describe('new facing-relative directions', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('turn');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
     await dirInput.fill('forward');
 
     await page.locator('.add-btn').click();
@@ -252,12 +252,13 @@ test.describe('new facing-relative directions', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('step');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
+    await dirInput.click();
     await dirInput.fill('fo');
 
-    // Ghost completion should show "forward"
-    const ghost = page.locator('.face-ghost');
-    await expect(ghost).toHaveText('forward');
+    // Popover should show "forward" as an option
+    const option = page.locator('.searchable-dropdown-popover li', { hasText: 'forward' });
+    await expect(option).toBeVisible();
   });
 
   test('anti-progression is not in autocomplete', async ({ page }) => {
@@ -265,11 +266,12 @@ test.describe('new facing-relative directions', () => {
     const actionSelect = page.locator('.instruction-builder select').first();
     await actionSelect.selectOption('step');
 
-    const dirInput = page.locator('.face-input');
+    const dirInput = page.locator('.searchable-dropdown input');
+    await dirInput.click();
     await dirInput.fill('anti');
 
-    // No ghost completion should appear
-    const ghost = page.locator('.face-ghost');
-    await expect(ghost).toHaveCount(0);
+    // No options should appear for "anti"
+    const options = page.locator('.searchable-dropdown-popover li');
+    await expect(options).toHaveCount(0);
   });
 });

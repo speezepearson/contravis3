@@ -1,13 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import SearchableDropdown from './SearchableDropdown';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget } from './types';
 
 type ActionType = AtomicInstruction['type'];
 
-const DIR_COMPLETIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
+const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
 function parseDirection(text: string): RelativeDirection | null {
   const trimmed = text.trim().toLowerCase();
@@ -109,42 +110,6 @@ function summarize(instr: Instruction): string {
   return summarizeAtomic(instr);
 }
 
-function DirectionInput({ value, completion, inputRef, onChange, onComplete }: {
-  value: string;
-  completion: string;
-  inputRef: React.RefObject<HTMLInputElement | null>;
-  onChange: (val: string, completion: string) => void;
-  onComplete: () => void;
-}) {
-  return (
-    <div className="face-input-wrap">
-      <input
-        ref={inputRef}
-        type="text"
-        className="face-input"
-        value={value}
-        placeholder="e.g. across, neighbor, 45"
-        onChange={e => {
-          const val = e.target.value;
-          const lower = val.trim().toLowerCase();
-          const match = lower ? DIR_COMPLETIONS.find(c => c.startsWith(lower) && c !== lower) ?? '' : '';
-          onChange(val, match);
-        }}
-        onKeyDown={e => {
-          if (e.key === 'Tab' && completion) {
-            e.preventDefault();
-            onComplete();
-          }
-        }}
-        onBlur={() => onChange(value, '')}
-      />
-      {completion && (
-        <span className="face-ghost">{completion}</span>
-      )}
-    </div>
-  );
-}
-
 function SortableItem({ id, children }: { id: number; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
@@ -168,14 +133,8 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [handedness, setHandedness] = useState<'left' | 'right'>('right');
   const [rotations, setRotations] = useState('1');
   const [turnText, setTurnText] = useState('');
-  const [turnCompletion, setTurnCompletion] = useState('');
-  const turnInputRef = useRef<HTMLInputElement>(null);
   const [stepText, setStepText] = useState('');
-  const [stepCompletion, setStepCompletion] = useState('');
-  const stepInputRef = useRef<HTMLInputElement>(null);
   const [balanceText, setBalanceText] = useState('');
-  const [balanceCompletion, setBalanceCompletion] = useState('');
-  const balanceInputRef = useRef<HTMLInputElement>(null);
   const [distance, setDistance] = useState('0.5');
   const [beats, setBeats] = useState('0');
   const [splitBy, setSplitBy] = useState<SplitBy>('role');
@@ -195,14 +154,11 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       setRotations(String(instr.rotations));
     } else if (instr.type === 'turn') {
       setTurnText(directionToText(instr.target));
-      setTurnCompletion('');
     } else if (instr.type === 'step') {
       setStepText(directionToText(instr.direction));
-      setStepCompletion('');
       setDistance(String(instr.distance));
     } else if (instr.type === 'balance') {
       setBalanceText(directionToText(instr.direction));
-      setBalanceCompletion('');
       setDistance(String(instr.distance));
     }
   }
@@ -458,12 +414,11 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         {action === 'turn' && (
           <label>
             Target
-            <DirectionInput
+            <SearchableDropdown
+              options={DIR_OPTIONS}
               value={turnText}
-              completion={turnCompletion}
-              inputRef={turnInputRef}
-              onChange={(val, comp) => { setTurnText(val); setTurnCompletion(comp); }}
-              onComplete={() => { setTurnText(turnCompletion); setTurnCompletion(''); }}
+              onChange={setTurnText}
+              placeholder="e.g. across, partner, 45"
             />
           </label>
         )}
@@ -472,12 +427,11 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           <>
             <label>
               Direction
-              <DirectionInput
+              <SearchableDropdown
+                options={DIR_OPTIONS}
                 value={stepText}
-                completion={stepCompletion}
-                inputRef={stepInputRef}
-                onChange={(val, comp) => { setStepText(val); setStepCompletion(comp); }}
-                onComplete={() => { setStepText(stepCompletion); setStepCompletion(''); }}
+                onChange={setStepText}
+                placeholder="e.g. across, partner, 45"
               />
             </label>
             <label>
@@ -496,12 +450,11 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           <>
             <label>
               Direction
-              <DirectionInput
+              <SearchableDropdown
+                options={DIR_OPTIONS}
                 value={balanceText}
-                completion={balanceCompletion}
-                inputRef={balanceInputRef}
-                onChange={(val, comp) => { setBalanceText(val); setBalanceCompletion(comp); }}
-                onComplete={() => { setBalanceText(balanceCompletion); setBalanceCompletion(''); }}
+                onChange={setBalanceText}
+                placeholder="e.g. across, partner, 45"
               />
             </label>
             <label>
