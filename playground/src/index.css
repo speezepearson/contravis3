@@ -11,7 +11,14 @@ body {
   padding: 20px;
 }
 
-.app {
+.app-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.canvas-column {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -49,6 +56,7 @@ button {
 }
 button:hover { background: #3a3a5a; }
 button.active { background: #4a4a7a; border-color: #6a6aaa; }
+button:disabled { opacity: 0.4; cursor: default; }
 
 input[type="range"] {
   width: 300px;
@@ -90,4 +98,117 @@ input[type="range"] {
   color: #ccc;
   font-style: italic;
   min-height: 1.5em;
+}
+
+/* Command Pane */
+
+.command-pane {
+  width: 320px;
+  background: #1e1e3a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.command-pane h2 {
+  font-size: 1.1em;
+  color: #a0c4ff;
+  margin-bottom: 12px;
+}
+
+.instruction-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #333;
+}
+
+.instruction-builder label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85em;
+  color: #aaa;
+}
+
+.instruction-builder select,
+.instruction-builder input[type="number"] {
+  background: #2a2a4a;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  width: 140px;
+}
+
+.instruction-builder input[type="number"] {
+  width: 80px;
+}
+
+.builder-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.add-btn {
+  background: #3a5a3a;
+  border-color: #5a7a5a;
+}
+.add-btn:hover { background: #4a6a4a; }
+
+.cancel-btn {
+  background: #5a3a3a;
+  border-color: #7a5a5a;
+}
+.cancel-btn:hover { background: #6a4a4a; }
+
+.instruction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.instruction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #252545;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.82em;
+}
+
+.instruction-item.editing {
+  outline: 1px solid #a0c4ff;
+  background: #2a2a55;
+}
+
+.instruction-summary {
+  flex: 1;
+  margin-right: 8px;
+}
+
+.instruction-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.instruction-actions button {
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.instruction-empty {
+  font-size: 0.85em;
+  color: #666;
+  text-align: center;
+  padding: 20px 0;
 }
