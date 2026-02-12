@@ -32,6 +32,14 @@ function sumBeats(instructions: AtomicInstruction[]): number {
   return instructions.reduce((sum, i) => sum + i.beats, 0);
 }
 
+function defaultBeats(action: string): string {
+  switch (action) {
+    case 'allemande': return '8';
+    case 'step':      return '2';
+    default:          return '0';
+  }
+}
+
 let nextId = 1;
 
 interface Props {
@@ -120,21 +128,21 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [relationship, setRelationship] = useState<Relationship>('neighbor');
   const [hand, setHand] = useState<'left' | 'right'>('right');
   const [direction, setDirection] = useState<'cw' | 'ccw'>('cw');
-  const [rotations, setRotations] = useState(1);
+  const [rotations, setRotations] = useState('1');
   const [turnText, setTurnText] = useState('');
   const [turnCompletion, setTurnCompletion] = useState('');
   const turnInputRef = useRef<HTMLInputElement>(null);
   const [stepText, setStepText] = useState('');
   const [stepCompletion, setStepCompletion] = useState('');
   const stepInputRef = useRef<HTMLInputElement>(null);
-  const [distance, setDistance] = useState(0.5);
-  const [beats, setBeats] = useState(0);
+  const [distance, setDistance] = useState('0.5');
+  const [beats, setBeats] = useState('0');
   const [splitBy, setSplitBy] = useState<SplitBy>('role');
   const [editingId, setEditingId] = useState<number | null>(null);
 
   function loadAtomicIntoForm(instr: AtomicInstruction) {
     setAction(instr.type);
-    setBeats(instr.beats);
+    setBeats(String(instr.beats));
     if (instr.type === 'take_hands') {
       setRelationship(instr.relationship);
       setHand(instr.hand);
@@ -143,14 +151,14 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     } else if (instr.type === 'allemande') {
       setRelationship(instr.relationship);
       setDirection(instr.direction);
-      setRotations(instr.rotations);
+      setRotations(String(instr.rotations));
     } else if (instr.type === 'turn') {
       setTurnText(directionToText(instr.target));
       setTurnCompletion('');
     } else if (instr.type === 'step') {
       setStepText(directionToText(instr.direction));
       setStepCompletion('');
-      setDistance(instr.distance);
+      setDistance(String(instr.distance));
     }
   }
 
@@ -164,21 +172,21 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   }
 
   function buildAtomicInstruction(id: number): AtomicInstruction {
-    const base = { id, beats };
+    const base = { id, beats: Number(beats) || 0 };
     switch (action as ActionType) {
       case 'take_hands':
         return { ...base, type: 'take_hands', relationship, hand };
       case 'drop_hands':
         return { ...base, type: 'drop_hands', relationship };
       case 'allemande':
-        return { ...base, type: 'allemande', relationship, direction, rotations };
+        return { ...base, type: 'allemande', relationship, direction, rotations: Number(rotations) || 1 };
       case 'turn': {
         const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'turn', target };
       }
       case 'step': {
         const dir = parseDirection(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
-        return { ...base, type: 'step', direction: dir, distance };
+        return { ...base, type: 'step', direction: dir, distance: Number(distance) || 0 };
       }
     }
   }
@@ -319,7 +327,11 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       <div className="instruction-builder">
         <label>
           Action
-          <select value={action} onChange={e => setAction(e.target.value as ActionType | 'split')}>
+          <select value={action} onChange={e => {
+            const a = e.target.value as ActionType | 'split';
+            setAction(a);
+            if (editingId === null) setBeats(defaultBeats(a));
+          }}>
             <option value="take_hands">take hands</option>
             <option value="drop_hands">drop hands</option>
             <option value="allemande">allemande</option>
@@ -372,11 +384,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
             <label>
               Rotations
               <input
-                type="number"
-                min={0.25}
-                step={0.25}
+                type="text"
+                inputMode="decimal"
                 value={rotations}
-                onChange={e => setRotations(Number(e.target.value))}
+                onChange={e => setRotations(e.target.value)}
               />
             </label>
           </>
@@ -410,11 +421,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
             <label>
               Distance
               <input
-                type="number"
-                min={0}
-                step={0.25}
+                type="text"
+                inputMode="decimal"
                 value={distance}
-                onChange={e => setDistance(Number(e.target.value))}
+                onChange={e => setDistance(e.target.value)}
               />
             </label>
           </>
@@ -424,11 +434,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           <label>
             Beats
             <input
-              type="number"
-              min={0}
-              step={1}
+              type="text"
+              inputMode="decimal"
               value={beats}
-              onChange={e => setBeats(Number(e.target.value))}
+              onChange={e => setBeats(e.target.value)}
             />
           </label>
         )}
