@@ -447,29 +447,6 @@ describe('generateAllKeyframes', () => {
       expect(last.dancers['up_robin'].x).toBeCloseTo(init.dancers['up_robin'].x + 0.5, 5);
     });
 
-    it('moves dancers CW degrees from their current facing', () => {
-      const instructions: Instruction[] = [
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'cw', value: 90 }, distance: 1 },
-      ];
-      const kfs = generateAllKeyframes(instructions);
-      const init = initialKeyframe();
-      const last = kfs[kfs.length - 1];
-      // Ups face 0°, 90° CW = east (+x); Downs face 180°, 90° CW = west (-x)
-      expect(last.dancers['up_lark'].x).toBeCloseTo(init.dancers['up_lark'].x + 1, 5);
-      expect(last.dancers['up_lark'].y).toBeCloseTo(init.dancers['up_lark'].y, 5);
-      expect(last.dancers['down_lark'].x).toBeCloseTo(init.dancers['down_lark'].x - 1, 5);
-    });
-
-    it('CW degrees is relative to each dancers current facing', () => {
-      const instructions: Instruction[] = [
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'cw', value: 90 }, distance: 1 },
-      ];
-      const kfs = generateAllKeyframes(instructions);
-      const init = initialKeyframe();
-      const last = kfs[kfs.length - 1];
-      expect(last.dancers['up_lark'].x).toBeCloseTo(init.dancers['up_lark'].x + 1, 5);
-      expect(last.dancers['down_lark'].x).toBeCloseTo(init.dancers['down_lark'].x - 1, 5);
-    });
 
     it('moves dancers toward a relationship target', () => {
       const instructions: Instruction[] = [

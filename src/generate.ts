@@ -97,9 +97,6 @@ function easeInOut(t: number): number {
 /** Resolve a RelativeDirection to an absolute heading in radians for a specific dancer.
  *  Uses atan2(dx,dy) convention: 0 = +y (north/up on screen). */
 function resolveHeading(dir: RelativeDirection, d: DancerState, id: string, dancers: Record<string, DancerState>): number {
-  if (dir.kind === 'cw') {
-    return (d.facing + dir.value) * Math.PI / 180;
-  }
   if (dir.kind === 'direction') {
     switch (dir.value) {
       case 'up':               return 0;
@@ -129,9 +126,6 @@ function resolveHeading(dir: RelativeDirection, d: DancerState, id: string, danc
 
 /** Resolve a RelativeDirection to an absolute facing in degrees. */
 function resolveFacing(dir: RelativeDirection, d: DancerState, id: string, dancers: Record<string, DancerState>): number {
-  if (dir.kind === 'cw') {
-    return ((d.facing + dir.value) % 360 + 360) % 360;
-  }
   const heading = resolveHeading(dir, d, id, dancers);
   return ((heading * 180 / Math.PI) % 360 + 360) % 360;
 }

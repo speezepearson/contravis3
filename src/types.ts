@@ -5,10 +5,9 @@ export type Relationship = 'partner' | 'neighbor' | 'opposite' | 'on_right' | 'o
 // a specific hand ('left'|'right'), or 'both' (all hand connections).
 export type DropHandsTarget = Relationship | 'left' | 'right' | 'both';
 
-// Direction relative to a dancer: a named direction, a relationship, or CW degrees
+// Direction relative to a dancer: a named direction or a relationship
 export type RelativeDirection =
   | { kind: 'direction'; value: 'up' | 'down' | 'across' | 'out' | 'progression' | 'forward' | 'back' | 'right' | 'left' }
-  | { kind: 'cw'; value: number }         // clockwise degrees from current facing
   | { kind: 'relationship'; value: Relationship };
 
 export type AtomicInstruction = {

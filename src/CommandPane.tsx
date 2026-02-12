@@ -48,8 +48,7 @@ function parseDirection(text: string): RelativeDirection | null {
 
 function directionToText(dir: RelativeDirection): string {
   if (dir.kind === 'direction') return dir.value;
-  if (dir.kind === 'relationship') return dir.value;
-  return String(dir.value);
+  return dir.value;
 }
 
 function splitGroupLabel(by: SplitBy, list: 'A' | 'B'): string {
