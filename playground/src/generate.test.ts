@@ -217,7 +217,7 @@ describe('generateAllKeyframes', () => {
   describe('allemande', () => {
     it('produces multiple keyframes for the arc', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', direction: 'cw', rotations: 1 },
+        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
       ];
       const kfs = generateAllKeyframes(instructions);
       expect(kfs.length).toBeGreaterThan(2);
@@ -227,7 +227,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers return to approximately their starting positions after 1 full rotation', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', direction: 'cw', rotations: 1 },
+        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
       ];
       const kfs = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -238,7 +238,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers swap positions after half rotation', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 4, type: 'allemande', relationship: 'neighbor', direction: 'cw', rotations: 0.5 },
+        { id: 1, beats: 4, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 0.5 },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -248,19 +248,72 @@ describe('generateAllKeyframes', () => {
       expect(last.dancers['down_robin'].y).toBeCloseTo(-0.5, 1);
     });
 
-    it('dancers face center during allemande', () => {
+    it('allemande right: right shoulder faces partner (facing is 90° CCW from direction to partner)', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', direction: 'cw', rotations: 1 },
+        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      // Check a mid-animation frame
+      const midIdx = Math.floor(kfs.length / 2);
+      const mid = kfs[midIdx];
+      // For up_lark, neighbor is down_robin. Direction to partner from up_lark's position.
+      const ul = mid.dancers['up_lark'];
+      const dr = mid.dancers['down_robin'];
+      const dirToPartner = Math.atan2(dr.x - ul.x, dr.y - ul.y) * 180 / Math.PI;
+      // Facing should be 90° CCW (i.e. -90°) from direction to partner
+      const expectedFacing = ((dirToPartner - 90) % 360 + 360) % 360;
+      const actualFacing = ((ul.facing % 360) + 360) % 360;
+      expect(actualFacing).toBeCloseTo(expectedFacing, 0);
+    });
+
+    it('allemande left: left shoulder faces partner (facing is 90° CW from direction to partner)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 1 },
       ];
       const kfs = generateAllKeyframes(instructions);
       const midIdx = Math.floor(kfs.length / 2);
       const mid = kfs[midIdx];
-      const ulFacing = mid.dancers['up_lark'].facing;
-      const cx = -0.5, cy = 0;
-      const expectedAngle = Math.atan2(cx - mid.dancers['up_lark'].x, cy - mid.dancers['up_lark'].y) * 180 / Math.PI;
-      const normalizedExpected = ((expectedAngle % 360) + 360) % 360;
-      const normalizedActual = ((ulFacing % 360) + 360) % 360;
-      expect(normalizedActual).toBeCloseTo(normalizedExpected, 0);
+      const ul = mid.dancers['up_lark'];
+      const dr = mid.dancers['down_robin'];
+      const dirToPartner = Math.atan2(dr.x - ul.x, dr.y - ul.y) * 180 / Math.PI;
+      // Facing should be 90° CW (i.e. +90°) from direction to partner
+      const expectedFacing = ((dirToPartner + 90) % 360 + 360) % 360;
+      const actualFacing = ((ul.facing % 360) + 360) % 360;
+      expect(actualFacing).toBeCloseTo(expectedFacing, 0);
+    });
+
+    it('allemande right adds right hand connections', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      // All allemande keyframes should have hand connections
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      expect(mid.hands).toContainEqual({ a: 'up_lark', ha: 'right', b: 'down_robin', hb: 'right' });
+      expect(mid.hands).toContainEqual({ a: 'up_robin', ha: 'right', b: 'down_lark', hb: 'right' });
+    });
+
+    it('allemande left adds left hand connections', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'allemande', relationship: 'partner', handedness: 'left', rotations: 0.5 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      expect(mid.hands).toContainEqual({ a: 'up_lark', ha: 'left', b: 'up_robin', hb: 'left' });
+      expect(mid.hands).toContainEqual({ a: 'down_lark', ha: 'left', b: 'down_robin', hb: 'left' });
+    });
+
+    it('allemande left orbits counter-clockwise', () => {
+      // Allemande left with neighbors: up_lark neighbors down_robin
+      // CCW orbit: up_lark (at -0.5,-0.5) should move east first (toward +x)
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 0.5 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      // After half rotation CCW, up_lark should be roughly where down_robin was
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers['up_lark'].x).toBeCloseTo(-0.5, 1);
+      expect(last.dancers['up_lark'].y).toBeCloseTo(0.5, 1);
     });
   });
 
@@ -559,7 +612,7 @@ describe('generateAllKeyframes', () => {
     it('split with allemande in one list and step in the other', () => {
       const instructions: Instruction[] = [{
         id: 1, type: 'split', by: 'position',
-        listA: [{ id: 10, beats: 8, type: 'allemande', relationship: 'partner', direction: 'cw', rotations: 1 }],
+        listA: [{ id: 10, beats: 8, type: 'allemande', relationship: 'partner', handedness: 'right', rotations: 1 }],
         listB: [{ id: 11, beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
       }];
       const kfs = generateAllKeyframes(instructions);
@@ -579,7 +632,7 @@ describe('generateAllKeyframes', () => {
   describe('balance', () => {
     it('dancers end at their starting position after a balance', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'across' } },
+        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'across' }, distance: 0.2 },
       ];
       const kfs = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -593,7 +646,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers are displaced at the midpoint of a balance', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'up' } },
+        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'up' }, distance: 0.2 },
       ];
       const kfs = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -607,7 +660,7 @@ describe('generateAllKeyframes', () => {
 
     it('balance produces multiple keyframes', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'right' } },
+        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'right' }, distance: 0.2 },
       ];
       const kfs = generateAllKeyframes(instructions);
       expect(kfs.length).toBeGreaterThan(2);
@@ -616,7 +669,7 @@ describe('generateAllKeyframes', () => {
 
     it('balance beats accumulate correctly', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 2, type: 'balance', direction: { kind: 'direction', value: 'forward' } },
+        { id: 1, beats: 2, type: 'balance', direction: { kind: 'direction', value: 'forward' }, distance: 0.2 },
         { id: 2, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
       ];
       const kfs = generateAllKeyframes(instructions);

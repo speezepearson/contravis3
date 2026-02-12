@@ -59,7 +59,7 @@ function summarizeAtomic(instr: AtomicInstruction): string {
     case 'drop_hands':
       return `drop ${instr.relationship} hands (${instr.beats}b)`;
     case 'allemande':
-      return `${instr.relationship} allemande ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
+      return `${instr.relationship} allemande ${instr.handedness} ${instr.rotations}x (${instr.beats}b)`;
     case 'turn': {
       const t = instr.target;
       const desc = t.kind === 'direction' ? t.value
@@ -79,7 +79,7 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       const desc = t.kind === 'direction' ? t.value
         : t.kind === 'cw' ? `${t.value}\u00B0`
         : t.value;
-      return `balance ${desc} (${instr.beats}b)`;
+      return `balance ${desc} ${instr.distance} (${instr.beats}b)`;
     }
   }
 }
@@ -135,7 +135,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [action, setAction] = useState<ActionType | 'split'>('take_hands');
   const [relationship, setRelationship] = useState<Relationship>('neighbor');
   const [hand, setHand] = useState<'left' | 'right'>('right');
-  const [direction, setDirection] = useState<'cw' | 'ccw'>('cw');
+  const [handedness, setHandedness] = useState<'left' | 'right'>('right');
   const [rotations, setRotations] = useState('1');
   const [turnText, setTurnText] = useState('');
   const [turnCompletion, setTurnCompletion] = useState('');
@@ -161,7 +161,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       setRelationship(instr.relationship);
     } else if (instr.type === 'allemande') {
       setRelationship(instr.relationship);
-      setDirection(instr.direction);
+      setHandedness(instr.handedness);
       setRotations(String(instr.rotations));
     } else if (instr.type === 'turn') {
       setTurnText(directionToText(instr.target));
@@ -173,6 +173,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     } else if (instr.type === 'balance') {
       setBalanceText(directionToText(instr.direction));
       setBalanceCompletion('');
+      setDistance(String(instr.distance));
     }
   }
 
@@ -193,7 +194,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       case 'drop_hands':
         return { ...base, type: 'drop_hands', relationship };
       case 'allemande':
-        return { ...base, type: 'allemande', relationship, direction, rotations: Number(rotations) || 1 };
+        return { ...base, type: 'allemande', relationship, handedness, rotations: Number(rotations) || 1 };
       case 'turn': {
         const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'turn', target };
@@ -204,7 +205,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       }
       case 'balance': {
         const dir = parseDirection(balanceText) ?? { kind: 'direction' as const, value: 'across' as const };
-        return { ...base, type: 'balance', direction: dir };
+        return { ...base, type: 'balance', direction: dir, distance: Number(distance) || 0 };
       }
     }
   }
@@ -394,10 +395,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         {action === 'allemande' && (
           <>
             <label>
-              Direction
-              <select value={direction} onChange={e => setDirection(e.target.value as 'cw' | 'ccw')}>
-                <option value="cw">clockwise</option>
-                <option value="ccw">counter-cw</option>
+              Hand
+              <select value={handedness} onChange={e => setHandedness(e.target.value as 'left' | 'right')}>
+                <option value="right">right</option>
+                <option value="left">left</option>
               </select>
             </label>
             <label>
@@ -450,16 +451,27 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         )}
 
         {action === 'balance' && (
-          <label>
-            Direction
-            <DirectionInput
-              value={balanceText}
-              completion={balanceCompletion}
-              inputRef={balanceInputRef}
-              onChange={(val, comp) => { setBalanceText(val); setBalanceCompletion(comp); }}
-              onComplete={() => { setBalanceText(balanceCompletion); setBalanceCompletion(''); }}
-            />
-          </label>
+          <>
+            <label>
+              Direction
+              <DirectionInput
+                value={balanceText}
+                completion={balanceCompletion}
+                inputRef={balanceInputRef}
+                onChange={(val, comp) => { setBalanceText(val); setBalanceCompletion(comp); }}
+                onComplete={() => { setBalanceText(balanceCompletion); setBalanceCompletion(''); }}
+              />
+            </label>
+            <label>
+              Distance
+              <input
+                type="text"
+                inputMode="decimal"
+                value={distance}
+                onChange={e => setDistance(e.target.value)}
+              />
+            </label>
+          </>
         )}
 
         {action !== 'split' && (

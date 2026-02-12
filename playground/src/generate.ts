@@ -121,9 +121,18 @@ function generateDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
 
 function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<string>): Keyframe[] {
   const pairs = scopedPairs(instr.relationship, scope);
-  const totalAngleDeg = instr.rotations * 360 * (instr.direction === 'cw' ? 1 : -1);
+  // right = CW, left = CCW
+  const totalAngleDeg = instr.rotations * 360 * (instr.handedness === 'right' ? 1 : -1);
   const totalAngleRad = totalAngleDeg * Math.PI / 180;
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+  // Shoulder offset: right hand → face 90° CCW from partner; left → 90° CW
+  const shoulderOffset = instr.handedness === 'right' ? -90 : 90;
+
+  // Build hand connections for the allemande pairs
+  const allemandHands: HandConnection[] = pairs.map(([a, b]) => ({
+    a, ha: instr.handedness, b, hb: instr.handedness,
+  }));
+  const hands = [...prev.hands, ...allemandHands];
 
   const keyframes: Keyframe[] = [];
 
@@ -154,20 +163,20 @@ function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { t
         const angle = pd.aAngle + angleOffset;
         dancers[pd.aId].x = pd.cx + pd.aRadius * Math.sin(angle);
         dancers[pd.aId].y = pd.cy + pd.aRadius * Math.cos(angle);
-        const faceDeg = Math.atan2(pd.cx - dancers[pd.aId].x, pd.cy - dancers[pd.aId].y) * 180 / Math.PI;
-        dancers[pd.aId].facing = ((faceDeg % 360) + 360) % 360;
+        const dirToPartner = Math.atan2(pd.cx - dancers[pd.aId].x, pd.cy - dancers[pd.aId].y) * 180 / Math.PI;
+        dancers[pd.aId].facing = ((dirToPartner + shoulderOffset) % 360 + 360) % 360;
       }
 
       if (scope.has(pd.bId)) {
         const angle = pd.bAngle + angleOffset;
         dancers[pd.bId].x = pd.cx + pd.bRadius * Math.sin(angle);
         dancers[pd.bId].y = pd.cy + pd.bRadius * Math.cos(angle);
-        const faceDeg = Math.atan2(pd.cx - dancers[pd.bId].x, pd.cy - dancers[pd.bId].y) * 180 / Math.PI;
-        dancers[pd.bId].facing = ((faceDeg % 360) + 360) % 360;
+        const dirToPartner = Math.atan2(pd.cx - dancers[pd.bId].x, pd.cy - dancers[pd.bId].y) * 180 / Math.PI;
+        dancers[pd.bId].facing = ((dirToPartner + shoulderOffset) % 360 + 360) % 360;
       }
     }
 
-    keyframes.push({ beat, dancers, hands: prev.hands });
+    keyframes.push({ beat, dancers, hands });
   }
 
   return keyframes;
@@ -221,10 +230,10 @@ function generateStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 
 
 function generateBalance(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'balance' }>, scope: Set<string>): Keyframe[] {
   const halfBeats = instr.beats / 2;
-  const stepOut = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: 0.2 };
+  const stepOut = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: instr.distance };
   const outFrames = generateStep(prev, stepOut, scope);
   const lastOut = outFrames.length > 0 ? outFrames[outFrames.length - 1] : prev;
-  const stepBack = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -0.2 };
+  const stepBack = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -instr.distance };
   const backFrames = generateStep(lastOut, stepBack, scope);
   return [...outFrames, ...backFrames];
 }

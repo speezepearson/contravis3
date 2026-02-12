@@ -13,10 +13,10 @@ export type AtomicInstruction = {
 } & (
   | { type: 'take_hands'; relationship: Relationship; hand: 'left' | 'right' }
   | { type: 'drop_hands'; relationship: Relationship }
-  | { type: 'allemande'; relationship: Relationship; direction: 'cw' | 'ccw'; rotations: number }
+  | { type: 'allemande'; relationship: Relationship; handedness: 'left' | 'right'; rotations: number }
   | { type: 'turn'; target: RelativeDirection }
   | { type: 'step'; direction: RelativeDirection; distance: number }
-  | { type: 'balance'; direction: RelativeDirection }
+  | { type: 'balance'; direction: RelativeDirection; distance: number }
 );
 
 export type SplitBy = 'role' | 'position';

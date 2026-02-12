@@ -148,7 +148,7 @@ test.describe('balance action', () => {
     await page.locator('.add-btn').click();
 
     const summary = page.locator('.instruction-summary').first();
-    await expect(summary).toContainText('balance across (2b)');
+    await expect(summary).toContainText('balance across 0.5 (2b)');
   });
 
   test('balance with facing-relative direction', async ({ page }) => {
@@ -162,7 +162,7 @@ test.describe('balance action', () => {
     await page.locator('.add-btn').click();
 
     const summary = page.locator('.instruction-summary').first();
-    await expect(summary).toContainText('balance forward (2b)');
+    await expect(summary).toContainText('balance forward 0.5 (2b)');
   });
 });
 
