@@ -141,6 +141,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [beats, setBeats] = useState('0');
   const [splitBy, setSplitBy] = useState<SplitBy>('role');
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [importText, setImportText] = useState('');
 
   function loadAtomicIntoForm(instr: AtomicInstruction) {
     setAction(instr.type);
@@ -304,6 +305,33 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     setContext({ level: 'sub', splitId, list });
     setEditingId(null);
     setAction('take_hands');
+  }
+
+  function copyJson() {
+    navigator.clipboard.writeText(JSON.stringify(instructions, null, 2));
+  }
+
+  function loadJson() {
+    try {
+      const parsed = JSON.parse(importText) as Instruction[];
+      if (!Array.isArray(parsed)) return;
+      setInstructions(parsed);
+      // Advance nextId past all loaded IDs
+      function maxId(instrs: Instruction[]): number {
+        let m = 0;
+        for (const i of instrs) {
+          m = Math.max(m, i.id);
+          if (i.type === 'split') {
+            for (const sub of [...i.listA, ...i.listB]) m = Math.max(m, sub.id);
+          }
+        }
+        return m;
+      }
+      nextId = maxId(parsed) + 1;
+      setImportText('');
+      setEditingId(null);
+      setContext({ level: 'top' });
+    } catch { /* invalid JSON, ignore */ }
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -526,6 +554,17 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         {instructions.length === 0 && (
           <div className="instruction-empty">No instructions yet. Add one above.</div>
         )}
+      </div>
+
+      <div className="json-io">
+        <button onClick={copyJson}>Copy JSON</button>
+        <textarea
+          value={importText}
+          onChange={e => setImportText(e.target.value)}
+          placeholder="Paste JSON here to load"
+          rows={3}
+        />
+        {importText && <button onClick={loadJson}>Load</button>}
       </div>
     </div>
   );
