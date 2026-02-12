@@ -1,4 +1,8 @@
 import { useState, useRef } from 'react';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget } from './types';
 
 type ActionType = AtomicInstruction['type'];
@@ -137,6 +141,20 @@ function DirectionInput({ value, completion, inputRef, onChange, onComplete }: {
       {completion && (
         <span className="face-ghost">{completion}</span>
       )}
+    </div>
+  );
+}
+
+function SortableItem({ id, children }: { id: number; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
     </div>
   );
 }
@@ -297,39 +315,29 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     }
   }
 
-  function moveUp(idx: number) {
-    if (idx === 0) return;
-    const next = [...instructions];
-    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-    setInstructions(next);
+  function handleTopLevelDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = instructions.findIndex(i => i.id === active.id);
+    const newIndex = instructions.findIndex(i => i.id === over.id);
+    if (oldIndex !== -1 && newIndex !== -1) {
+      setInstructions(arrayMove(instructions, oldIndex, newIndex));
+    }
   }
 
-  function moveDown(idx: number) {
-    if (idx === instructions.length - 1) return;
-    const next = [...instructions];
-    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-    setInstructions(next);
-  }
-
-  function moveSubUp(splitId: number, list: 'A' | 'B', idx: number) {
-    if (idx === 0) return;
+  function handleSubDragEnd(splitId: number, list: 'A' | 'B', event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
     setInstructions(instructions.map(i => {
       if (i.type !== 'split' || i.id !== splitId) return i;
       const key = list === 'A' ? 'listA' : 'listB';
-      const arr = [...i[key]];
-      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-      return { ...i, [key]: arr };
-    }));
-  }
-
-  function moveSubDown(splitId: number, list: 'A' | 'B', idx: number, length: number) {
-    if (idx === length - 1) return;
-    setInstructions(instructions.map(i => {
-      if (i.type !== 'split' || i.id !== splitId) return i;
-      const key = list === 'A' ? 'listA' : 'listB';
-      const arr = [...i[key]];
-      [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-      return { ...i, [key]: arr };
+      const arr = i[key];
+      const oldIndex = arr.findIndex(sub => sub.id === active.id);
+      const newIndex = arr.findIndex(sub => sub.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        return { ...i, [key]: arrayMove(arr, oldIndex, newIndex) };
+      }
+      return i;
     }));
   }
 
@@ -338,6 +346,8 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     setEditingId(null);
     setAction('take_hands');
   }
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const isSubContext = context.level === 'sub';
   const currentSplit = isSubContext
@@ -525,20 +535,27 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       </div>
 
       <div className="instruction-list">
-        {instructions.map((instr, idx) => (
-          <div key={instr.id}>
-            <div className={`instruction-item${editingId === instr.id && context.level === 'top' ? ' editing' : ''}`}>
-              <span className="instruction-summary">{summarize(instr)}</span>
-              <div className="instruction-actions">
-                <button onClick={() => startEdit(instr)} title="Edit">{'\u270E'}</button>
-                <button onClick={() => moveUp(idx)} disabled={idx === 0} title="Move up">{'\u25B2'}</button>
-                <button onClick={() => moveDown(idx)} disabled={idx === instructions.length - 1} title="Move down">{'\u25BC'}</button>
-                <button onClick={() => remove(instr.id)} title="Delete">{'\u00D7'}</button>
-              </div>
-            </div>
-            {instr.type === 'split' && renderSplitBody(instr)}
-          </div>
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTopLevelDragEnd}>
+          <SortableContext items={instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
+            {instructions.map(instr => (
+              <SortableItem key={instr.id} id={instr.id}>
+                {(dragHandleProps) => (
+                  <>
+                    <div className={`instruction-item${editingId === instr.id && context.level === 'top' ? ' editing' : ''}`}>
+                      <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
+                      <span className="instruction-summary">{summarize(instr)}</span>
+                      <div className="instruction-actions">
+                        <button onClick={() => startEdit(instr)} title="Edit">{'\u270E'}</button>
+                        <button onClick={() => remove(instr.id)} title="Delete">{'\u00D7'}</button>
+                      </div>
+                    </div>
+                    {instr.type === 'split' && renderSplitBody(instr)}
+                  </>
+                )}
+              </SortableItem>
+            ))}
+          </SortableContext>
+        </DndContext>
         {instructions.length === 0 && (
           <div className="instruction-empty">No instructions yet. Add one above.</div>
         )}
@@ -555,20 +572,24 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           return (
             <div key={list} className="split-group">
               <div className="split-group-header">{label}:</div>
-              {subList.map((sub, subIdx) => (
-                <div
-                  key={sub.id}
-                  className={`instruction-item split-sub-item${editingId === sub.id ? ' editing' : ''}`}
-                >
-                  <span className="instruction-summary">{summarizeAtomic(sub)}</span>
-                  <div className="instruction-actions">
-                    <button onClick={() => startSubEdit(split.id, list, sub)} title="Edit">{'\u270E'}</button>
-                    <button onClick={() => moveSubUp(split.id, list, subIdx)} disabled={subIdx === 0} title="Move up">{'\u25B2'}</button>
-                    <button onClick={() => moveSubDown(split.id, list, subIdx, subList.length)} disabled={subIdx === subList.length - 1} title="Move down">{'\u25BC'}</button>
-                    <button onClick={() => removeSub(split.id, list, sub.id)} title="Delete">{'\u00D7'}</button>
-                  </div>
-                </div>
-              ))}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => handleSubDragEnd(split.id, list, e)}>
+                <SortableContext items={subList.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  {subList.map(sub => (
+                    <SortableItem key={sub.id} id={sub.id}>
+                      {(dragHandleProps) => (
+                        <div className={`instruction-item split-sub-item${editingId === sub.id ? ' editing' : ''}`}>
+                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
+                          <span className="instruction-summary">{summarizeAtomic(sub)}</span>
+                          <div className="instruction-actions">
+                            <button onClick={() => startSubEdit(split.id, list, sub)} title="Edit">{'\u270E'}</button>
+                            <button onClick={() => removeSub(split.id, list, sub.id)} title="Delete">{'\u00D7'}</button>
+                          </div>
+                        </div>
+                      )}
+                    </SortableItem>
+                  ))}
+                </SortableContext>
+              </DndContext>
               <button
                 className="split-add-btn"
                 onClick={() => enterSubContext(split.id, list)}

@@ -214,6 +214,17 @@ input[type="range"] {
   background: #2a2a55;
 }
 
+.drag-handle {
+  cursor: grab;
+  color: #666;
+  padding: 0 4px;
+  margin-right: 4px;
+  user-select: none;
+  font-size: 12px;
+}
+.drag-handle:hover { color: #aaa; }
+.drag-handle:active { cursor: grabbing; }
+
 .instruction-summary {
   flex: 1;
   margin-right: 8px;
