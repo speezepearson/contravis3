@@ -1,4 +1,4 @@
-import type { Instruction, Keyframe, Selector, Relationship, FaceTarget, DancerState, HandConnection } from './types';
+import type { Instruction, Keyframe, Selector, Relationship, RelativeDirection, DancerState, HandConnection } from './types';
 
 const DANCER_IDS = ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const;
 
@@ -9,6 +9,8 @@ const SELECTOR_MAP: Record<Selector, string[]> = {
   ups:      ['up_lark', 'up_robin'],
   downs:    ['down_lark', 'down_robin'],
 };
+
+const UPS = new Set(['up_lark', 'up_robin']);
 
 const RELATIONSHIP_PAIRS: Record<Relationship, [string, string][]> = {
   partner:  [['up_lark', 'up_robin'], ['down_lark', 'down_robin']],
@@ -46,6 +48,46 @@ function selectedPairs(relationship: Relationship, selector: Selector): [string,
 
 function easeInOut(t: number): number {
   return (1 - Math.cos(t * Math.PI)) / 2;
+}
+
+/** Resolve a RelativeDirection to an absolute heading in radians for a specific dancer.
+ *  Uses atan2(dx,dy) convention: 0 = +y (north/up on screen). */
+function resolveHeading(dir: RelativeDirection, d: DancerState, id: string, dancers: Record<string, DancerState>): number {
+  if (dir.kind === 'cw') {
+    // CW degrees relative to current facing
+    return (d.facing + dir.value) * Math.PI / 180;
+  }
+  if (dir.kind === 'direction') {
+    switch (dir.value) {
+      case 'up':               return 0;
+      case 'down':             return Math.PI;
+      case 'across':           return d.x < 0 ? Math.PI / 2 : -Math.PI / 2;
+      case 'out':              return d.x < 0 ? -Math.PI / 2 : Math.PI / 2;
+      case 'progression':      return UPS.has(id) ? 0 : Math.PI;
+      case 'anti-progression': return UPS.has(id) ? Math.PI : 0;
+    }
+  }
+  // relationship: toward the matched partner
+  const pairs = RELATIONSHIP_PAIRS[dir.value];
+  let targetId: string | null = null;
+  for (const [a, b] of pairs) {
+    if (a === id) { targetId = b; break; }
+    if (b === id) { targetId = a; break; }
+  }
+  if (targetId) {
+    const t = dancers[targetId];
+    return Math.atan2(t.x - d.x, t.y - d.y);
+  }
+  return 0;
+}
+
+/** Resolve a RelativeDirection to an absolute facing in degrees. */
+function resolveFacing(dir: RelativeDirection, d: DancerState, id: string, dancers: Record<string, DancerState>): number {
+  if (dir.kind === 'cw') {
+    return ((d.facing + dir.value) % 360 + 360) % 360;
+  }
+  const heading = resolveHeading(dir, d, id, dancers);
+  return ((heading * 180 / Math.PI) % 360 + 360) % 360;
 }
 
 // --- Per-instruction generators ---
@@ -87,7 +129,6 @@ function generateAllemande(prev: Keyframe, instr: Extract<Instruction, { type: '
 
   const keyframes: Keyframe[] = [];
 
-  // Precompute per-pair initial angles and radii
   const pairData = pairs.map(([aId, bId]) => {
     const da = prev.dancers[aId];
     const db = prev.dancers[bId];
@@ -111,69 +152,36 @@ function generateAllemande(prev: Keyframe, instr: Extract<Instruction, { type: '
     const dancers = copyDancers(prev.dancers);
 
     for (const pd of pairData) {
-      // Move dancer A
       if (selected.has(pd.aId)) {
         const angle = pd.aAngle + angleOffset;
         dancers[pd.aId].x = pd.cx + pd.aRadius * Math.sin(angle);
         dancers[pd.aId].y = pd.cy + pd.aRadius * Math.cos(angle);
-        // Face toward center
         const faceDeg = Math.atan2(pd.cx - dancers[pd.aId].x, pd.cy - dancers[pd.aId].y) * 180 / Math.PI;
         dancers[pd.aId].facing = ((faceDeg % 360) + 360) % 360;
       }
 
-      // Move dancer B
       if (selected.has(pd.bId)) {
         const angle = pd.bAngle + angleOffset;
         dancers[pd.bId].x = pd.cx + pd.bRadius * Math.sin(angle);
         dancers[pd.bId].y = pd.cy + pd.bRadius * Math.cos(angle);
-        // Face toward center
         const faceDeg = Math.atan2(pd.cx - dancers[pd.bId].x, pd.cy - dancers[pd.bId].y) * 180 / Math.PI;
         dancers[pd.bId].facing = ((faceDeg % 360) + 360) % 360;
       }
     }
 
-    keyframes.push({
-      beat,
-      dancers,
-      hands: prev.hands,
-    });
+    keyframes.push({ beat, dancers, hands: prev.hands });
   }
 
   return keyframes;
 }
 
-function generateFace(prev: Keyframe, instr: Extract<Instruction, { type: 'face' }>): Keyframe[] {
+function generateTurn(prev: Keyframe, instr: Extract<Instruction, { type: 'turn' }>): Keyframe[] {
   const selected = new Set(SELECTOR_MAP[instr.selector]);
   const dancers = copyDancers(prev.dancers);
-  const target = instr.target;
 
   for (const id of DANCER_IDS) {
     if (!selected.has(id)) continue;
-    const d = dancers[id];
-
-    if (target.kind === 'direction') {
-      switch (target.value) {
-        case 'up':     d.facing = 0; break;
-        case 'down':   d.facing = 180; break;
-        case 'across': d.facing = d.x < 0 ? 90 : 270; break;
-        case 'out':    d.facing = d.x < 0 ? 270 : 90; break;
-      }
-    } else if (target.kind === 'degrees') {
-      d.facing = target.value;
-    } else if (target.kind === 'relationship') {
-      // Find the relationship target dancer
-      const pairs = RELATIONSHIP_PAIRS[target.value];
-      let targetId: string | null = null;
-      for (const [a, b] of pairs) {
-        if (a === id) { targetId = b; break; }
-        if (b === id) { targetId = a; break; }
-      }
-      if (targetId) {
-        const t = dancers[targetId];
-        const angle = Math.atan2(t.x - d.x, t.y - d.y) * 180 / Math.PI;
-        d.facing = ((angle % 360) + 360) % 360;
-      }
-    }
+    dancers[id].facing = resolveFacing(instr.target, prev.dancers[id], id, prev.dancers);
   }
 
   return [{
@@ -183,44 +191,15 @@ function generateFace(prev: Keyframe, instr: Extract<Instruction, { type: 'face'
   }];
 }
 
-/** Resolve a FaceTarget to a heading in radians for a specific dancer. */
-function resolveHeading(target: FaceTarget, d: DancerState, id: string, dancers: Record<string, DancerState>): number {
-  if (target.kind === 'degrees') {
-    return target.value * Math.PI / 180;
-  }
-  if (target.kind === 'direction') {
-    switch (target.value) {
-      case 'up':     return 0;
-      case 'down':   return Math.PI;
-      case 'across': return d.x < 0 ? Math.PI / 2 : -Math.PI / 2;
-      case 'out':    return d.x < 0 ? -Math.PI / 2 : Math.PI / 2;
-    }
-  }
-  // relationship: toward the matched partner
-  const pairs = RELATIONSHIP_PAIRS[target.value];
-  let targetId: string | null = null;
-  for (const [a, b] of pairs) {
-    if (a === id) { targetId = b; break; }
-    if (b === id) { targetId = a; break; }
-  }
-  if (targetId) {
-    const t = dancers[targetId];
-    return Math.atan2(t.x - d.x, t.y - d.y);
-  }
-  return 0;
-}
-
 function generateStep(prev: Keyframe, instr: Extract<Instruction, { type: 'step' }>): Keyframe[] {
   const selected = new Set(SELECTOR_MAP[instr.selector]);
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  // Precompute displacement per selected dancer (resolve heading from prev positions)
   const displacements: Record<string, { dx: number; dy: number }> = {};
   for (const id of DANCER_IDS) {
     if (!selected.has(id)) continue;
     const d = prev.dancers[id];
     const heading = resolveHeading(instr.direction, d, id, prev.dancers);
-    // heading uses atan2(dx,dy) convention: 0 = +y (up on screen)
     displacements[id] = {
       dx: Math.sin(heading) * instr.distance,
       dy: Math.cos(heading) * instr.distance,
@@ -263,8 +242,8 @@ export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
       case 'allemande':
         newFrames = generateAllemande(prev, instr);
         break;
-      case 'face':
-        newFrames = generateFace(prev, instr);
+      case 'turn':
+        newFrames = generateTurn(prev, instr);
         break;
       case 'step':
         newFrames = generateStep(prev, instr);

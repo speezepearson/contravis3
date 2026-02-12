@@ -4,9 +4,10 @@ export type Selector = 'everyone' | 'larks' | 'robins' | 'ups' | 'downs';
 // Who they interact with (only for actions that involve a partner)
 export type Relationship = 'partner' | 'neighbor' | 'opposite';
 
-export type FaceTarget =
-  | { kind: 'direction'; value: 'up' | 'down' | 'across' | 'out' }
-  | { kind: 'degrees'; value: number }
+// Direction relative to a dancer: a named direction, a relationship, or CW degrees
+export type RelativeDirection =
+  | { kind: 'direction'; value: 'up' | 'down' | 'across' | 'out' | 'progression' | 'anti-progression' }
+  | { kind: 'cw'; value: number }         // clockwise degrees from current facing
   | { kind: 'relationship'; value: Relationship };
 
 export type Instruction = {
@@ -17,8 +18,8 @@ export type Instruction = {
   | { type: 'take_hands'; relationship: Relationship; hand: 'left' | 'right' }
   | { type: 'drop_hands'; relationship: Relationship }
   | { type: 'allemande'; relationship: Relationship; direction: 'cw' | 'ccw'; rotations: number }
-  | { type: 'face'; target: FaceTarget }
-  | { type: 'step'; direction: FaceTarget; distance: number }
+  | { type: 'turn'; target: RelativeDirection }
+  | { type: 'step'; direction: RelativeDirection; distance: number }
 );
 
 export interface DancerState {

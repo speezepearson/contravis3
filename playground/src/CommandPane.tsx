@@ -1,26 +1,26 @@
 import { useState, useRef } from 'react';
-import type { Instruction, Selector, Relationship, FaceTarget } from './types';
+import type { Instruction, Selector, Relationship, RelativeDirection } from './types';
 
 type ActionType = Instruction['type'];
 
-const FACE_COMPLETIONS = ['up', 'down', 'across', 'out', 'partner', 'neighbor', 'opposite'];
-const DIRECTIONS = new Set(['up', 'down', 'across', 'out']);
-const RELATIONSHIPS = new Set(['partner', 'neighbor', 'opposite']);
+const DIR_COMPLETIONS = ['up', 'down', 'across', 'out', 'progression', 'anti-progression', 'partner', 'neighbor', 'opposite'];
 
-function parseFaceTarget(text: string): FaceTarget | null {
+function parseDirection(text: string): RelativeDirection | null {
   const trimmed = text.trim().toLowerCase();
   if (!trimmed) return null;
-  if (DIRECTIONS.has(trimmed)) return { kind: 'direction', value: trimmed as 'up' | 'down' | 'across' | 'out' };
-  if (RELATIONSHIPS.has(trimmed)) return { kind: 'relationship', value: trimmed as Relationship };
+  const directions = new Set(['up', 'down', 'across', 'out', 'progression', 'anti-progression']);
+  const relationships = new Set(['partner', 'neighbor', 'opposite']);
+  if (directions.has(trimmed)) return { kind: 'direction', value: trimmed as RelativeDirection & { kind: 'direction' } extends { value: infer V } ? V : never };
+  if (relationships.has(trimmed)) return { kind: 'relationship', value: trimmed as Relationship };
   const num = Number(trimmed);
-  if (!isNaN(num)) return { kind: 'degrees', value: num };
+  if (!isNaN(num)) return { kind: 'cw', value: num };
   return null;
 }
 
-function faceTargetToText(target: FaceTarget): string {
-  if (target.kind === 'direction') return target.value;
-  if (target.kind === 'relationship') return target.value;
-  return String(target.value);
+function directionToText(dir: RelativeDirection): string {
+  if (dir.kind === 'direction') return dir.value;
+  if (dir.kind === 'relationship') return dir.value;
+  return String(dir.value);
 }
 
 let nextId = 1;
@@ -39,21 +39,57 @@ function summarize(instr: Instruction): string {
       return `${sel}drop ${instr.relationship} hands (${instr.beats}b)`;
     case 'allemande':
       return `${sel}${instr.relationship} allemande ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
-    case 'face': {
+    case 'turn': {
       const t = instr.target;
       const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'degrees' ? `${t.value}°`
+        : t.kind === 'cw' ? `${t.value}°`
         : t.value;
-      return `${sel}face ${desc} (${instr.beats}b)`;
+      return `${sel}turn ${desc} (${instr.beats}b)`;
     }
     case 'step': {
       const t = instr.direction;
       const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'degrees' ? `${t.value}°`
+        : t.kind === 'cw' ? `${t.value}°`
         : t.value;
       return `${sel}step ${desc} ${instr.distance} (${instr.beats}b)`;
     }
   }
+}
+
+function DirectionInput({ value, completion, inputRef, onChange, onComplete }: {
+  value: string;
+  completion: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onChange: (val: string, completion: string) => void;
+  onComplete: () => void;
+}) {
+  return (
+    <div className="face-input-wrap">
+      <input
+        ref={inputRef}
+        type="text"
+        className="face-input"
+        value={value}
+        placeholder="e.g. across, neighbor, 45"
+        onChange={e => {
+          const val = e.target.value;
+          const lower = val.trim().toLowerCase();
+          const match = lower ? DIR_COMPLETIONS.find(c => c.startsWith(lower) && c !== lower) ?? '' : '';
+          onChange(val, match);
+        }}
+        onKeyDown={e => {
+          if (e.key === 'Tab' && completion) {
+            e.preventDefault();
+            onComplete();
+          }
+        }}
+        onBlur={() => onChange(value, '')}
+      />
+      {completion && (
+        <span className="face-ghost">{completion}</span>
+      )}
+    </div>
+  );
 }
 
 export default function CommandPane({ instructions, setInstructions }: Props) {
@@ -63,9 +99,9 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [hand, setHand] = useState<'left' | 'right'>('right');
   const [direction, setDirection] = useState<'cw' | 'ccw'>('cw');
   const [rotations, setRotations] = useState(1);
-  const [faceText, setFaceText] = useState('');
-  const [faceCompletion, setFaceCompletion] = useState('');
-  const faceInputRef = useRef<HTMLInputElement>(null);
+  const [turnText, setTurnText] = useState('');
+  const [turnCompletion, setTurnCompletion] = useState('');
+  const turnInputRef = useRef<HTMLInputElement>(null);
   const [stepText, setStepText] = useState('');
   const [stepCompletion, setStepCompletion] = useState('');
   const stepInputRef = useRef<HTMLInputElement>(null);
@@ -86,11 +122,11 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       setRelationship(instr.relationship);
       setDirection(instr.direction);
       setRotations(instr.rotations);
-    } else if (instr.type === 'face') {
-      setFaceText(faceTargetToText(instr.target));
-      setFaceCompletion('');
+    } else if (instr.type === 'turn') {
+      setTurnText(directionToText(instr.target));
+      setTurnCompletion('');
     } else if (instr.type === 'step') {
-      setStepText(faceTargetToText(instr.direction));
+      setStepText(directionToText(instr.direction));
       setStepCompletion('');
       setDistance(instr.distance);
     }
@@ -105,12 +141,12 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         return { ...base, type: 'drop_hands', relationship };
       case 'allemande':
         return { ...base, type: 'allemande', relationship, direction, rotations };
-      case 'face': {
-        const target = parseFaceTarget(faceText) ?? { kind: 'direction' as const, value: 'up' as const };
-        return { ...base, type: 'face', target };
+      case 'turn': {
+        const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
+        return { ...base, type: 'turn', target };
       }
       case 'step': {
-        const dir = parseFaceTarget(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
+        const dir = parseDirection(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'step', direction: dir, distance };
       }
     }
@@ -173,7 +209,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
             <option value="take_hands">take hands</option>
             <option value="drop_hands">drop hands</option>
             <option value="allemande">allemande</option>
-            <option value="face">face</option>
+            <option value="turn">turn</option>
             <option value="step">step</option>
           </select>
         </label>
@@ -221,40 +257,16 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           </>
         )}
 
-        {action === 'face' && (
+        {action === 'turn' && (
           <label>
             Target
-            <div className="face-input-wrap">
-              <input
-                ref={faceInputRef}
-                type="text"
-                className="face-input"
-                value={faceText}
-                placeholder="e.g. across, neighbor, 45"
-                onChange={e => {
-                  const val = e.target.value;
-                  setFaceText(val);
-                  const lower = val.trim().toLowerCase();
-                  if (lower) {
-                    const match = FACE_COMPLETIONS.find(c => c.startsWith(lower) && c !== lower);
-                    setFaceCompletion(match ?? '');
-                  } else {
-                    setFaceCompletion('');
-                  }
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Tab' && faceCompletion) {
-                    e.preventDefault();
-                    setFaceText(faceCompletion);
-                    setFaceCompletion('');
-                  }
-                }}
-                onBlur={() => setFaceCompletion('')}
-              />
-              {faceCompletion && (
-                <span className="face-ghost">{faceCompletion}</span>
-              )}
-            </div>
+            <DirectionInput
+              value={turnText}
+              completion={turnCompletion}
+              inputRef={turnInputRef}
+              onChange={(val, comp) => { setTurnText(val); setTurnCompletion(comp); }}
+              onComplete={() => { setTurnText(turnCompletion); setTurnCompletion(''); }}
+            />
           </label>
         )}
 
@@ -262,37 +274,13 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           <>
             <label>
               Direction
-              <div className="face-input-wrap">
-                <input
-                  ref={stepInputRef}
-                  type="text"
-                  className="face-input"
-                  value={stepText}
-                  placeholder="e.g. across, neighbor, 45"
-                  onChange={e => {
-                    const val = e.target.value;
-                    setStepText(val);
-                    const lower = val.trim().toLowerCase();
-                    if (lower) {
-                      const match = FACE_COMPLETIONS.find(c => c.startsWith(lower) && c !== lower);
-                      setStepCompletion(match ?? '');
-                    } else {
-                      setStepCompletion('');
-                    }
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Tab' && stepCompletion) {
-                      e.preventDefault();
-                      setStepText(stepCompletion);
-                      setStepCompletion('');
-                    }
-                  }}
-                  onBlur={() => setStepCompletion('')}
-                />
-                {stepCompletion && (
-                  <span className="face-ghost">{stepCompletion}</span>
-                )}
-              </div>
+              <DirectionInput
+                value={stepText}
+                completion={stepCompletion}
+                inputRef={stepInputRef}
+                onChange={(val, comp) => { setStepText(val); setStepCompletion(comp); }}
+                onComplete={() => { setStepText(stepCompletion); setStepCompletion(''); }}
+              />
             </label>
             <label>
               Distance
