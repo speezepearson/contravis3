@@ -81,7 +81,8 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       const desc = t.kind === 'direction' ? t.value
         : t.kind === 'cw' ? `${t.value}\u00B0`
         : t.value;
-      return `turn ${desc} (${instr.beats}b)`;
+      const offsetStr = instr.offset ? ` +${instr.offset}\u00B0` : '';
+      return `turn ${desc}${offsetStr} (${instr.beats}b)`;
     }
     case 'step': {
       const t = instr.direction;
@@ -133,6 +134,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [handedness, setHandedness] = useState<'left' | 'right'>('right');
   const [rotations, setRotations] = useState('1');
   const [turnText, setTurnText] = useState('');
+  const [turnOffset, setTurnOffset] = useState('0');
   const [stepText, setStepText] = useState('');
   const [balanceText, setBalanceText] = useState('');
   const [distance, setDistance] = useState('0.5');
@@ -154,6 +156,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       setRotations(String(instr.rotations));
     } else if (instr.type === 'turn') {
       setTurnText(directionToText(instr.target));
+      setTurnOffset(String(instr.offset));
     } else if (instr.type === 'step') {
       setStepText(directionToText(instr.direction));
       setDistance(String(instr.distance));
@@ -183,7 +186,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         return { ...base, type: 'allemande', relationship, handedness, rotations: Number(rotations) || 1 };
       case 'turn': {
         const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
-        return { ...base, type: 'turn', target };
+        return { ...base, type: 'turn', target, offset: Number(turnOffset) || 0 };
       }
       case 'step': {
         const dir = parseDirection(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
@@ -412,15 +415,26 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         )}
 
         {action === 'turn' && (
-          <label>
-            Target
-            <SearchableDropdown
-              options={DIR_OPTIONS}
-              value={turnText}
-              onChange={setTurnText}
-              placeholder="e.g. across, partner, 45"
-            />
-          </label>
+          <>
+            <label>
+              Target
+              <SearchableDropdown
+                options={DIR_OPTIONS}
+                value={turnText}
+                onChange={setTurnText}
+                placeholder="e.g. across, partner, 45"
+              />
+            </label>
+            <label>
+              Offset
+              <input
+                type="text"
+                inputMode="decimal"
+                value={turnOffset}
+                onChange={e => setTurnOffset(e.target.value)}
+              />
+            </label>
+          </>
         )}
 
         {action === 'step' && (

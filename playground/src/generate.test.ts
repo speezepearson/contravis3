@@ -80,7 +80,7 @@ describe('generateAllKeyframes', () => {
     it('on_left after turning to face across resolves correctly', () => {
       // Turn everyone to face across, then "on your left" should be clear
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'across' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'across' } },
         { id: 2, beats: 0, type: 'take_hands', relationship: 'on_left', hand: 'left' },
       ];
       const kfs = generateAllKeyframes(instructions);
@@ -147,7 +147,7 @@ describe('generateAllKeyframes', () => {
   describe('turn', () => {
     it('turns dancers to face up (0 degrees)', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'up' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -158,7 +158,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face down (180 degrees)', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'down' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -169,7 +169,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face across', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'across' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'across' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -181,7 +181,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face out', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'out' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'out' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -193,7 +193,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face progression direction', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'progression' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'progression' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -205,7 +205,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face forward (same as current facing)', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'forward' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'forward' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -216,7 +216,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face back (opposite of current facing)', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'back' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'back' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -226,7 +226,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face right (90° CW from current facing)', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'right' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'right' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -237,7 +237,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face left (90° CCW from current facing)', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'left' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'left' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -248,7 +248,7 @@ describe('generateAllKeyframes', () => {
 
     it('rotates dancers clockwise by given degrees from current facing', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'cw', value: 90 } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'cw', value: 90 } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -260,7 +260,7 @@ describe('generateAllKeyframes', () => {
 
     it('negative CW degrees means counter-clockwise', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'cw', value: -90 } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'cw', value: -90 } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -268,9 +268,21 @@ describe('generateAllKeyframes', () => {
       expect(last.dancers['down_lark'].facing).toBeCloseTo(90, 5);
     });
 
+    it('applies offset degrees clockwise on top of target direction', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'turn', offset: 90, target: { kind: 'direction', value: 'up' } },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // Up (0°) + 90° offset = 90° (east) for all dancers
+      for (const d of Object.values(last.dancers)) {
+        expect(d.facing).toBeCloseTo(90, 5);
+      }
+    });
+
     it('turns selected dancers toward a relationship target', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'relationship', value: 'partner' } },
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'partner' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -541,8 +553,8 @@ describe('generateAllKeyframes', () => {
   describe('instruction sequencing', () => {
     it('beats accumulate across instructions', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 4, type: 'turn', target: { kind: 'direction', value: 'up' } },
-        { id: 2, beats: 4, type: 'turn', target: { kind: 'direction', value: 'down' } },
+        { id: 1, beats: 4, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
+        { id: 2, beats: 4, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       expect(kfs[0].beat).toBe(0);
@@ -571,8 +583,8 @@ describe('generateAllKeyframes', () => {
     it('split by position: ups and downs do different things', () => {
       const instructions: Instruction[] = [{
         id: 1, type: 'split', by: 'position',
-        listA: [{ id: 10, beats: 0, type: 'turn', target: { kind: 'direction', value: 'down' } }],
-        listB: [{ id: 11, beats: 0, type: 'turn', target: { kind: 'direction', value: 'up' } }],
+        listA: [{ id: 10, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } }],
+        listB: [{ id: 11, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } }],
       }];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];

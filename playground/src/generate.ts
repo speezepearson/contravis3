@@ -251,7 +251,8 @@ function generateTurn(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 
 
   for (const id of DANCER_IDS) {
     if (!scope.has(id)) continue;
-    dancers[id].facing = resolveFacing(instr.target, prev.dancers[id], id, prev.dancers);
+    const base = resolveFacing(instr.target, prev.dancers[id], id, prev.dancers);
+    dancers[id].facing = ((base + instr.offset) % 360 + 360) % 360;
   }
 
   return [{

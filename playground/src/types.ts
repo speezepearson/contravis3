@@ -18,7 +18,7 @@ export type AtomicInstruction = {
   | { type: 'take_hands'; relationship: Relationship; hand: 'left' | 'right' }
   | { type: 'drop_hands'; target: DropHandsTarget }
   | { type: 'allemande'; relationship: Relationship; handedness: 'left' | 'right'; rotations: number }
-  | { type: 'turn'; target: RelativeDirection }
+  | { type: 'turn'; target: RelativeDirection; offset: number }
   | { type: 'step'; direction: RelativeDirection; distance: number }
   | { type: 'balance'; direction: RelativeDirection; distance: number }
 );
