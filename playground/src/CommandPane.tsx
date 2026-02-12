@@ -1,7 +1,27 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Instruction, Selector, Relationship, FaceTarget } from './types';
 
 type ActionType = Instruction['type'];
+
+const FACE_COMPLETIONS = ['up', 'down', 'across', 'out', 'partner', 'neighbor', 'opposite'];
+const DIRECTIONS = new Set(['up', 'down', 'across', 'out']);
+const RELATIONSHIPS = new Set(['partner', 'neighbor', 'opposite']);
+
+function parseFaceTarget(text: string): FaceTarget | null {
+  const trimmed = text.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (DIRECTIONS.has(trimmed)) return { kind: 'direction', value: trimmed as 'up' | 'down' | 'across' | 'out' };
+  if (RELATIONSHIPS.has(trimmed)) return { kind: 'relationship', value: trimmed as Relationship };
+  const num = Number(trimmed);
+  if (!isNaN(num)) return { kind: 'degrees', value: num };
+  return null;
+}
+
+function faceTargetToText(target: FaceTarget): string {
+  if (target.kind === 'direction') return target.value;
+  if (target.kind === 'relationship') return target.value;
+  return String(target.value);
+}
 
 let nextId = 1;
 
@@ -36,10 +56,9 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [hand, setHand] = useState<'left' | 'right'>('right');
   const [direction, setDirection] = useState<'cw' | 'ccw'>('cw');
   const [rotations, setRotations] = useState(1);
-  const [faceKind, setFaceKind] = useState<FaceTarget['kind']>('direction');
-  const [faceDirection, setFaceDirection] = useState<'up' | 'down' | 'across' | 'out'>('up');
-  const [faceDegrees, setFaceDegrees] = useState(0);
-  const [faceRelationship, setFaceRelationship] = useState<Relationship>('partner');
+  const [faceText, setFaceText] = useState('');
+  const [faceCompletion, setFaceCompletion] = useState('');
+  const faceInputRef = useRef<HTMLInputElement>(null);
   const [beats, setBeats] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -57,10 +76,8 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       setDirection(instr.direction);
       setRotations(instr.rotations);
     } else if (instr.type === 'face') {
-      setFaceKind(instr.target.kind);
-      if (instr.target.kind === 'direction') setFaceDirection(instr.target.value);
-      else if (instr.target.kind === 'degrees') setFaceDegrees(instr.target.value);
-      else setFaceRelationship(instr.target.value);
+      setFaceText(faceTargetToText(instr.target));
+      setFaceCompletion('');
     }
   }
 
@@ -74,10 +91,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       case 'allemande':
         return { ...base, type: 'allemande', relationship, direction, rotations };
       case 'face': {
-        let target: FaceTarget;
-        if (faceKind === 'direction') target = { kind: 'direction', value: faceDirection };
-        else if (faceKind === 'degrees') target = { kind: 'degrees', value: faceDegrees };
-        else target = { kind: 'relationship', value: faceRelationship };
+        const target = parseFaceTarget(faceText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'face', target };
       }
     }
@@ -188,47 +202,40 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
         )}
 
         {action === 'face' && (
-          <>
-            <label>
-              Target
-              <select value={faceKind} onChange={e => setFaceKind(e.target.value as FaceTarget['kind'])}>
-                <option value="direction">direction</option>
-                <option value="degrees">degrees</option>
-                <option value="relationship">relationship</option>
-              </select>
-            </label>
-            {faceKind === 'direction' && (
-              <label>
-                Direction
-                <select value={faceDirection} onChange={e => setFaceDirection(e.target.value as 'up' | 'down' | 'across' | 'out')}>
-                  <option value="up">up</option>
-                  <option value="down">down</option>
-                  <option value="across">across</option>
-                  <option value="out">out</option>
-                </select>
-              </label>
-            )}
-            {faceKind === 'degrees' && (
-              <label>
-                Degrees
-                <input
-                  type="number"
-                  value={faceDegrees}
-                  onChange={e => setFaceDegrees(Number(e.target.value))}
-                />
-              </label>
-            )}
-            {faceKind === 'relationship' && (
-              <label>
-                Toward
-                <select value={faceRelationship} onChange={e => setFaceRelationship(e.target.value as Relationship)}>
-                  <option value="partner">partner</option>
-                  <option value="neighbor">neighbor</option>
-                  <option value="opposite">opposite</option>
-                </select>
-              </label>
-            )}
-          </>
+          <label>
+            Target
+            <div className="face-input-wrap">
+              <input
+                ref={faceInputRef}
+                type="text"
+                className="face-input"
+                value={faceText}
+                placeholder="e.g. across, neighbor, 45"
+                onChange={e => {
+                  const val = e.target.value;
+                  setFaceText(val);
+                  const lower = val.trim().toLowerCase();
+                  if (lower) {
+                    const match = FACE_COMPLETIONS.find(c => c.startsWith(lower) && c !== lower);
+                    setFaceCompletion(match ?? '');
+                  } else {
+                    setFaceCompletion('');
+                  }
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Tab' && faceCompletion) {
+                    e.preventDefault();
+                    setFaceText(faceCompletion);
+                    setFaceCompletion('');
+                  }
+                }}
+                onBlur={() => setFaceCompletion('')}
+              />
+              {faceCompletion && (
+                <span className="face-ghost">{faceCompletion}</span>
+              )}
+            </div>
+          </label>
         )}
 
         <label>

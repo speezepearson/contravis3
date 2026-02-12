@@ -134,7 +134,8 @@ input[type="range"] {
 }
 
 .instruction-builder select,
-.instruction-builder input[type="number"] {
+.instruction-builder input[type="number"],
+.instruction-builder input[type="text"] {
   background: #2a2a4a;
   color: #e0e0e0;
   border: 1px solid #444;
@@ -146,6 +147,29 @@ input[type="range"] {
 
 .instruction-builder input[type="number"] {
   width: 80px;
+}
+
+.face-input-wrap {
+  position: relative;
+  width: 140px;
+}
+
+.face-input {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  width: 100% !important;
+}
+
+.face-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: #666;
+  pointer-events: none;
+  white-space: pre;
 }
 
 .builder-buttons {
