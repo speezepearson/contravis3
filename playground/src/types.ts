@@ -1,6 +1,3 @@
-// Which dancers perform the action (others hold still)
-export type Selector = 'everyone' | 'larks' | 'robins' | 'ups' | 'downs';
-
 // Who they interact with (only for actions that involve a partner)
 export type Relationship = 'partner' | 'neighbor' | 'opposite';
 
@@ -10,9 +7,8 @@ export type RelativeDirection =
   | { kind: 'cw'; value: number }         // clockwise degrees from current facing
   | { kind: 'relationship'; value: Relationship };
 
-export type Instruction = {
+export type AtomicInstruction = {
   id: number;
-  selector: Selector;
   beats: number;
 } & (
   | { type: 'take_hands'; relationship: Relationship; hand: 'left' | 'right' }
@@ -21,6 +17,12 @@ export type Instruction = {
   | { type: 'turn'; target: RelativeDirection }
   | { type: 'step'; direction: RelativeDirection; distance: number }
 );
+
+export type SplitBy = 'role' | 'position';
+
+export type Instruction =
+  | AtomicInstruction
+  | { id: number; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] };
 
 export interface DancerState {
   x: number;

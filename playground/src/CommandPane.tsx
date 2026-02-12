@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import type { Instruction, Selector, Relationship, RelativeDirection } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy } from './types';
 
-type ActionType = Instruction['type'];
+type ActionType = AtomicInstruction['type'];
 
 const DIR_COMPLETIONS = ['up', 'down', 'across', 'out', 'progression', 'anti-progression', 'partner', 'neighbor', 'opposite'];
 
@@ -23,6 +23,15 @@ function directionToText(dir: RelativeDirection): string {
   return String(dir.value);
 }
 
+function splitGroupLabel(by: SplitBy, list: 'A' | 'B'): string {
+  if (by === 'role') return list === 'A' ? 'Larks' : 'Robins';
+  return list === 'A' ? 'Ups' : 'Downs';
+}
+
+function sumBeats(instructions: AtomicInstruction[]): number {
+  return instructions.reduce((sum, i) => sum + i.beats, 0);
+}
+
 let nextId = 1;
 
 interface Props {
@@ -30,30 +39,43 @@ interface Props {
   setInstructions: (instructions: Instruction[]) => void;
 }
 
-function summarize(instr: Instruction): string {
-  const sel = instr.selector === 'everyone' ? '' : `${instr.selector}: `;
+type BuilderContext =
+  | { level: 'top' }
+  | { level: 'sub'; splitId: number; list: 'A' | 'B' };
+
+function summarizeAtomic(instr: AtomicInstruction): string {
   switch (instr.type) {
     case 'take_hands':
-      return `${sel}${instr.relationship}s take ${instr.hand} hands (${instr.beats}b)`;
+      return `${instr.relationship}s take ${instr.hand} hands (${instr.beats}b)`;
     case 'drop_hands':
-      return `${sel}drop ${instr.relationship} hands (${instr.beats}b)`;
+      return `drop ${instr.relationship} hands (${instr.beats}b)`;
     case 'allemande':
-      return `${sel}${instr.relationship} allemande ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
+      return `${instr.relationship} allemande ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
     case 'turn': {
       const t = instr.target;
       const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'cw' ? `${t.value}°`
+        : t.kind === 'cw' ? `${t.value}\u00B0`
         : t.value;
-      return `${sel}turn ${desc} (${instr.beats}b)`;
+      return `turn ${desc} (${instr.beats}b)`;
     }
     case 'step': {
       const t = instr.direction;
       const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'cw' ? `${t.value}°`
+        : t.kind === 'cw' ? `${t.value}\u00B0`
         : t.value;
-      return `${sel}step ${desc} ${instr.distance} (${instr.beats}b)`;
+      return `step ${desc} ${instr.distance} (${instr.beats}b)`;
     }
   }
+}
+
+function summarize(instr: Instruction): string {
+  if (instr.type === 'split') {
+    const beatsA = sumBeats(instr.listA);
+    const beatsB = sumBeats(instr.listB);
+    const totalBeats = Math.max(beatsA, beatsB);
+    return `split by ${instr.by} (${totalBeats}b)`;
+  }
+  return summarizeAtomic(instr);
 }
 
 function DirectionInput({ value, completion, inputRef, onChange, onComplete }: {
@@ -93,8 +115,8 @@ function DirectionInput({ value, completion, inputRef, onChange, onComplete }: {
 }
 
 export default function CommandPane({ instructions, setInstructions }: Props) {
-  const [selector, setSelector] = useState<Selector>('everyone');
-  const [action, setAction] = useState<ActionType>('take_hands');
+  const [context, setContext] = useState<BuilderContext>({ level: 'top' });
+  const [action, setAction] = useState<ActionType | 'split'>('take_hands');
   const [relationship, setRelationship] = useState<Relationship>('neighbor');
   const [hand, setHand] = useState<'left' | 'right'>('right');
   const [direction, setDirection] = useState<'cw' | 'ccw'>('cw');
@@ -107,10 +129,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const stepInputRef = useRef<HTMLInputElement>(null);
   const [distance, setDistance] = useState(0.5);
   const [beats, setBeats] = useState(0);
+  const [splitBy, setSplitBy] = useState<SplitBy>('role');
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  function loadIntoForm(instr: Instruction) {
-    setSelector(instr.selector);
+  function loadAtomicIntoForm(instr: AtomicInstruction) {
     setAction(instr.type);
     setBeats(instr.beats);
     if (instr.type === 'take_hands') {
@@ -132,9 +154,18 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     }
   }
 
-  function buildInstruction(id: number): Instruction {
-    const base = { id, selector, beats };
-    switch (action) {
+  function loadIntoForm(instr: Instruction) {
+    if (instr.type === 'split') {
+      setAction('split');
+      setSplitBy(instr.by);
+    } else {
+      loadAtomicIntoForm(instr);
+    }
+  }
+
+  function buildAtomicInstruction(id: number): AtomicInstruction {
+    const base = { id, beats };
+    switch (action as ActionType) {
       case 'take_hands':
         return { ...base, type: 'take_hands', relationship, hand };
       case 'drop_hands':
@@ -152,26 +183,79 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     }
   }
 
+  function buildInstruction(id: number): Instruction {
+    if (action === 'split') {
+      return { id, type: 'split', by: splitBy, listA: [], listB: [] };
+    }
+    return buildAtomicInstruction(id);
+  }
+
   function add() {
-    if (editingId !== null) {
-      setInstructions(instructions.map(i => i.id === editingId ? buildInstruction(editingId) : i));
-      setEditingId(null);
+    if (context.level === 'sub') {
+      // Adding to a split's sub-list
+      const { splitId, list } = context;
+      if (action === 'split') return; // no nesting
+      const newInstr = buildAtomicInstruction(nextId++);
+      if (editingId !== null) {
+        setInstructions(instructions.map(i => {
+          if (i.type !== 'split' || i.id !== splitId) return i;
+          const key = list === 'A' ? 'listA' : 'listB';
+          return { ...i, [key]: i[key].map(sub => sub.id === editingId ? newInstr : sub) };
+        }));
+        setEditingId(null);
+      } else {
+        setInstructions(instructions.map(i => {
+          if (i.type !== 'split' || i.id !== splitId) return i;
+          const key = list === 'A' ? 'listA' : 'listB';
+          return { ...i, [key]: [...i[key], newInstr] };
+        }));
+      }
     } else {
-      setInstructions([...instructions, buildInstruction(nextId++)]);
+      // Top-level
+      if (editingId !== null) {
+        setInstructions(instructions.map(i => i.id === editingId ? buildInstruction(editingId) : i));
+        setEditingId(null);
+      } else {
+        setInstructions([...instructions, buildInstruction(nextId++)]);
+      }
     }
   }
 
   function startEdit(instr: Instruction) {
     loadIntoForm(instr);
     setEditingId(instr.id);
+    setContext({ level: 'top' });
+  }
+
+  function startSubEdit(splitId: number, list: 'A' | 'B', instr: AtomicInstruction) {
+    loadAtomicIntoForm(instr);
+    setEditingId(instr.id);
+    setContext({ level: 'sub', splitId, list });
   }
 
   function cancelEdit() {
     setEditingId(null);
+    setContext({ level: 'top' });
   }
 
   function remove(id: number) {
     setInstructions(instructions.filter(i => i.id !== id));
+    if (editingId === id) {
+      setEditingId(null);
+      setContext({ level: 'top' });
+    }
+  }
+
+  function removeSub(splitId: number, list: 'A' | 'B', subId: number) {
+    setInstructions(instructions.map(i => {
+      if (i.type !== 'split' || i.id !== splitId) return i;
+      const key = list === 'A' ? 'listA' : 'listB';
+      return { ...i, [key]: i[key].filter(sub => sub.id !== subId) };
+    }));
+    if (editingId === subId) {
+      setEditingId(null);
+      setContext({ level: 'top' });
+    }
   }
 
   function moveUp(idx: number) {
@@ -188,33 +272,74 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     setInstructions(next);
   }
 
+  function moveSubUp(splitId: number, list: 'A' | 'B', idx: number) {
+    if (idx === 0) return;
+    setInstructions(instructions.map(i => {
+      if (i.type !== 'split' || i.id !== splitId) return i;
+      const key = list === 'A' ? 'listA' : 'listB';
+      const arr = [...i[key]];
+      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+      return { ...i, [key]: arr };
+    }));
+  }
+
+  function moveSubDown(splitId: number, list: 'A' | 'B', idx: number, length: number) {
+    if (idx === length - 1) return;
+    setInstructions(instructions.map(i => {
+      if (i.type !== 'split' || i.id !== splitId) return i;
+      const key = list === 'A' ? 'listA' : 'listB';
+      const arr = [...i[key]];
+      [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+      return { ...i, [key]: arr };
+    }));
+  }
+
+  function enterSubContext(splitId: number, list: 'A' | 'B') {
+    setContext({ level: 'sub', splitId, list });
+    setEditingId(null);
+    setAction('take_hands');
+  }
+
+  const isSubContext = context.level === 'sub';
+  const currentSplit = isSubContext
+    ? instructions.find(i => i.type === 'split' && i.id === context.splitId) as Extract<Instruction, { type: 'split' }> | undefined
+    : undefined;
+
   return (
     <div className="command-pane">
       <h2>Instructions</h2>
+
+      {isSubContext && currentSplit && (
+        <div className="builder-context">
+          Adding to {splitGroupLabel(currentSplit.by, context.list)}
+          <button className="back-btn" onClick={() => { setContext({ level: 'top' }); setEditingId(null); }}>Back</button>
+        </div>
+      )}
+
       <div className="instruction-builder">
         <label>
-          Who
-          <select value={selector} onChange={e => setSelector(e.target.value as Selector)}>
-            <option value="everyone">everyone</option>
-            <option value="larks">larks</option>
-            <option value="robins">robins</option>
-            <option value="ups">ups</option>
-            <option value="downs">downs</option>
-          </select>
-        </label>
-
-        <label>
           Action
-          <select value={action} onChange={e => setAction(e.target.value as ActionType)}>
+          <select value={action} onChange={e => setAction(e.target.value as ActionType | 'split')}>
             <option value="take_hands">take hands</option>
             <option value="drop_hands">drop hands</option>
             <option value="allemande">allemande</option>
             <option value="turn">turn</option>
             <option value="step">step</option>
+            {!isSubContext && <option value="split">split</option>}
           </select>
         </label>
 
-        {(action === 'take_hands' || action === 'drop_hands' || action === 'allemande') && (
+        {action === 'split' && (
+          <label>
+            Split by
+            <select value={splitBy} onChange={e => setSplitBy(e.target.value as SplitBy)}>
+              <option value="role">role (larks / robins)</option>
+              <option value="position">position (ups / downs)</option>
+            </select>
+          </label>
+        )}
+
+        {action !== 'split' && (action === 'take_hands' || action === 'drop_hands' || action === 'allemande') && (
           <label>
             With
             <select value={relationship} onChange={e => setRelationship(e.target.value as Relationship)}>
@@ -295,16 +420,18 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           </>
         )}
 
-        <label>
-          Beats
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={beats}
-            onChange={e => setBeats(Number(e.target.value))}
-          />
-        </label>
+        {action !== 'split' && (
+          <label>
+            Beats
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={beats}
+              onChange={e => setBeats(Number(e.target.value))}
+            />
+          </label>
+        )}
 
         <div className="builder-buttons">
           <button className="add-btn" onClick={add}>{editingId !== null ? 'Save' : 'Add'}</button>
@@ -314,14 +441,17 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
 
       <div className="instruction-list">
         {instructions.map((instr, idx) => (
-          <div key={instr.id} className={`instruction-item${editingId === instr.id ? ' editing' : ''}`}>
-            <span className="instruction-summary">{summarize(instr)}</span>
-            <div className="instruction-actions">
-              <button onClick={() => startEdit(instr)} title="Edit">{'\u270E'}</button>
-              <button onClick={() => moveUp(idx)} disabled={idx === 0} title="Move up">{'\u25B2'}</button>
-              <button onClick={() => moveDown(idx)} disabled={idx === instructions.length - 1} title="Move down">{'\u25BC'}</button>
-              <button onClick={() => remove(instr.id)} title="Delete">{'\u00D7'}</button>
+          <div key={instr.id}>
+            <div className={`instruction-item${editingId === instr.id && context.level === 'top' ? ' editing' : ''}`}>
+              <span className="instruction-summary">{summarize(instr)}</span>
+              <div className="instruction-actions">
+                <button onClick={() => startEdit(instr)} title="Edit">{'\u270E'}</button>
+                <button onClick={() => moveUp(idx)} disabled={idx === 0} title="Move up">{'\u25B2'}</button>
+                <button onClick={() => moveDown(idx)} disabled={idx === instructions.length - 1} title="Move down">{'\u25BC'}</button>
+                <button onClick={() => remove(instr.id)} title="Delete">{'\u00D7'}</button>
+              </div>
             </div>
+            {instr.type === 'split' && renderSplitBody(instr)}
           </div>
         ))}
         {instructions.length === 0 && (
@@ -330,4 +460,40 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       </div>
     </div>
   );
+
+  function renderSplitBody(split: Extract<Instruction, { type: 'split' }>) {
+    return (
+      <div className="split-body">
+        {(['A', 'B'] as const).map(list => {
+          const subList = list === 'A' ? split.listA : split.listB;
+          const label = splitGroupLabel(split.by, list);
+          return (
+            <div key={list} className="split-group">
+              <div className="split-group-header">{label}:</div>
+              {subList.map((sub, subIdx) => (
+                <div
+                  key={sub.id}
+                  className={`instruction-item split-sub-item${editingId === sub.id ? ' editing' : ''}`}
+                >
+                  <span className="instruction-summary">{summarizeAtomic(sub)}</span>
+                  <div className="instruction-actions">
+                    <button onClick={() => startSubEdit(split.id, list, sub)} title="Edit">{'\u270E'}</button>
+                    <button onClick={() => moveSubUp(split.id, list, subIdx)} disabled={subIdx === 0} title="Move up">{'\u25B2'}</button>
+                    <button onClick={() => moveSubDown(split.id, list, subIdx, subList.length)} disabled={subIdx === subList.length - 1} title="Move down">{'\u25BC'}</button>
+                    <button onClick={() => removeSub(split.id, list, sub.id)} title="Delete">{'\u00D7'}</button>
+                  </div>
+                </div>
+              ))}
+              <button
+                className="split-add-btn"
+                onClick={() => enterSubContext(split.id, list)}
+              >
+                + Add to {label.toLowerCase()}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 }

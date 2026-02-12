@@ -1,14 +1,7 @@
-import type { Instruction, Keyframe, Selector, Relationship, RelativeDirection, DancerState, HandConnection } from './types';
+import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection } from './types';
 
 const DANCER_IDS = ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const;
-
-const SELECTOR_MAP: Record<Selector, string[]> = {
-  everyone: ['up_lark', 'up_robin', 'down_lark', 'down_robin'],
-  larks:    ['up_lark', 'down_lark'],
-  robins:   ['up_robin', 'down_robin'],
-  ups:      ['up_lark', 'up_robin'],
-  downs:    ['down_lark', 'down_robin'],
-};
+const ALL_DANCERS = new Set<string>(DANCER_IDS);
 
 const UPS = new Set(['up_lark', 'up_robin']);
 
@@ -16,6 +9,11 @@ const RELATIONSHIP_PAIRS: Record<Relationship, [string, string][]> = {
   partner:  [['up_lark', 'up_robin'], ['down_lark', 'down_robin']],
   neighbor: [['up_lark', 'down_robin'], ['up_robin', 'down_lark']],
   opposite: [['up_lark', 'down_lark'], ['up_robin', 'down_robin']],
+};
+
+const SPLIT_GROUPS: Record<'role' | 'position', [Set<string>, Set<string>]> = {
+  role:     [new Set(['up_lark', 'down_lark']), new Set(['up_robin', 'down_robin'])],
+  position: [new Set(['up_lark', 'up_robin']), new Set(['down_lark', 'down_robin'])],
 };
 
 function initialKeyframe(): Keyframe {
@@ -40,10 +38,9 @@ function copyDancers(dancers: Record<string, DancerState>): Record<string, Dance
   return result;
 }
 
-/** Filter relationship pairs to only those where both dancers are selected. */
-function selectedPairs(relationship: Relationship, selector: Selector): [string, string][] {
-  const selected = new Set(SELECTOR_MAP[selector]);
-  return RELATIONSHIP_PAIRS[relationship].filter(([a, b]) => selected.has(a) && selected.has(b));
+/** Filter relationship pairs to only those where both dancers are in scope. */
+function scopedPairs(relationship: Relationship, scope: Set<string>): [string, string][] {
+  return RELATIONSHIP_PAIRS[relationship].filter(([a, b]) => scope.has(a) && scope.has(b));
 }
 
 function easeInOut(t: number): number {
@@ -54,7 +51,6 @@ function easeInOut(t: number): number {
  *  Uses atan2(dx,dy) convention: 0 = +y (north/up on screen). */
 function resolveHeading(dir: RelativeDirection, d: DancerState, id: string, dancers: Record<string, DancerState>): number {
   if (dir.kind === 'cw') {
-    // CW degrees relative to current facing
     return (d.facing + dir.value) * Math.PI / 180;
   }
   if (dir.kind === 'direction') {
@@ -92,8 +88,8 @@ function resolveFacing(dir: RelativeDirection, d: DancerState, id: string, dance
 
 // --- Per-instruction generators ---
 
-function generateTakeHands(prev: Keyframe, instr: Extract<Instruction, { type: 'take_hands' }>): Keyframe[] {
-  const pairs = selectedPairs(instr.relationship, instr.selector);
+function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<string>): Keyframe[] {
+  const pairs = scopedPairs(instr.relationship, scope);
   const newHands: HandConnection[] = [...prev.hands];
   for (const [a, b] of pairs) {
     newHands.push({ a, ha: instr.hand, b, hb: instr.hand });
@@ -105,8 +101,8 @@ function generateTakeHands(prev: Keyframe, instr: Extract<Instruction, { type: '
   }];
 }
 
-function generateDropHands(prev: Keyframe, instr: Extract<Instruction, { type: 'drop_hands' }>): Keyframe[] {
-  const pairs = selectedPairs(instr.relationship, instr.selector);
+function generateDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'drop_hands' }>, scope: Set<string>): Keyframe[] {
+  const pairs = scopedPairs(instr.relationship, scope);
   const pairSet = new Set(pairs.map(([a, b]) => `${a}:${b}`));
   const newHands = prev.hands.filter(h => {
     const fwd = `${h.a}:${h.b}`;
@@ -120,9 +116,8 @@ function generateDropHands(prev: Keyframe, instr: Extract<Instruction, { type: '
   }];
 }
 
-function generateAllemande(prev: Keyframe, instr: Extract<Instruction, { type: 'allemande' }>): Keyframe[] {
-  const pairs = selectedPairs(instr.relationship, instr.selector);
-  const selected = new Set(SELECTOR_MAP[instr.selector]);
+function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<string>): Keyframe[] {
+  const pairs = scopedPairs(instr.relationship, scope);
   const totalAngleDeg = instr.rotations * 360 * (instr.direction === 'cw' ? 1 : -1);
   const totalAngleRad = totalAngleDeg * Math.PI / 180;
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
@@ -152,7 +147,7 @@ function generateAllemande(prev: Keyframe, instr: Extract<Instruction, { type: '
     const dancers = copyDancers(prev.dancers);
 
     for (const pd of pairData) {
-      if (selected.has(pd.aId)) {
+      if (scope.has(pd.aId)) {
         const angle = pd.aAngle + angleOffset;
         dancers[pd.aId].x = pd.cx + pd.aRadius * Math.sin(angle);
         dancers[pd.aId].y = pd.cy + pd.aRadius * Math.cos(angle);
@@ -160,7 +155,7 @@ function generateAllemande(prev: Keyframe, instr: Extract<Instruction, { type: '
         dancers[pd.aId].facing = ((faceDeg % 360) + 360) % 360;
       }
 
-      if (selected.has(pd.bId)) {
+      if (scope.has(pd.bId)) {
         const angle = pd.bAngle + angleOffset;
         dancers[pd.bId].x = pd.cx + pd.bRadius * Math.sin(angle);
         dancers[pd.bId].y = pd.cy + pd.bRadius * Math.cos(angle);
@@ -175,12 +170,11 @@ function generateAllemande(prev: Keyframe, instr: Extract<Instruction, { type: '
   return keyframes;
 }
 
-function generateTurn(prev: Keyframe, instr: Extract<Instruction, { type: 'turn' }>): Keyframe[] {
-  const selected = new Set(SELECTOR_MAP[instr.selector]);
+function generateTurn(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'turn' }>, scope: Set<string>): Keyframe[] {
   const dancers = copyDancers(prev.dancers);
 
   for (const id of DANCER_IDS) {
-    if (!selected.has(id)) continue;
+    if (!scope.has(id)) continue;
     dancers[id].facing = resolveFacing(instr.target, prev.dancers[id], id, prev.dancers);
   }
 
@@ -191,13 +185,12 @@ function generateTurn(prev: Keyframe, instr: Extract<Instruction, { type: 'turn'
   }];
 }
 
-function generateStep(prev: Keyframe, instr: Extract<Instruction, { type: 'step' }>): Keyframe[] {
-  const selected = new Set(SELECTOR_MAP[instr.selector]);
+function generateStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'step' }>, scope: Set<string>): Keyframe[] {
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
   const displacements: Record<string, { dx: number; dy: number }> = {};
   for (const id of DANCER_IDS) {
-    if (!selected.has(id)) continue;
+    if (!scope.has(id)) continue;
     const d = prev.dancers[id];
     const heading = resolveHeading(instr.direction, d, id, prev.dancers);
     displacements[id] = {
@@ -223,6 +216,97 @@ function generateStep(prev: Keyframe, instr: Extract<Instruction, { type: 'step'
   return keyframes;
 }
 
+// --- Process a list of atomic instructions with a given scope ---
+
+function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<string>): Keyframe[] {
+  switch (instr.type) {
+    case 'take_hands':  return generateTakeHands(prev, instr, scope);
+    case 'drop_hands':  return generateDropHands(prev, instr, scope);
+    case 'allemande':   return generateAllemande(prev, instr, scope);
+    case 'turn':        return generateTurn(prev, instr, scope);
+    case 'step':        return generateStep(prev, instr, scope);
+  }
+}
+
+function processInstructions(prev: Keyframe, instructions: AtomicInstruction[], scope: Set<string>): Keyframe[] {
+  const result: Keyframe[] = [];
+  let current = prev;
+  for (const instr of instructions) {
+    const newFrames = processAtomicInstruction(current, instr, scope);
+    result.push(...newFrames);
+    if (newFrames.length > 0) {
+      current = newFrames[newFrames.length - 1];
+    }
+  }
+  return result;
+}
+
+// --- Split generation ---
+
+/** Find the last keyframe at or before the given beat. */
+function sampleAtBeat(timeline: Keyframe[], beat: number): Keyframe | null {
+  let best: Keyframe | null = null;
+  for (const kf of timeline) {
+    if (kf.beat <= beat + 1e-9) {
+      best = kf;
+    } else {
+      break;
+    }
+  }
+  return best;
+}
+
+function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'split' }>): Keyframe[] {
+  const [groupA, groupB] = SPLIT_GROUPS[instr.by];
+
+  const timelineA = processInstructions(prev, instr.listA, groupA);
+  const timelineB = processInstructions(prev, instr.listB, groupB);
+
+  if (timelineA.length === 0 && timelineB.length === 0) {
+    return [];
+  }
+
+  // Collect all unique beat values
+  const beatSet = new Set<number>();
+  for (const kf of timelineA) beatSet.add(kf.beat);
+  for (const kf of timelineB) beatSet.add(kf.beat);
+  const sortedBeats = [...beatSet].sort((a, b) => a - b);
+
+  const merged: Keyframe[] = [];
+  for (const beat of sortedBeats) {
+    const kfA = sampleAtBeat(timelineA, beat);
+    const kfB = sampleAtBeat(timelineB, beat);
+
+    const dancers: Record<string, DancerState> = {};
+    for (const id of DANCER_IDS) {
+      if (groupA.has(id)) {
+        const src = kfA ? kfA.dancers[id] : prev.dancers[id];
+        dancers[id] = { x: src.x, y: src.y, facing: src.facing };
+      } else {
+        const src = kfB ? kfB.dancers[id] : prev.dancers[id];
+        dancers[id] = { x: src.x, y: src.y, facing: src.facing };
+      }
+    }
+
+    // Merge hands: combine from both timelines, dedup by (a,b) pair
+    const handsA = kfA ? kfA.hands : prev.hands;
+    const handsB = kfB ? kfB.hands : prev.hands;
+    const handMap = new Map<string, HandConnection>();
+    for (const h of handsA) {
+      const key = h.a < h.b ? `${h.a}:${h.b}` : `${h.b}:${h.a}`;
+      handMap.set(key, h);
+    }
+    for (const h of handsB) {
+      const key = h.a < h.b ? `${h.a}:${h.b}` : `${h.b}:${h.a}`;
+      handMap.set(key, h);
+    }
+
+    merged.push({ beat, dancers, hands: [...handMap.values()] });
+  }
+
+  return merged;
+}
+
 // --- Top-level generator ---
 
 export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
@@ -232,22 +316,10 @@ export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
     const prev = result[result.length - 1];
     let newFrames: Keyframe[];
 
-    switch (instr.type) {
-      case 'take_hands':
-        newFrames = generateTakeHands(prev, instr);
-        break;
-      case 'drop_hands':
-        newFrames = generateDropHands(prev, instr);
-        break;
-      case 'allemande':
-        newFrames = generateAllemande(prev, instr);
-        break;
-      case 'turn':
-        newFrames = generateTurn(prev, instr);
-        break;
-      case 'step':
-        newFrames = generateStep(prev, instr);
-        break;
+    if (instr.type === 'split') {
+      newFrames = generateSplit(prev, instr);
+    } else {
+      newFrames = processAtomicInstruction(prev, instr, ALL_DANCERS);
     }
 
     result.push(...newFrames);
