@@ -36,7 +36,7 @@ function defaultBeats(action: string): string {
   switch (action) {
     case 'allemande': return '8';
     case 'step':      return '2';
-    case 'balance':   return '2';
+    case 'balance':   return '4';
     default:          return '0';
   }
 }
