@@ -1,5 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import './SearchableDropdown.css';
+
+export interface SearchableDropdownHandle {
+  focus: () => void;
+}
 
 interface Props {
   options: string[];
@@ -9,12 +13,17 @@ interface Props {
   getLabel?: (value: string) => string;
 }
 
-export default function SearchableDropdown({ options, value, onChange, placeholder, getLabel }: Props) {
+const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function SearchableDropdown({ options, value, onChange, placeholder, getLabel }, ref) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [searchText, setSearchText] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+  }));
 
   const labelOf = (opt: string) => getLabel ? getLabel(opt) : opt;
 
@@ -126,6 +135,7 @@ export default function SearchableDropdown({ options, value, onChange, placehold
       onBlur={handleBlur}
     >
       <input
+        ref={inputRef}
         type="text"
         value={inputValue}
         placeholder={placeholder}
@@ -155,4 +165,6 @@ export default function SearchableDropdown({ options, value, onChange, placehold
       )}
     </div>
   );
-}
+});
+
+export default SearchableDropdown;

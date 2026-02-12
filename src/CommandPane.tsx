@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
+import type { SearchableDropdownHandle } from './SearchableDropdown';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget } from './types';
 
 type ActionType = AtomicInstruction['type'];
@@ -322,6 +323,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   const [groupLabel, setGroupLabel] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
+  const actionRef = useRef<SearchableDropdownHandle>(null);
 
   function loadAtomicIntoForm(instr: AtomicInstruction) {
     setAction(instr.type);
@@ -421,6 +423,12 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     });
   }
 
+  function resetForm() {
+    setAction('take_hands');
+    setBeats(defaultBeats('take_hands'));
+    actionRef.current?.focus();
+  }
+
   function add() {
     if (context.level === 'sub') {
       // Adding to a split's sub-list
@@ -440,6 +448,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           const key = list === 'A' ? 'listA' : 'listB';
           return { ...i, [key]: [...i[key], newInstr] };
         }));
+        resetForm();
       }
     } else if (context.level === 'group') {
       // Adding to a group's children
@@ -454,6 +463,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         setInstructions(updateGroup(instructions, groupId, children =>
           [...children, newInstr]
         ));
+        resetForm();
       }
     } else {
       // Top-level
@@ -462,6 +472,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         setEditingId(null);
       } else {
         setInstructions([...instructions, buildInstruction(nextId++)]);
+        resetForm();
       }
     }
   }
@@ -661,6 +672,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         <label>
           Action
           <SearchableDropdown
+            ref={actionRef}
             options={isSubContext ? ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group') : ACTION_OPTIONS as string[]}
             value={action}
             onChange={v => {
