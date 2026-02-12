@@ -422,7 +422,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
                 options={DIR_OPTIONS}
                 value={turnText}
                 onChange={setTurnText}
-                placeholder="e.g. across, partner, 45"
+                placeholder="e.g. across, partner"
               />
             </label>
             <label>

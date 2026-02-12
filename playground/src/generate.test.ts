@@ -246,24 +246,26 @@ describe('generateAllKeyframes', () => {
       expect(last.dancers['down_lark'].facing).toBeCloseTo(90, 5);
     });
 
-    it('rotates dancers clockwise by given degrees from current facing', () => {
+    it('offset rotates clockwise by given degrees from target', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'cw', value: 90 } },
+        { id: 1, beats: 0, type: 'turn', offset: 90, target: { kind: 'direction', value: 'forward' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
+      // Ups face 0° + 90° = 90°; downs face 180° + 90° = 270°
       expect(last.dancers['up_lark'].facing).toBeCloseTo(90, 5);
       expect(last.dancers['up_robin'].facing).toBeCloseTo(90, 5);
       expect(last.dancers['down_lark'].facing).toBeCloseTo(270, 5);
       expect(last.dancers['down_robin'].facing).toBeCloseTo(270, 5);
     });
 
-    it('negative CW degrees means counter-clockwise', () => {
+    it('negative offset means counter-clockwise', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'cw', value: -90 } },
+        { id: 1, beats: 0, type: 'turn', offset: -90, target: { kind: 'direction', value: 'forward' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
+      // Ups face 0° - 90° = 270°; downs face 180° - 90° = 90°
       expect(last.dancers['up_lark'].facing).toBeCloseTo(270, 5);
       expect(last.dancers['down_lark'].facing).toBeCloseTo(90, 5);
     });
