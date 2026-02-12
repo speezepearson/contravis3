@@ -1,5 +1,9 @@
 // Who they interact with (only for actions that involve a partner)
-export type Relationship = 'partner' | 'neighbor' | 'opposite';
+export type Relationship = 'partner' | 'neighbor' | 'opposite' | 'on_right' | 'on_left' | 'in_front';
+
+// What to drop: a relationship (drops hand connections between those pairs),
+// a specific hand ('left'|'right'), or 'both' (all hand connections).
+export type DropHandsTarget = Relationship | 'left' | 'right' | 'both';
 
 // Direction relative to a dancer: a named direction, a relationship, or CW degrees
 export type RelativeDirection =
@@ -12,7 +16,7 @@ export type AtomicInstruction = {
   beats: number;
 } & (
   | { type: 'take_hands'; relationship: Relationship; hand: 'left' | 'right' }
-  | { type: 'drop_hands'; relationship: Relationship }
+  | { type: 'drop_hands'; target: DropHandsTarget }
   | { type: 'allemande'; relationship: Relationship; handedness: 'left' | 'right'; rotations: number }
   | { type: 'turn'; target: RelativeDirection }
   | { type: 'step'; direction: RelativeDirection; distance: number }

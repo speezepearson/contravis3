@@ -52,11 +52,53 @@ describe('generateAllKeyframes', () => {
     });
   });
 
+  describe('dynamic relationships (on_right, on_left, in_front)', () => {
+    it('on_right in initial formation resolves to partner pairs', () => {
+      // In initial improper: ups face north, partner is to their right; downs face south, partner is to their right
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(2);
+      expect(last.hands).toContainEqual({ a: 'up_lark', ha: 'right', b: 'up_robin', hb: 'right' });
+      expect(last.hands).toContainEqual({ a: 'down_lark', ha: 'right', b: 'down_robin', hb: 'right' });
+    });
+
+    it('in_front in initial formation resolves to neighbor pairs', () => {
+      // In initial improper: ups face north toward downs, downs face south toward ups
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'in_front', hand: 'left' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(2);
+      expect(last.hands).toContainEqual({ a: 'up_lark', ha: 'left', b: 'down_robin', hb: 'left' });
+      expect(last.hands).toContainEqual({ a: 'up_robin', ha: 'left', b: 'down_lark', hb: 'left' });
+    });
+
+    it('on_left after turning to face across resolves correctly', () => {
+      // Turn everyone to face across, then "on your left" should be clear
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'across' } },
+        { id: 2, beats: 0, type: 'take_hands', relationship: 'on_left', hand: 'left' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // After facing across: up_lark faces 90° (east), up_robin faces 270° (west),
+      // down_lark faces 270° (west), down_robin faces 90° (east)
+      // up_lark (facing east): left = north. down_robin is north of up_lark → on left
+      // down_robin (facing east): left = north. up_robin is north-east... but up_lark is directly north
+      // Pairs should be: (up_lark, down_robin) and (up_robin, down_lark)
+      expect(last.hands).toHaveLength(2);
+    });
+  });
+
   describe('drop_hands', () => {
     it('removes hand connections for the relationship', () => {
       const instructions: Instruction[] = [
         { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
-        { id: 2, beats: 0, type: 'drop_hands', relationship: 'neighbor' },
+        { id: 2, beats: 0, type: 'drop_hands', target: 'neighbor' },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -67,13 +109,38 @@ describe('generateAllKeyframes', () => {
       const instructions: Instruction[] = [
         { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
         { id: 2, beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
-        { id: 3, beats: 0, type: 'drop_hands', relationship: 'neighbor' },
+        { id: 3, beats: 0, type: 'drop_hands', target: 'neighbor' },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
       expect(last.hands).toHaveLength(2);
       expect(last.hands).toContainEqual({ a: 'up_lark', ha: 'left', b: 'up_robin', hb: 'left' });
       expect(last.hands).toContainEqual({ a: 'down_lark', ha: 'left', b: 'down_robin', hb: 'left' });
+    });
+
+    it('drops by hand: removes all connections using that hand', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: 2, beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
+        { id: 3, beats: 0, type: 'drop_hands', target: 'right' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // Only partner left-hand connections remain
+      expect(last.hands).toHaveLength(2);
+      expect(last.hands).toContainEqual({ a: 'up_lark', ha: 'left', b: 'up_robin', hb: 'left' });
+      expect(last.hands).toContainEqual({ a: 'down_lark', ha: 'left', b: 'down_robin', hb: 'left' });
+    });
+
+    it('drops both: removes all hand connections', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: 2, beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
+        { id: 3, beats: 0, type: 'drop_hands', target: 'both' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(0);
     });
   });
 

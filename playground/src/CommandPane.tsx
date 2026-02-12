@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget } from './types';
 
 type ActionType = AtomicInstruction['type'];
 
@@ -54,12 +54,23 @@ type BuilderContext =
 
 function summarizeAtomic(instr: AtomicInstruction): string {
   switch (instr.type) {
-    case 'take_hands':
-      return `${instr.relationship}s take ${instr.hand} hands (${instr.beats}b)`;
-    case 'drop_hands':
-      return `drop ${instr.relationship} hands (${instr.beats}b)`;
-    case 'allemande':
-      return `${instr.relationship} allemande ${instr.handedness} ${instr.rotations}x (${instr.beats}b)`;
+    case 'take_hands': {
+      const r = instr.relationship;
+      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : `${r}s`;
+      return `${label} take ${instr.hand} hands`;
+    }
+    case 'drop_hands': {
+      const t = instr.target;
+      if (t === 'both') return 'drop all hands';
+      if (t === 'left' || t === 'right') return `drop ${t} hand`;
+      const label = t === 'on_right' ? 'on-your-right' : t === 'on_left' ? 'on-your-left' : t === 'in_front' ? 'in-front' : t;
+      return `drop ${label} hands`;
+    }
+    case 'allemande': {
+      const r = instr.relationship;
+      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      return `${label} allemande ${instr.handedness} ${instr.rotations}x (${instr.beats}b)`;
+    }
     case 'turn': {
       const t = instr.target;
       const desc = t.kind === 'direction' ? t.value
@@ -134,6 +145,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [context, setContext] = useState<BuilderContext>({ level: 'top' });
   const [action, setAction] = useState<ActionType | 'split'>('take_hands');
   const [relationship, setRelationship] = useState<Relationship>('neighbor');
+  const [dropTarget, setDropTarget] = useState<DropHandsTarget>('neighbor');
   const [hand, setHand] = useState<'left' | 'right'>('right');
   const [handedness, setHandedness] = useState<'left' | 'right'>('right');
   const [rotations, setRotations] = useState('1');
@@ -158,7 +170,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       setRelationship(instr.relationship);
       setHand(instr.hand);
     } else if (instr.type === 'drop_hands') {
-      setRelationship(instr.relationship);
+      setDropTarget(instr.target);
     } else if (instr.type === 'allemande') {
       setRelationship(instr.relationship);
       setHandedness(instr.handedness);
@@ -190,9 +202,9 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     const base = { id, beats: Number(beats) || 0 };
     switch (action as ActionType) {
       case 'take_hands':
-        return { ...base, type: 'take_hands', relationship, hand };
+        return { id, beats: 0, type: 'take_hands', relationship, hand };
       case 'drop_hands':
-        return { ...base, type: 'drop_hands', relationship };
+        return { id, beats: 0, type: 'drop_hands', target: dropTarget };
       case 'allemande':
         return { ...base, type: 'allemande', relationship, handedness, rotations: Number(rotations) || 1 };
       case 'turn': {
@@ -371,13 +383,33 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           </label>
         )}
 
-        {action !== 'split' && (action === 'take_hands' || action === 'drop_hands' || action === 'allemande') && (
+        {action !== 'split' && (action === 'take_hands' || action === 'allemande') && (
           <label>
             With
             <select value={relationship} onChange={e => setRelationship(e.target.value as Relationship)}>
               <option value="partner">partner</option>
               <option value="neighbor">neighbor</option>
               <option value="opposite">opposite</option>
+              <option value="on_right">on your right</option>
+              <option value="on_left">on your left</option>
+              <option value="in_front">in front of you</option>
+            </select>
+          </label>
+        )}
+
+        {action === 'drop_hands' && (
+          <label>
+            Drop
+            <select value={dropTarget} onChange={e => setDropTarget(e.target.value as DropHandsTarget)}>
+              <option value="partner">partner hands</option>
+              <option value="neighbor">neighbor hands</option>
+              <option value="opposite">opposite hands</option>
+              <option value="on_right">on-your-right hands</option>
+              <option value="on_left">on-your-left hands</option>
+              <option value="in_front">in-front hands</option>
+              <option value="right">right hand</option>
+              <option value="left">left hand</option>
+              <option value="both">both hands</option>
             </select>
           </label>
         )}
@@ -474,7 +506,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           </>
         )}
 
-        {action !== 'split' && (
+        {action !== 'split' && action !== 'take_hands' && action !== 'drop_hands' && (
           <label>
             Beats
             <input

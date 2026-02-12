@@ -5,7 +5,7 @@ const ALL_DANCERS = new Set<string>(DANCER_IDS);
 
 const UPS = new Set(['up_lark', 'up_robin']);
 
-const RELATIONSHIP_PAIRS: Record<Relationship, [string, string][]> = {
+const STATIC_PAIRS: Partial<Record<Relationship, [string, string][]>> = {
   partner:  [['up_lark', 'up_robin'], ['down_lark', 'down_robin']],
   neighbor: [['up_lark', 'down_robin'], ['up_robin', 'down_lark']],
   opposite: [['up_lark', 'down_lark'], ['up_robin', 'down_robin']],
@@ -38,9 +38,56 @@ function copyDancers(dancers: Record<string, DancerState>): Record<string, Dance
   return result;
 }
 
-/** Filter relationship pairs to only those where both dancers are in scope. */
-function scopedPairs(relationship: Relationship, scope: Set<string>): [string, string][] {
-  return RELATIONSHIP_PAIRS[relationship].filter(([a, b]) => scope.has(a) && scope.has(b));
+/** Generate all possible pairings of an array of IDs. */
+function allPairings(ids: string[]): [string, string][][] {
+  if (ids.length === 0) return [[]];
+  if (ids.length === 2) return [[[ids[0], ids[1]]]];
+  const first = ids[0];
+  const rest = ids.slice(1);
+  const result: [string, string][][] = [];
+  for (let i = 0; i < rest.length; i++) {
+    const partner = rest[i];
+    const remaining = [...rest.slice(0, i), ...rest.slice(i + 1)];
+    for (const sub of allPairings(remaining)) {
+      result.push([[first, partner], ...sub]);
+    }
+  }
+  return result;
+}
+
+/** Resolve relationship to dancer pairs, using dancer state for dynamic relationships. */
+function resolvePairs(relationship: Relationship, scope: Set<string>, dancers: Record<string, DancerState>): [string, string][] {
+  const staticPairs = STATIC_PAIRS[relationship];
+  if (staticPairs) {
+    return staticPairs.filter(([a, b]) => scope.has(a) && scope.has(b));
+  }
+  // Dynamic: on_right (90°), on_left (-90°), in_front (0°)
+  const targetAngle = relationship === 'on_right' ? 90 : relationship === 'on_left' ? -90 : 0;
+  const scopedIds = DANCER_IDS.filter(id => scope.has(id));
+  if (scopedIds.length < 2) return [];
+  if (scopedIds.length === 2) return [[scopedIds[0], scopedIds[1]]];
+
+  // Try all possible pairings, pick the one minimizing total angle deviation
+  let bestPairing: [string, string][] = [];
+  let bestScore = Infinity;
+  for (const pairing of allPairings(scopedIds)) {
+    let score = 0;
+    for (const [a, b] of pairing) {
+      const da = dancers[a];
+      const headingAtoB = Math.atan2(dancers[b].x - da.x, dancers[b].y - da.y) * 180 / Math.PI;
+      const relA = ((headingAtoB - da.facing + 540) % 360) - 180;
+      score += Math.abs(relA - targetAngle);
+      const db = dancers[b];
+      const headingBtoA = Math.atan2(da.x - db.x, da.y - db.y) * 180 / Math.PI;
+      const relB = ((headingBtoA - db.facing + 540) % 360) - 180;
+      score += Math.abs(relB - targetAngle);
+    }
+    if (score < bestScore) {
+      bestScore = score;
+      bestPairing = pairing;
+    }
+  }
+  return bestPairing;
 }
 
 function easeInOut(t: number): number {
@@ -67,7 +114,7 @@ function resolveHeading(dir: RelativeDirection, d: DancerState, id: string, danc
     }
   }
   // relationship: toward the matched partner
-  const pairs = RELATIONSHIP_PAIRS[dir.value];
+  const pairs = resolvePairs(dir.value, ALL_DANCERS, dancers);
   let targetId: string | null = null;
   for (const [a, b] of pairs) {
     if (a === id) { targetId = b; break; }
@@ -92,7 +139,7 @@ function resolveFacing(dir: RelativeDirection, d: DancerState, id: string, dance
 // --- Per-instruction generators ---
 
 function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<string>): Keyframe[] {
-  const pairs = scopedPairs(instr.relationship, scope);
+  const pairs = resolvePairs(instr.relationship, scope, prev.dancers);
   const newHands: HandConnection[] = [...prev.hands];
   for (const [a, b] of pairs) {
     newHands.push({ a, ha: instr.hand, b, hb: instr.hand });
@@ -105,13 +152,30 @@ function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
 }
 
 function generateDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'drop_hands' }>, scope: Set<string>): Keyframe[] {
-  const pairs = scopedPairs(instr.relationship, scope);
-  const pairSet = new Set(pairs.map(([a, b]) => `${a}:${b}`));
-  const newHands = prev.hands.filter(h => {
-    const fwd = `${h.a}:${h.b}`;
-    const rev = `${h.b}:${h.a}`;
-    return !pairSet.has(fwd) && !pairSet.has(rev);
-  });
+  const target = instr.target;
+  let newHands: HandConnection[];
+
+  if (target === 'both') {
+    // Drop all hand connections involving scoped dancers
+    newHands = prev.hands.filter(h => !scope.has(h.a) && !scope.has(h.b));
+  } else if (target === 'left' || target === 'right') {
+    // Drop connections where a scoped dancer uses that hand
+    newHands = prev.hands.filter(h => {
+      if (scope.has(h.a) && h.ha === target) return false;
+      if (scope.has(h.b) && h.hb === target) return false;
+      return true;
+    });
+  } else {
+    // It's a Relationship — drop hands between those pairs
+    const pairs = resolvePairs(target, scope, prev.dancers);
+    const pairSet = new Set(pairs.map(([a, b]) => `${a}:${b}`));
+    newHands = prev.hands.filter(h => {
+      const fwd = `${h.a}:${h.b}`;
+      const rev = `${h.b}:${h.a}`;
+      return !pairSet.has(fwd) && !pairSet.has(rev);
+    });
+  }
+
   return [{
     beat: prev.beat + instr.beats,
     dancers: copyDancers(prev.dancers),
@@ -120,7 +184,7 @@ function generateDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
 }
 
 function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<string>): Keyframe[] {
-  const pairs = scopedPairs(instr.relationship, scope);
+  const pairs = resolvePairs(instr.relationship, scope, prev.dancers);
   // right = CW, left = CCW
   const totalAngleDeg = instr.rotations * 360 * (instr.handedness === 'right' ? 1 : -1);
   const totalAngleRad = totalAngleDeg * Math.PI / 180;

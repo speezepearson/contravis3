@@ -19,16 +19,23 @@ test.describe('default beats on action change', () => {
     await expect(beatsInput).toHaveValue('2');
   });
 
-  test('take_hands defaults to 0 beats', async ({ page }) => {
+  test('take_hands has no beats input (always 0)', async ({ page }) => {
     await page.goto('/');
     const actionSelect = page.locator('.instruction-builder select').first();
-
-    // Switch to allemande first (8 beats), then back to take_hands
-    await actionSelect.selectOption('allemande');
     await actionSelect.selectOption('take_hands');
 
-    const beatsInput = page.locator('.instruction-builder input[inputmode="decimal"]').last();
-    await expect(beatsInput).toHaveValue('0');
+    // No beats input should be visible for take_hands
+    const beatsInputs = page.locator('.instruction-builder input[inputmode="decimal"]');
+    await expect(beatsInputs).toHaveCount(0);
+  });
+
+  test('drop_hands has no beats input (always 0)', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('drop_hands');
+
+    const beatsInputs = page.locator('.instruction-builder input[inputmode="decimal"]');
+    await expect(beatsInputs).toHaveCount(0);
   });
 
   test('turn defaults to 0 beats', async ({ page }) => {
@@ -77,6 +84,9 @@ test.describe('number input free-form typing', () => {
 
   test('beats field accepts intermediate states like "1." while typing', async ({ page }) => {
     await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('turn');
+
     const beatsInput = page.locator('.instruction-builder input[inputmode="decimal"]').last();
 
     await beatsInput.fill('');
