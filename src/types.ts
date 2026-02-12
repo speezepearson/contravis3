@@ -2,6 +2,21 @@ export type Role = 'lark' | 'robin';
 export type ProtoDancerId = 'up_lark' | 'up_robin' | 'down_lark' | 'down_robin';
 export type DancerId = `${ProtoDancerId}_${number}`;
 
+export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
+  const i = id.lastIndexOf('_');
+  return { proto: id.slice(0, i) as ProtoDancerId, offset: parseInt(id.slice(i + 1)) };
+}
+
+export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
+  return `${proto}_${offset}` as DancerId;
+}
+
+export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
+  const { proto, offset } = parseDancerId(id);
+  const b = dancers[proto];
+  return { x: b.x, y: b.y + offset * 2, facing: b.facing };
+}
+
 // Who they interact with (only for actions that involve a partner)
 export type Relationship = 'partner' | 'neighbor' | 'opposite' | 'on_right' | 'on_left' | 'in_front';
 
@@ -39,9 +54,9 @@ export interface DancerState {
 }
 
 export interface HandConnection {
-  a: ProtoDancerId;
+  a: DancerId;
   ha: 'left' | 'right';
-  b: ProtoDancerId;
+  b: DancerId;
   hb: 'left' | 'right';
 }
 

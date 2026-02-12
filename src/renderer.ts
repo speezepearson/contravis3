@@ -1,4 +1,5 @@
 import type { DancerState, Keyframe, ProtoDancerId } from './types';
+import { dancerPosition } from './types';
 
 const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
@@ -87,11 +88,9 @@ export class Renderer {
     ctx.strokeStyle = '#666';
     ctx.lineWidth = 2;
     for (const h of frame.hands) {
-      const da = frame.dancers[h.a];
-      const db = frame.dancers[h.b];
-      if (da && db) {
-        this.drawHandsForAllCopies(da, h.ha, db, h.hb);
-      }
+      const da = dancerPosition(h.a, frame.dancers);
+      const db = dancerPosition(h.b, frame.dancers);
+      this.drawHandsForAllCopies(da, h.ha, db, h.hb);
     }
 
     // Dancers tiled every 2m to fill viewport
