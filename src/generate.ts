@@ -273,6 +273,147 @@ function generateBalance(prev: Keyframe, instr: Extract<AtomicInstruction, { typ
   return [...outFrames, ...backFrames];
 }
 
+function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'do_si_do' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+  // Like allemande but dancers maintain original facing and no hand connections
+  const totalAngleRad = instr.rotations * 2 * Math.PI; // always CW (pass right shoulders)
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; radius: number; originalFacing: number }[] = [];
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    const target = resolveRelationship(instr.relationship, id, prev.dancers);
+    const da = prev.dancers[id];
+    const partnerPos = dancerPosition(target, prev.dancers);
+    const cx = (da.x + partnerPos.x) / 2;
+    const cy = (da.y + partnerPos.y) / 2;
+    orbitData.push({
+      protoId: id, cx, cy,
+      startAngle: Math.atan2(da.x - cx, da.y - cy),
+      radius: Math.hypot(da.x - cx, da.y - cy),
+      originalFacing: da.facing,
+    });
+  }
+
+  const result: Keyframe[] = [];
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const tEased = easeInOut(t);
+    const angleOffset = tEased * totalAngleRad;
+    const dancers = copyDancers(prev.dancers);
+    for (const od of orbitData) {
+      const angle = od.startAngle + angleOffset;
+      dancers[od.protoId].x = od.cx + od.radius * Math.sin(angle);
+      dancers[od.protoId].y = od.cy + od.radius * Math.cos(angle);
+      dancers[od.protoId].facing = od.originalFacing; // maintain original facing
+    }
+    result.push({ beat, dancers, hands: prev.hands });
+  }
+  return result;
+}
+
+function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+  // All scoped dancers orbit around their common center
+  // Left = CCW (negative angle), Right = CW (positive angle)
+  const sign = instr.direction === 'right' ? 1 : -1;
+  const totalAngleRad = sign * instr.rotations * 2 * Math.PI;
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  // Compute center of all scoped dancers
+  let cx = 0, cy = 0, count = 0;
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    cx += prev.dancers[id].x;
+    cy += prev.dancers[id].y;
+    count++;
+  }
+  cx /= count;
+  cy /= count;
+
+  const orbitData: { protoId: ProtoDancerId; startAngle: number; radius: number }[] = [];
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    const d = prev.dancers[id];
+    orbitData.push({
+      protoId: id,
+      startAngle: Math.atan2(d.x - cx, d.y - cy),
+      radius: Math.hypot(d.x - cx, d.y - cy),
+    });
+  }
+
+  // Build ring hand connections: sort dancers by their starting angle, connect adjacent pairs
+  const sorted = [...orbitData].sort((a, b) => a.startAngle - b.startAngle);
+  const ringHands: HandConnection[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const curr = sorted[i];
+    const next = sorted[(i + 1) % sorted.length];
+    const a = makeDancerId(curr.protoId, 0);
+    const b = makeDancerId(next.protoId, 0);
+    const [lo, hi] = a < b ? [a, b] : [b, a];
+    ringHands.push({ a: lo, ha: 'left', b: hi, hb: 'right' });
+  }
+  const hands = [...prev.hands, ...ringHands];
+
+  const result: Keyframe[] = [];
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const tEased = easeInOut(t);
+    const angleOffset = tEased * totalAngleRad;
+    const dancers = copyDancers(prev.dancers);
+    for (const od of orbitData) {
+      const angle = od.startAngle + angleOffset;
+      dancers[od.protoId].x = cx + od.radius * Math.sin(angle);
+      dancers[od.protoId].y = cy + od.radius * Math.cos(angle);
+      // Face center
+      const facingRad = Math.atan2(cx - dancers[od.protoId].x, cy - dancers[od.protoId].y);
+      dancers[od.protoId].facing = ((facingRad * 180 / Math.PI) % 360 + 360) % 360;
+    }
+    result.push({ beat, dancers, hands });
+  }
+  return result;
+}
+
+function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  // Build swap pairs and hand connections
+  const swapData: { protoId: ProtoDancerId; targetPos: { x: number; y: number }; originalFacing: number }[] = [];
+  const pullHands: HandConnection[] = [];
+  const seen = new Set<string>();
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    const target = resolveRelationship(instr.relationship, id, prev.dancers);
+    const da = prev.dancers[id];
+    const targetPos = dancerPosition(target, prev.dancers);
+    swapData.push({ protoId: id, targetPos: { x: targetPos.x, y: targetPos.y }, originalFacing: da.facing });
+    const aId = makeDancerId(id, 0);
+    const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      pullHands.push({ a: aId, ha: instr.hand, b: target, hb: instr.hand });
+    }
+  }
+  const hands = [...prev.hands, ...pullHands];
+
+  const result: Keyframe[] = [];
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const tEased = easeInOut(t);
+    const dancers = copyDancers(prev.dancers);
+    for (const sd of swapData) {
+      const startX = prev.dancers[sd.protoId].x;
+      const startY = prev.dancers[sd.protoId].y;
+      dancers[sd.protoId].x = startX + (sd.targetPos.x - startX) * tEased;
+      dancers[sd.protoId].y = startY + (sd.targetPos.y - startY) * tEased;
+      dancers[sd.protoId].facing = sd.originalFacing; // maintain facing
+    }
+    result.push({ beat, dancers, hands });
+  }
+  return result;
+}
+
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
@@ -280,6 +421,9 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'take_hands':  return generateTakeHands(prev, instr, scope);
     case 'drop_hands':  return generateDropHands(prev, instr, scope);
     case 'allemande':   return generateAllemande(prev, instr, scope);
+    case 'do_si_do':    return generateDoSiDo(prev, instr, scope);
+    case 'circle':      return generateCircle(prev, instr, scope);
+    case 'pull_by':     return generatePullBy(prev, instr, scope);
     case 'turn':        return generateTurn(prev, instr, scope);
     case 'step':        return generateStep(prev, instr, scope);
     case 'balance':     return generateBalance(prev, instr, scope);

@@ -758,6 +758,152 @@ describe('generateAllKeyframes', () => {
     });
   });
 
+  describe('do_si_do', () => {
+    it('dancers return to starting positions after 1 full rotation', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers['up_lark'].x).toBeCloseTo(init.dancers['up_lark'].x, 1);
+      expect(last.dancers['up_lark'].y).toBeCloseTo(init.dancers['up_lark'].y, 1);
+    });
+
+    it('dancers maintain their original facing throughout', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      // Check mid-animation: facing should stay at initial values
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      expect(mid.dancers['up_lark'].facing).toBeCloseTo(init.dancers['up_lark'].facing, 1);
+      expect(mid.dancers['down_robin'].facing).toBeCloseTo(init.dancers['down_robin'].facing, 1);
+    });
+
+    it('no hand connections during do-si-do', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      expect(mid.hands).toHaveLength(0);
+    });
+
+    it('dancers swap positions after half rotation', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'do_si_do', relationship: 'neighbor', rotations: 0.5 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // up_lark (-0.5,-0.5) neighbors down_robin (-0.5,0.5) — half orbit swaps them
+      expect(last.dancers['up_lark'].x).toBeCloseTo(-0.5, 1);
+      expect(last.dancers['up_lark'].y).toBeCloseTo(0.5, 1);
+      expect(last.dancers['down_robin'].x).toBeCloseTo(-0.5, 1);
+      expect(last.dancers['down_robin'].y).toBeCloseTo(-0.5, 1);
+    });
+  });
+
+  describe('circle', () => {
+    it('dancers return to starting positions after full circle', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      for (const id of Object.keys(init.dancers)) {
+        expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 1);
+        expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y, 1);
+      }
+    });
+
+    it('circle left moves counter-clockwise', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // Quarter CCW: up_lark (-0.5,-0.5) → (0.5, -0.5) = up_robin's position
+      expect(last.dancers['up_lark'].x).toBeCloseTo(0.5, 1);
+      expect(last.dancers['up_lark'].y).toBeCloseTo(-0.5, 1);
+    });
+
+    it('circle right moves clockwise', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'circle', direction: 'right', rotations: 0.25 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // Quarter CW: up_lark (-0.5,-0.5) → (-0.5, 0.5) = down_robin's position
+      expect(last.dancers['up_lark'].x).toBeCloseTo(-0.5, 1);
+      expect(last.dancers['up_lark'].y).toBeCloseTo(0.5, 1);
+    });
+
+    it('dancers face center throughout', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      // Each dancer should face toward center (0,0)
+      for (const id of ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const) {
+        const d = mid.dancers[id];
+        const angleToCenter = ((Math.atan2(-d.x, -d.y) * 180 / Math.PI) % 360 + 360) % 360;
+        const facing = ((d.facing % 360) + 360) % 360;
+        expect(facing).toBeCloseTo(angleToCenter, 0);
+      }
+    });
+
+    it('has hand connections forming a ring', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      // Should have 4 hand connections (ring of 4 dancers)
+      expect(mid.hands).toHaveLength(4);
+    });
+  });
+
+  describe('pull_by', () => {
+    it('dancers swap positions', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // up_lark (-0.5,-0.5) swaps with neighbor down_robin (-0.5,0.5)
+      expect(last.dancers['up_lark'].x).toBeCloseTo(init.dancers['down_robin'].x, 5);
+      expect(last.dancers['up_lark'].y).toBeCloseTo(init.dancers['down_robin'].y, 5);
+      expect(last.dancers['down_robin'].x).toBeCloseTo(init.dancers['up_lark'].x, 5);
+      expect(last.dancers['down_robin'].y).toBeCloseTo(init.dancers['up_lark'].y, 5);
+    });
+
+    it('dancers maintain original facing', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers['up_lark'].facing).toBeCloseTo(init.dancers['up_lark'].facing, 5);
+      expect(last.dancers['down_robin'].facing).toBeCloseTo(init.dancers['down_robin'].facing, 5);
+    });
+
+    it('has hand connections during the pull-by', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      expect(mid.hands.length).toBeGreaterThan(0);
+      expect(mid.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
+    });
+  });
+
   describe('validateHandDistances', () => {
     it('no warning when neighbors take hands (distance ~1.0m)', () => {
       const instructions: Instruction[] = [

@@ -10,9 +10,10 @@ type ActionType = AtomicInstruction['type'];
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
-const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'turn', 'step', 'balance', 'split'];
+const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'turn', 'step', 'balance', 'split'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
+  do_si_do: 'do-si-do', circle: 'circle', pull_by: 'pull by',
   turn: 'turn', step: 'step', balance: 'balance', split: 'split',
 };
 
@@ -35,6 +36,7 @@ const DROP_TARGET_LABELS: Record<string, string> = {
 };
 
 const HAND_OPTIONS = ['right', 'left'];
+const CIRCLE_DIR_OPTIONS = ['left', 'right'];
 
 function parseDirection(text: string): RelativeDirection | null {
   const trimmed = text.trim().toLowerCase();
@@ -63,6 +65,9 @@ function sumBeats(instructions: AtomicInstruction[]): number {
 function defaultBeats(action: string): string {
   switch (action) {
     case 'allemande': return '8';
+    case 'do_si_do':  return '8';
+    case 'circle':    return '8';
+    case 'pull_by':   return '2';
     case 'step':      return '2';
     case 'balance':   return '4';
     default:          return '0';
@@ -100,6 +105,18 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       const r = instr.relationship;
       const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
       return `${label} allemande ${instr.handedness} ${instr.rotations}x (${instr.beats}b)`;
+    }
+    case 'do_si_do': {
+      const r = instr.relationship;
+      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      return `${label} do-si-do ${instr.rotations}x (${instr.beats}b)`;
+    }
+    case 'circle':
+      return `circle ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
+    case 'pull_by': {
+      const r = instr.relationship;
+      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      return `${label} pull by ${instr.hand} (${instr.beats}b)`;
     }
     case 'turn': {
       const t = instr.target;
@@ -180,6 +197,15 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
       setRelationship(instr.relationship);
       setHandedness(instr.handedness);
       setRotations(String(instr.rotations));
+    } else if (instr.type === 'do_si_do') {
+      setRelationship(instr.relationship);
+      setRotations(String(instr.rotations));
+    } else if (instr.type === 'circle') {
+      setHandedness(instr.direction);
+      setRotations(String(instr.rotations));
+    } else if (instr.type === 'pull_by') {
+      setRelationship(instr.relationship);
+      setHand(instr.hand);
     } else if (instr.type === 'turn') {
       setTurnText(directionToText(instr.target));
       setTurnOffset(String(instr.offset));
@@ -210,6 +236,12 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         return { id, beats: 0, type: 'drop_hands', target: dropTarget };
       case 'allemande':
         return { ...base, type: 'allemande', relationship, handedness, rotations: Number(rotations) || 1 };
+      case 'do_si_do':
+        return { ...base, type: 'do_si_do', relationship, rotations: Number(rotations) || 1 };
+      case 'circle':
+        return { ...base, type: 'circle', direction: handedness, rotations: Number(rotations) || 1 };
+      case 'pull_by':
+        return { ...base, type: 'pull_by', relationship, hand };
       case 'turn': {
         const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'turn', target, offset: Number(turnOffset) || 0 };
@@ -405,7 +437,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           </label>
         )}
 
-        {action !== 'split' && (action === 'take_hands' || action === 'allemande') && (
+        {action !== 'split' && (action === 'take_hands' || action === 'allemande' || action === 'do_si_do' || action === 'pull_by') && (
           <label>
             With
             <SearchableDropdown
@@ -429,7 +461,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           </label>
         )}
 
-        {action === 'take_hands' && (
+        {(action === 'take_hands' || action === 'pull_by') && (
           <label>
             Hand
             <SearchableDropdown
@@ -446,6 +478,40 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               Hand
               <SearchableDropdown
                 options={HAND_OPTIONS}
+                value={handedness}
+                onChange={v => setHandedness(v as 'left' | 'right')}
+              />
+            </label>
+            <label>
+              Rotations
+              <input
+                type="text"
+                inputMode="decimal"
+                value={rotations}
+                onChange={e => setRotations(e.target.value)}
+              />
+            </label>
+          </>
+        )}
+
+        {action === 'do_si_do' && (
+          <label>
+            Rotations
+            <input
+              type="text"
+              inputMode="decimal"
+              value={rotations}
+              onChange={e => setRotations(e.target.value)}
+            />
+          </label>
+        )}
+
+        {action === 'circle' && (
+          <>
+            <label>
+              Direction
+              <SearchableDropdown
+                options={CIRCLE_DIR_OPTIONS}
                 value={handedness}
                 onChange={v => setHandedness(v as 'left' | 'right')}
               />
