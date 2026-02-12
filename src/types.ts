@@ -1,3 +1,7 @@
+export type Role = 'lark' | 'robin';
+export type ProtoDancerId = 'up_lark' | 'up_robin' | 'down_lark' | 'down_robin';
+export type DancerId = `${ProtoDancerId}_${number}`;
+
 // Who they interact with (only for actions that involve a partner)
 export type Relationship = 'partner' | 'neighbor' | 'opposite' | 'on_right' | 'on_left' | 'in_front';
 
@@ -35,15 +39,15 @@ export interface DancerState {
 }
 
 export interface HandConnection {
-  a: string;
-  ha: string; // 'left' | 'right'
-  b: string;
-  hb: string; // 'left' | 'right'
+  a: ProtoDancerId;
+  ha: 'left' | 'right';
+  b: ProtoDancerId;
+  hb: 'left' | 'right';
 }
 
 export interface Keyframe {
   beat: number;
-  dancers: Record<string, DancerState>;
+  dancers: Record<ProtoDancerId, DancerState>;
   hands: HandConnection[];
   annotation?: string;
 }

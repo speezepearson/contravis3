@@ -1,6 +1,6 @@
-import type { DancerState, Keyframe } from './types';
+import type { DancerState, Keyframe, ProtoDancerId } from './types';
 
-const COLORS: Record<string, { fill: string; stroke: string; label: string }> = {
+const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
   up_robin:   { fill: '#d94a4a', stroke: '#ff6a6a', label: 'UR' },
   down_lark:  { fill: '#2a60a9', stroke: '#4a80c9', label: 'DL' },
@@ -18,7 +18,7 @@ export class Renderer {
   private usableH: number;
   private xRange: number;
   private cameraY = 0;
-  private trails: Record<string, { x: number; y: number }[]> = {};
+  private trails: Partial<Record<ProtoDancerId, { x: number; y: number }[]>> = {};
   private trailLength = 20;
 
   constructor(ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -98,21 +98,20 @@ export class Renderer {
     const firstCopy = Math.floor((viewYMin - 1) / 2) * 2;
     const lastCopy = Math.ceil((viewYMax + 1) / 2) * 2;
     for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
-      for (const [id, d] of Object.entries(frame.dancers)) {
+      for (const [id, d] of Object.entries(frame.dancers) as [ProtoDancerId, DancerState][]) {
         this.drawDancer(id, d.x, d.y + offset, d.facing, 1.0);
       }
     }
 
     // Update and draw trails
-    for (const [id, d] of Object.entries(frame.dancers)) {
+    for (const [id, d] of Object.entries(frame.dancers) as [ProtoDancerId, DancerState][]) {
       if (!this.trails[id]) this.trails[id] = [];
-      this.trails[id].push({ x: d.x, y: d.y });
-      if (this.trails[id].length > this.trailLength) this.trails[id].shift();
+      this.trails[id]!.push({ x: d.x, y: d.y });
+      if (this.trails[id]!.length > this.trailLength) this.trails[id]!.shift();
     }
 
-    for (const [id, trail] of Object.entries(this.trails)) {
+    for (const [id, trail] of Object.entries(this.trails) as [ProtoDancerId, { x: number; y: number }[]][]) {
       const color = COLORS[id];
-      if (!color) continue;
       ctx.strokeStyle = color.fill;
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.3;
@@ -127,13 +126,13 @@ export class Renderer {
     }
   }
 
-  private handAnchorOffset(facing: number, hand: string, r: number): [number, number] {
+  private handAnchorOffset(facing: number, hand: 'left' | 'right', r: number): [number, number] {
     const fRad = facing * Math.PI / 180;
     const sign = hand === 'right' ? 1 : -1;
     return [Math.cos(fRad) * sign * r, Math.sin(fRad) * sign * r];
   }
 
-  private drawHandsForAllCopies(da: DancerState, handA: string, db: DancerState, handB: string) {
+  private drawHandsForAllCopies(da: DancerState, handA: 'left' | 'right', db: DancerState, handB: 'left' | 'right') {
     const ctx = this.ctx;
     const viewYMin = this.cameraY - Y_RANGE / 2;
     const viewYMax = this.cameraY + Y_RANGE / 2;
@@ -154,7 +153,7 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
-  private drawDancer(id: string, x: number, y: number, facing: number, alpha: number) {
+  private drawDancer(id: ProtoDancerId, x: number, y: number, facing: number, alpha: number) {
     const color = COLORS[id];
     if (!color) return;
     const ctx = this.ctx;
@@ -229,22 +228,23 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number): Keyframe | 
   const f1 = keyframes[hi];
   const t = (beat - f0.beat) / (f1.beat - f0.beat);
 
-  const frame: Keyframe = {
-    beat,
-    dancers: {},
-    hands: f1.hands,
-    annotation: f0.annotation || f1.annotation || '',
-  };
-
-  for (const id of Object.keys(f0.dancers)) {
+  const dancers = {} as Record<ProtoDancerId, DancerState>;
+  for (const id of Object.keys(f0.dancers) as ProtoDancerId[]) {
     const d0 = f0.dancers[id];
     const d1 = f1.dancers[id];
-    frame.dancers[id] = {
+    dancers[id] = {
       x: d0.x + (d1.x - d0.x) * t,
       y: d0.y + (d1.y - d0.y) * t,
       facing: lerpAngle(d0.facing, d1.facing, t),
     };
   }
+
+  const frame: Keyframe = {
+    beat,
+    dancers,
+    hands: f1.hands,
+    annotation: f0.annotation || f1.annotation || '',
+  };
 
   return frame;
 }
