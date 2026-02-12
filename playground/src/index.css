@@ -133,7 +133,6 @@ input[type="range"] {
   color: #aaa;
 }
 
-.instruction-builder select,
 .instruction-builder input[type="number"],
 .instruction-builder input[type="text"] {
   background: #2a2a4a;

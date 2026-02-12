@@ -10,6 +10,32 @@ type ActionType = AtomicInstruction['type'];
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
+const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'turn', 'step', 'balance', 'split'];
+const ACTION_LABELS: Record<string, string> = {
+  take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
+  turn: 'turn', step: 'step', balance: 'balance', split: 'split',
+};
+
+const SPLIT_BY_OPTIONS = ['role', 'position'];
+const SPLIT_BY_LABELS: Record<string, string> = {
+  role: 'role (larks / robins)', position: 'position (ups / downs)',
+};
+
+const RELATIONSHIP_OPTIONS: Relationship[] = ['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front'];
+const RELATIONSHIP_LABELS: Record<string, string> = {
+  partner: 'partner', neighbor: 'neighbor', opposite: 'opposite',
+  on_right: 'on your right', on_left: 'on your left', in_front: 'in front of you',
+};
+
+const DROP_TARGET_OPTIONS: DropHandsTarget[] = ['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front', 'right', 'left', 'both'];
+const DROP_TARGET_LABELS: Record<string, string> = {
+  partner: 'partner hands', neighbor: 'neighbor hands', opposite: 'opposite hands',
+  on_right: 'on-your-right hands', on_left: 'on-your-left hands', in_front: 'in-front hands',
+  right: 'right hand', left: 'left hand', both: 'both hands',
+};
+
+const HAND_OPTIONS = ['right', 'left'];
+
 function parseDirection(text: string): RelativeDirection | null {
   const trimmed = text.trim().toLowerCase();
   if (!trimmed) return null;
@@ -353,69 +379,62 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       <div className="instruction-builder">
         <label>
           Action
-          <select value={action} onChange={e => {
-            const a = e.target.value as ActionType | 'split';
-            setAction(a);
-            if (editingId === null) setBeats(defaultBeats(a));
-          }}>
-            <option value="take_hands">take hands</option>
-            <option value="drop_hands">drop hands</option>
-            <option value="allemande">allemande</option>
-            <option value="turn">turn</option>
-            <option value="step">step</option>
-            <option value="balance">balance</option>
-            {!isSubContext && <option value="split">split</option>}
-          </select>
+          <SearchableDropdown
+            options={isSubContext ? ACTION_OPTIONS.filter(o => o !== 'split') : ACTION_OPTIONS as string[]}
+            value={action}
+            onChange={v => {
+              const a = v as ActionType | 'split';
+              setAction(a);
+              if (editingId === null) setBeats(defaultBeats(a));
+            }}
+            getLabel={v => ACTION_LABELS[v] ?? v}
+          />
         </label>
 
         {action === 'split' && (
           <label>
             Split by
-            <select value={splitBy} onChange={e => setSplitBy(e.target.value as SplitBy)}>
-              <option value="role">role (larks / robins)</option>
-              <option value="position">position (ups / downs)</option>
-            </select>
+            <SearchableDropdown
+              options={SPLIT_BY_OPTIONS}
+              value={splitBy}
+              onChange={v => setSplitBy(v as SplitBy)}
+              getLabel={v => SPLIT_BY_LABELS[v] ?? v}
+            />
           </label>
         )}
 
         {action !== 'split' && (action === 'take_hands' || action === 'allemande') && (
           <label>
             With
-            <select value={relationship} onChange={e => setRelationship(e.target.value as Relationship)}>
-              <option value="partner">partner</option>
-              <option value="neighbor">neighbor</option>
-              <option value="opposite">opposite</option>
-              <option value="on_right">on your right</option>
-              <option value="on_left">on your left</option>
-              <option value="in_front">in front of you</option>
-            </select>
+            <SearchableDropdown
+              options={RELATIONSHIP_OPTIONS as string[]}
+              value={relationship}
+              onChange={v => setRelationship(v as Relationship)}
+              getLabel={v => RELATIONSHIP_LABELS[v] ?? v}
+            />
           </label>
         )}
 
         {action === 'drop_hands' && (
           <label>
             Drop
-            <select value={dropTarget} onChange={e => setDropTarget(e.target.value as DropHandsTarget)}>
-              <option value="partner">partner hands</option>
-              <option value="neighbor">neighbor hands</option>
-              <option value="opposite">opposite hands</option>
-              <option value="on_right">on-your-right hands</option>
-              <option value="on_left">on-your-left hands</option>
-              <option value="in_front">in-front hands</option>
-              <option value="right">right hand</option>
-              <option value="left">left hand</option>
-              <option value="both">both hands</option>
-            </select>
+            <SearchableDropdown
+              options={DROP_TARGET_OPTIONS as string[]}
+              value={dropTarget}
+              onChange={v => setDropTarget(v as DropHandsTarget)}
+              getLabel={v => DROP_TARGET_LABELS[v] ?? v}
+            />
           </label>
         )}
 
         {action === 'take_hands' && (
           <label>
             Hand
-            <select value={hand} onChange={e => setHand(e.target.value as 'left' | 'right')}>
-              <option value="right">right</option>
-              <option value="left">left</option>
-            </select>
+            <SearchableDropdown
+              options={HAND_OPTIONS}
+              value={hand}
+              onChange={v => setHand(v as 'left' | 'right')}
+            />
           </label>
         )}
 
@@ -423,10 +442,11 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
           <>
             <label>
               Hand
-              <select value={handedness} onChange={e => setHandedness(e.target.value as 'left' | 'right')}>
-                <option value="right">right</option>
-                <option value="left">left</option>
-              </select>
+              <SearchableDropdown
+                options={HAND_OPTIONS}
+                value={handedness}
+                onChange={v => setHandedness(v as 'left' | 'right')}
+              />
             </label>
             <label>
               Rotations

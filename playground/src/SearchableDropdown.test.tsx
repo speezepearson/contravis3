@@ -197,10 +197,104 @@ describe('SearchableDropdown', () => {
     expect(items[0].textContent).toBe('neighbor');
   });
 
+  it('reopens popover when clicked while already focused', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<SearchableDropdown options={OPTIONS} value="" onChange={onChange} />);
+    const input = screen.getByRole('textbox');
+    await user.click(input);
+    expect(screen.getByRole('listbox')).toBeDefined();
+    // Select an option (closes popover, keeps focus)
+    await user.keyboard('{Enter}');
+    expect(screen.queryByRole('listbox')).toBeNull();
+    // Click again while still focused — should reopen
+    await user.click(input);
+    expect(screen.getByRole('listbox')).toBeDefined();
+  });
+
   it('accepts a placeholder prop', () => {
     render(
       <SearchableDropdown options={OPTIONS} value="" onChange={() => {}} placeholder="Search..." />
     );
     expect(screen.getByPlaceholderText('Search...')).toBeDefined();
+  });
+});
+
+describe('SearchableDropdown with getLabel', () => {
+  const VALS = ['take_hands', 'drop_hands', 'allemande'];
+  const LABELS: Record<string, string> = {
+    take_hands: 'take hands',
+    drop_hands: 'drop hands',
+    allemande: 'allemande',
+  };
+  const getLabel = (v: string) => LABELS[v] ?? v;
+
+  it('displays label of selected value when not focused', () => {
+    render(
+      <SearchableDropdown options={VALS} value="take_hands" onChange={() => {}} getLabel={getLabel} />
+    );
+    expect(screen.getByRole('textbox').getAttribute('value')).toBe('take hands');
+  });
+
+  it('shows empty input when focused for fresh search', async () => {
+    const user = userEvent.setup();
+    render(
+      <SearchableDropdown options={VALS} value="take_hands" onChange={() => {}} getLabel={getLabel} />
+    );
+    await user.click(screen.getByRole('textbox'));
+    expect(screen.getByRole('textbox').getAttribute('value')).toBe('');
+    // All options visible
+    expect(screen.getAllByRole('option')).toHaveLength(3);
+  });
+
+  it('displays labels in the dropdown list', async () => {
+    const user = userEvent.setup();
+    render(
+      <SearchableDropdown options={VALS} value="" onChange={() => {}} getLabel={getLabel} />
+    );
+    await user.click(screen.getByRole('textbox'));
+    const items = screen.getAllByRole('option');
+    expect(items[0].textContent).toBe('take hands');
+    expect(items[1].textContent).toBe('drop hands');
+    expect(items[2].textContent).toBe('allemande');
+  });
+
+  it('filters by label text', async () => {
+    const user = userEvent.setup();
+    render(
+      <SearchableDropdown options={VALS} value="" onChange={() => {}} getLabel={getLabel} />
+    );
+    await user.click(screen.getByRole('textbox'));
+    await user.type(screen.getByRole('textbox'), 'drop');
+    const items = screen.getAllByRole('option');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toBe('drop hands');
+  });
+
+  it('calls onChange with the raw value on selection', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <SearchableDropdown options={VALS} value="" onChange={onChange} getLabel={getLabel} />
+    );
+    await user.click(screen.getByRole('textbox'));
+    await user.keyboard('{ArrowDown}'); // highlight "drop_hands"
+    await user.keyboard('{Enter}');
+    expect(onChange).toHaveBeenCalledWith('drop_hands');
+  });
+
+  it('shows label again after selection and blur', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <SearchableDropdown options={VALS} value="" onChange={onChange} getLabel={getLabel} />
+    );
+    await user.click(screen.getByRole('textbox'));
+    await user.keyboard('{Enter}'); // selects take_hands
+    rerender(
+      <SearchableDropdown options={VALS} value="take_hands" onChange={onChange} getLabel={getLabel} />
+    );
+    // After popover closes, input shows the label
+    expect(screen.getByRole('textbox').getAttribute('value')).toBe('take hands');
   });
 });

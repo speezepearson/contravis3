@@ -6,18 +6,28 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  getLabel?: (value: string) => string;
 }
 
-export default function SearchableDropdown({ options, value, onChange, placeholder }: Props) {
+export default function SearchableDropdown({ options, value, onChange, placeholder, getLabel }: Props) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [searchText, setSearchText] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const query = value.toLowerCase();
+  const labelOf = (opt: string) => getLabel ? getLabel(opt) : opt;
+
+  // In label mode, filtering uses internal searchText; in text mode, uses value
+  const query = (getLabel ? searchText : value).toLowerCase();
   const filtered = query
-    ? options.filter(opt => new RegExp('\\b' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(opt.toLowerCase()))
+    ? options.filter(opt => new RegExp('\\b' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(labelOf(opt).toLowerCase()))
     : options;
+
+  // What to display in the input
+  const inputValue = getLabel
+    ? (open ? searchText : (value ? labelOf(value) : ''))
+    : value;
 
   // Reset highlight to first item when filtered results change
   const prevFilteredKey = useRef(filtered.join('\0'));
@@ -39,7 +49,16 @@ export default function SearchableDropdown({ options, value, onChange, placehold
 
   function handleFocus() {
     setOpen(true);
+    if (getLabel) setSearchText('');
     setHighlightIndex(filtered.length > 0 ? 0 : -1);
+  }
+
+  function handleClick() {
+    if (!open) {
+      setOpen(true);
+      if (getLabel) setSearchText('');
+      setHighlightIndex(options.length > 0 ? 0 : -1);
+    }
   }
 
   function handleBlur(e: React.FocusEvent) {
@@ -47,9 +66,13 @@ export default function SearchableDropdown({ options, value, onChange, placehold
     if (containerRef.current?.contains(e.relatedTarget as Node)) return;
     setOpen(false);
     setHighlightIndex(-1);
-    // Revert to empty if current value isn't a valid option
-    if (!options.includes(value)) {
-      onChange('');
+    if (getLabel) {
+      setSearchText('');
+    } else {
+      // Revert to empty if current value isn't a valid option
+      if (!options.includes(value)) {
+        onChange('');
+      }
     }
   }
 
@@ -67,7 +90,7 @@ export default function SearchableDropdown({ options, value, onChange, placehold
     } else if (e.key === 'Enter' || e.key === 'Tab') {
       if (highlightIndex >= 0 && highlightIndex < filtered.length) {
         e.preventDefault();
-        onChange(filtered[highlightIndex]);
+        selectOption(filtered[highlightIndex]);
       }
       setOpen(false);
       setHighlightIndex(-1);
@@ -75,6 +98,7 @@ export default function SearchableDropdown({ options, value, onChange, placehold
       e.preventDefault();
       setOpen(false);
       setHighlightIndex(-1);
+      if (getLabel) setSearchText('');
     }
   }
 
@@ -82,6 +106,17 @@ export default function SearchableDropdown({ options, value, onChange, placehold
     onChange(opt);
     setOpen(false);
     setHighlightIndex(-1);
+    if (getLabel) setSearchText('');
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (getLabel) {
+      setSearchText(e.target.value);
+      setOpen(true);
+    } else {
+      onChange(e.target.value);
+      setOpen(true);
+    }
   }
 
   return (
@@ -92,10 +127,11 @@ export default function SearchableDropdown({ options, value, onChange, placehold
     >
       <input
         type="text"
-        value={value}
+        value={inputValue}
         placeholder={placeholder}
-        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onChange={handleChange}
         onFocus={handleFocus}
+        onClick={handleClick}
         onKeyDown={handleKeyDown}
         autoComplete="off"
       />
@@ -112,7 +148,7 @@ export default function SearchableDropdown({ options, value, onChange, placehold
                 selectOption(opt);
               }}
             >
-              {opt}
+              {labelOf(opt)}
             </li>
           ))}
         </ul>
