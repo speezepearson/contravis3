@@ -116,3 +116,150 @@ test.describe('number input free-form typing', () => {
     await expect(summary).toContainText('0.25b');
   });
 });
+
+test.describe('balance action', () => {
+  test('balance defaults to 2 beats', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('balance');
+
+    const beatsInput = page.locator('.instruction-builder input[inputmode="decimal"]').last();
+    await expect(beatsInput).toHaveValue('2');
+  });
+
+  test('balance shows direction input', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('balance');
+
+    // Should show a direction input
+    const dirInput = page.locator('.face-input');
+    await expect(dirInput).toBeVisible();
+  });
+
+  test('adding a balance instruction shows correct summary', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('balance');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('across');
+
+    await page.locator('.add-btn').click();
+
+    const summary = page.locator('.instruction-summary').first();
+    await expect(summary).toContainText('balance across (2b)');
+  });
+
+  test('balance with facing-relative direction', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('balance');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('forward');
+
+    await page.locator('.add-btn').click();
+
+    const summary = page.locator('.instruction-summary').first();
+    await expect(summary).toContainText('balance forward (2b)');
+  });
+});
+
+test.describe('new facing-relative directions', () => {
+  test('step accepts "forward" direction', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('step');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('forward');
+
+    await page.locator('.add-btn').click();
+
+    const summary = page.locator('.instruction-summary').first();
+    await expect(summary).toContainText('step forward');
+  });
+
+  test('step accepts "back" direction', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('step');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('back');
+
+    await page.locator('.add-btn').click();
+
+    const summary = page.locator('.instruction-summary').first();
+    await expect(summary).toContainText('step back');
+  });
+
+  test('step accepts "right" direction', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('step');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('right');
+
+    await page.locator('.add-btn').click();
+
+    const summary = page.locator('.instruction-summary').first();
+    await expect(summary).toContainText('step right');
+  });
+
+  test('step accepts "left" direction', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('step');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('left');
+
+    await page.locator('.add-btn').click();
+
+    const summary = page.locator('.instruction-summary').first();
+    await expect(summary).toContainText('step left');
+  });
+
+  test('turn accepts "forward" direction', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('turn');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('forward');
+
+    await page.locator('.add-btn').click();
+
+    const summary = page.locator('.instruction-summary').first();
+    await expect(summary).toContainText('turn forward');
+  });
+
+  test('direction autocomplete offers "forward" for "fo"', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('step');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('fo');
+
+    // Ghost completion should show "forward"
+    const ghost = page.locator('.face-ghost');
+    await expect(ghost).toHaveText('forward');
+  });
+
+  test('anti-progression is not in autocomplete', async ({ page }) => {
+    await page.goto('/');
+    const actionSelect = page.locator('.instruction-builder select').first();
+    await actionSelect.selectOption('step');
+
+    const dirInput = page.locator('.face-input');
+    await dirInput.fill('anti');
+
+    // No ghost completion should appear
+    const ghost = page.locator('.face-ghost');
+    await expect(ghost).toHaveCount(0);
+  });
+});

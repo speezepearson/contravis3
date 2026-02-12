@@ -60,7 +60,10 @@ function resolveHeading(dir: RelativeDirection, d: DancerState, id: string, danc
       case 'across':           return d.x < 0 ? Math.PI / 2 : -Math.PI / 2;
       case 'out':              return d.x < 0 ? -Math.PI / 2 : Math.PI / 2;
       case 'progression':      return UPS.has(id) ? 0 : Math.PI;
-      case 'anti-progression': return UPS.has(id) ? Math.PI : 0;
+      case 'forward':          return d.facing * Math.PI / 180;
+      case 'back':             return (d.facing + 180) * Math.PI / 180;
+      case 'right':            return (d.facing + 90) * Math.PI / 180;
+      case 'left':             return (d.facing - 90) * Math.PI / 180;
     }
   }
   // relationship: toward the matched partner
@@ -216,6 +219,16 @@ function generateStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 
   return keyframes;
 }
 
+function generateBalance(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'balance' }>, scope: Set<string>): Keyframe[] {
+  const halfBeats = instr.beats / 2;
+  const stepOut = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: 0.2 };
+  const outFrames = generateStep(prev, stepOut, scope);
+  const lastOut = outFrames.length > 0 ? outFrames[outFrames.length - 1] : prev;
+  const stepBack = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -0.2 };
+  const backFrames = generateStep(lastOut, stepBack, scope);
+  return [...outFrames, ...backFrames];
+}
+
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<string>): Keyframe[] {
@@ -225,6 +238,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'allemande':   return generateAllemande(prev, instr, scope);
     case 'turn':        return generateTurn(prev, instr, scope);
     case 'step':        return generateStep(prev, instr, scope);
+    case 'balance':     return generateBalance(prev, instr, scope);
   }
 }
 

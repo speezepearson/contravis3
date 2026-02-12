@@ -3,12 +3,12 @@ import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, S
 
 type ActionType = AtomicInstruction['type'];
 
-const DIR_COMPLETIONS = ['up', 'down', 'across', 'out', 'progression', 'anti-progression', 'partner', 'neighbor', 'opposite'];
+const DIR_COMPLETIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
 function parseDirection(text: string): RelativeDirection | null {
   const trimmed = text.trim().toLowerCase();
   if (!trimmed) return null;
-  const directions = new Set(['up', 'down', 'across', 'out', 'progression', 'anti-progression']);
+  const directions = new Set(['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left']);
   const relationships = new Set(['partner', 'neighbor', 'opposite']);
   if (directions.has(trimmed)) return { kind: 'direction', value: trimmed as RelativeDirection & { kind: 'direction' } extends { value: infer V } ? V : never };
   if (relationships.has(trimmed)) return { kind: 'relationship', value: trimmed as Relationship };
@@ -36,6 +36,7 @@ function defaultBeats(action: string): string {
   switch (action) {
     case 'allemande': return '8';
     case 'step':      return '2';
+    case 'balance':   return '2';
     default:          return '0';
   }
 }
@@ -72,6 +73,13 @@ function summarizeAtomic(instr: AtomicInstruction): string {
         : t.kind === 'cw' ? `${t.value}\u00B0`
         : t.value;
       return `step ${desc} ${instr.distance} (${instr.beats}b)`;
+    }
+    case 'balance': {
+      const t = instr.direction;
+      const desc = t.kind === 'direction' ? t.value
+        : t.kind === 'cw' ? `${t.value}\u00B0`
+        : t.value;
+      return `balance ${desc} (${instr.beats}b)`;
     }
   }
 }
@@ -135,6 +143,9 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [stepText, setStepText] = useState('');
   const [stepCompletion, setStepCompletion] = useState('');
   const stepInputRef = useRef<HTMLInputElement>(null);
+  const [balanceText, setBalanceText] = useState('');
+  const [balanceCompletion, setBalanceCompletion] = useState('');
+  const balanceInputRef = useRef<HTMLInputElement>(null);
   const [distance, setDistance] = useState('0.5');
   const [beats, setBeats] = useState('0');
   const [splitBy, setSplitBy] = useState<SplitBy>('role');
@@ -159,6 +170,9 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       setStepText(directionToText(instr.direction));
       setStepCompletion('');
       setDistance(String(instr.distance));
+    } else if (instr.type === 'balance') {
+      setBalanceText(directionToText(instr.direction));
+      setBalanceCompletion('');
     }
   }
 
@@ -187,6 +201,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       case 'step': {
         const dir = parseDirection(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'step', direction: dir, distance: Number(distance) || 0 };
+      }
+      case 'balance': {
+        const dir = parseDirection(balanceText) ?? { kind: 'direction' as const, value: 'across' as const };
+        return { ...base, type: 'balance', direction: dir };
       }
     }
   }
@@ -337,6 +355,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
             <option value="allemande">allemande</option>
             <option value="turn">turn</option>
             <option value="step">step</option>
+            <option value="balance">balance</option>
             {!isSubContext && <option value="split">split</option>}
           </select>
         </label>
@@ -428,6 +447,19 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
               />
             </label>
           </>
+        )}
+
+        {action === 'balance' && (
+          <label>
+            Direction
+            <DirectionInput
+              value={balanceText}
+              completion={balanceCompletion}
+              inputRef={balanceInputRef}
+              onChange={(val, comp) => { setBalanceText(val); setBalanceCompletion(comp); }}
+              onComplete={() => { setBalanceText(balanceCompletion); setBalanceCompletion(''); }}
+            />
+          </label>
         )}
 
         {action !== 'split' && (

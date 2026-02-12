@@ -3,7 +3,7 @@ export type Relationship = 'partner' | 'neighbor' | 'opposite';
 
 // Direction relative to a dancer: a named direction, a relationship, or CW degrees
 export type RelativeDirection =
-  | { kind: 'direction'; value: 'up' | 'down' | 'across' | 'out' | 'progression' | 'anti-progression' }
+  | { kind: 'direction'; value: 'up' | 'down' | 'across' | 'out' | 'progression' | 'forward' | 'back' | 'right' | 'left' }
   | { kind: 'cw'; value: number }         // clockwise degrees from current facing
   | { kind: 'relationship'; value: Relationship };
 
@@ -16,6 +16,7 @@ export type AtomicInstruction = {
   | { type: 'allemande'; relationship: Relationship; direction: 'cw' | 'ccw'; rotations: number }
   | { type: 'turn'; target: RelativeDirection }
   | { type: 'step'; direction: RelativeDirection; distance: number }
+  | { type: 'balance'; direction: RelativeDirection }
 );
 
 export type SplitBy = 'role' | 'position';

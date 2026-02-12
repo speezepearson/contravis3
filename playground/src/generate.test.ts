@@ -136,16 +136,47 @@ describe('generateAllKeyframes', () => {
       expect(last.dancers['down_robin'].facing).toBe(180);
     });
 
-    it('turns dancers to face anti-progression direction', () => {
+    it('turns dancers to face forward (same as current facing)', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'anti-progression' } },
+        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'forward' } },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      expect(last.dancers['up_lark'].facing).toBe(180);
-      expect(last.dancers['up_robin'].facing).toBe(180);
-      expect(last.dancers['down_lark'].facing).toBe(0);
-      expect(last.dancers['down_robin'].facing).toBe(0);
+      // Ups face 0°, downs face 180° — forward preserves facing
+      expect(last.dancers['up_lark'].facing).toBeCloseTo(0, 5);
+      expect(last.dancers['down_lark'].facing).toBeCloseTo(180, 5);
+    });
+
+    it('turns dancers to face back (opposite of current facing)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'back' } },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers['up_lark'].facing).toBeCloseTo(180, 5);
+      expect(last.dancers['down_lark'].facing).toBeCloseTo(0, 5);
+    });
+
+    it('turns dancers to face right (90° CW from current facing)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'right' } },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // Ups face 0°, right = 90°; downs face 180°, right = 270°
+      expect(last.dancers['up_lark'].facing).toBeCloseTo(90, 5);
+      expect(last.dancers['down_lark'].facing).toBeCloseTo(270, 5);
+    });
+
+    it('turns dancers to face left (90° CCW from current facing)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'turn', target: { kind: 'direction', value: 'left' } },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // Ups face 0°, left = 270°; downs face 180°, left = 90°
+      expect(last.dancers['up_lark'].facing).toBeCloseTo(270, 5);
+      expect(last.dancers['down_lark'].facing).toBeCloseTo(90, 5);
     });
 
     it('rotates dancers clockwise by given degrees from current facing', () => {
@@ -331,15 +362,40 @@ describe('generateAllKeyframes', () => {
       expect(last.dancers['down_robin'].y).toBeCloseTo(init.dancers['down_robin'].y - 1, 5);
     });
 
-    it('moves dancers in their anti-progression direction', () => {
+    it('negative distance steps in the opposite direction', () => {
       const instructions: Instruction[] = [
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'anti-progression' }, distance: 1 },
+        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: -1 },
       ];
       const kfs = generateAllKeyframes(instructions);
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
+      // Negative progression = anti-progression
       expect(last.dancers['up_lark'].y).toBeCloseTo(init.dancers['up_lark'].y - 1, 5);
       expect(last.dancers['down_lark'].y).toBeCloseTo(init.dancers['down_lark'].y + 1, 5);
+    });
+
+    it('moves dancers forward (relative to their facing)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // Ups face 0° (north/+y), downs face 180° (south/-y)
+      expect(last.dancers['up_lark'].y).toBeCloseTo(init.dancers['up_lark'].y + 1, 5);
+      expect(last.dancers['down_lark'].y).toBeCloseTo(init.dancers['down_lark'].y - 1, 5);
+    });
+
+    it('moves dancers right (90° CW from facing)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'right' }, distance: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // Ups face 0°, right = 90° = east (+x); downs face 180°, right = 270° = west (-x)
+      expect(last.dancers['up_lark'].x).toBeCloseTo(init.dancers['up_lark'].x + 1, 5);
+      expect(last.dancers['down_lark'].x).toBeCloseTo(init.dancers['down_lark'].x - 1, 5);
     });
 
     it('produces multiple keyframes with easing', () => {
@@ -517,6 +573,54 @@ describe('generateAllKeyframes', () => {
       // Downs stepped up by 1
       expect(last.dancers['down_lark'].y).toBeCloseTo(init.dancers['down_lark'].y + 1, 5);
       expect(last.dancers['down_robin'].y).toBeCloseTo(init.dancers['down_robin'].y + 1, 5);
+    });
+  });
+
+  describe('balance', () => {
+    it('dancers end at their starting position after a balance', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'across' } },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // Balance: step 0.2 across, then step -0.2 across → net zero
+      for (const id of Object.keys(init.dancers)) {
+        expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
+        expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y, 5);
+      }
+    });
+
+    it('dancers are displaced at the midpoint of a balance', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'up' } },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      // Find keyframe closest to beat 2 (midpoint)
+      const mid = kfs.reduce((best, kf) =>
+        Math.abs(kf.beat - 2) < Math.abs(best.beat - 2) ? kf : best
+      );
+      // At midpoint, dancers should be ~0.2 north of start
+      expect(mid.dancers['up_lark'].y).toBeCloseTo(init.dancers['up_lark'].y + 0.2, 1);
+    });
+
+    it('balance produces multiple keyframes', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'right' } },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      expect(kfs.length).toBeGreaterThan(2);
+      expect(kfs[kfs.length - 1].beat).toBeCloseTo(4, 5);
+    });
+
+    it('balance beats accumulate correctly', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 2, type: 'balance', direction: { kind: 'direction', value: 'forward' } },
+        { id: 2, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      expect(kfs[kfs.length - 1].beat).toBeCloseTo(6, 5);
     });
   });
 });
