@@ -19,9 +19,12 @@ export default function App() {
 
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [bpm, setBpm] = useState(120);
   const [beat, setBeat] = useState(0);
   const [annotation, setAnnotation] = useState('');
   const [instructions, setInstructions] = useState<Instruction[]>([]);
+
+  const bpmRef = useRef(120);
 
   const keyframes = useMemo(() => generateAllKeyframes(instructions), [instructions]);
 
@@ -74,7 +77,7 @@ export default function App() {
     const dt = (timestamp - lastTimestampRef.current) / 1000;
     lastTimestampRef.current = timestamp;
 
-    beatRef.current += dt * speedRef.current * 4; // 4 beats/sec at 1x
+    beatRef.current += dt * speedRef.current * (bpmRef.current / 60);
     if (beatRef.current > maxBeatRef.current) {
       beatRef.current = minBeatRef.current;
       rendererRef.current?.clearTrails();
@@ -171,6 +174,17 @@ export default function App() {
           <div className="beat-display">Beat {beat.toFixed(1)}</div>
         </div>
         <div className="controls">
+          <label className="speed-display">
+            BPM:
+            <input
+              type="number"
+              min={30}
+              max={600}
+              value={bpm}
+              onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
+              style={{ width: '4em', marginLeft: 4 }}
+            />
+          </label>
           <span className="speed-display">Speed:</span>
           {[0.25, 0.5, 1, 2, 4].map(s => (
             <button
