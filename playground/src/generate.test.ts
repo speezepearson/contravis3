@@ -259,6 +259,121 @@ describe('generateAllKeyframes', () => {
     });
   });
 
+  describe('step', () => {
+    it('moves dancers up by distance', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'everyone', beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // up = 0° = +y in world coords (worldToCanvas maps +y to higher on screen)
+      for (const id of Object.keys(init.dancers)) {
+        expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
+        expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y + 1, 5);
+      }
+    });
+
+    it('moves dancers down by distance', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'everyone', beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // down = 180° = -y
+      for (const id of Object.keys(init.dancers)) {
+        expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
+        expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y - 0.5, 5);
+      }
+    });
+
+    it('moves dancers across (toward center of set)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'everyone', beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // x < 0 → step east (+x), x > 0 → step west (-x)
+      expect(last.dancers['up_lark'].x).toBeCloseTo(init.dancers['up_lark'].x + 0.5, 5);
+      expect(last.dancers['up_robin'].x).toBeCloseTo(init.dancers['up_robin'].x - 0.5, 5);
+    });
+
+    it('moves dancers out (away from center)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'everyone', beats: 4, type: 'step', direction: { kind: 'direction', value: 'out' }, distance: 0.5 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // x < 0 → step west (-x), x > 0 → step east (+x)
+      expect(last.dancers['up_lark'].x).toBeCloseTo(init.dancers['up_lark'].x - 0.5, 5);
+      expect(last.dancers['up_robin'].x).toBeCloseTo(init.dancers['up_robin'].x + 0.5, 5);
+    });
+
+    it('moves dancers by a degree heading', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'everyone', beats: 4, type: 'step', direction: { kind: 'degrees', value: 90 }, distance: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // 90° = east = +x
+      for (const id of Object.keys(init.dancers)) {
+        expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x + 1, 5);
+        expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y, 5);
+      }
+    });
+
+    it('moves dancers toward a relationship target', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'everyone', beats: 4, type: 'step', direction: { kind: 'relationship', value: 'partner' }, distance: 0.5 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // up_lark(-0.5,-0.5) steps toward up_robin(0.5,-0.5) → +x
+      expect(last.dancers['up_lark'].x).toBeCloseTo(init.dancers['up_lark'].x + 0.5, 5);
+      expect(last.dancers['up_lark'].y).toBeCloseTo(init.dancers['up_lark'].y, 5);
+      // up_robin(0.5,-0.5) steps toward up_lark(-0.5,-0.5) → -x
+      expect(last.dancers['up_robin'].x).toBeCloseTo(init.dancers['up_robin'].x - 0.5, 5);
+    });
+
+    it('only moves selected dancers', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'larks', beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers['up_lark'].y).toBeCloseTo(init.dancers['up_lark'].y + 1, 5);
+      expect(last.dancers['down_lark'].y).toBeCloseTo(init.dancers['down_lark'].y + 1, 5);
+      // Robins unchanged
+      expect(last.dancers['up_robin']).toEqual(init.dancers['up_robin']);
+      expect(last.dancers['down_robin']).toEqual(init.dancers['down_robin']);
+    });
+
+    it('produces multiple keyframes with easing', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'everyone', beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      expect(kfs.length).toBeGreaterThan(2);
+      expect(kfs[kfs.length - 1].beat).toBeCloseTo(4, 5);
+    });
+
+    it('preserves hands through step', () => {
+      const instructions: Instruction[] = [
+        { id: 1, selector: 'everyone', beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: 2, selector: 'everyone', beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(2);
+    });
+  });
+
   describe('instruction sequencing', () => {
     it('beats accumulate across instructions', () => {
       const instructions: Instruction[] = [

@@ -1,4 +1,4 @@
-import type { Instruction, Keyframe, Selector, Relationship, DancerState, HandConnection } from './types';
+import type { Instruction, Keyframe, Selector, Relationship, FaceTarget, DancerState, HandConnection } from './types';
 
 const DANCER_IDS = ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const;
 
@@ -183,6 +183,67 @@ function generateFace(prev: Keyframe, instr: Extract<Instruction, { type: 'face'
   }];
 }
 
+/** Resolve a FaceTarget to a heading in radians for a specific dancer. */
+function resolveHeading(target: FaceTarget, d: DancerState, id: string, dancers: Record<string, DancerState>): number {
+  if (target.kind === 'degrees') {
+    return target.value * Math.PI / 180;
+  }
+  if (target.kind === 'direction') {
+    switch (target.value) {
+      case 'up':     return 0;
+      case 'down':   return Math.PI;
+      case 'across': return d.x < 0 ? Math.PI / 2 : -Math.PI / 2;
+      case 'out':    return d.x < 0 ? -Math.PI / 2 : Math.PI / 2;
+    }
+  }
+  // relationship: toward the matched partner
+  const pairs = RELATIONSHIP_PAIRS[target.value];
+  let targetId: string | null = null;
+  for (const [a, b] of pairs) {
+    if (a === id) { targetId = b; break; }
+    if (b === id) { targetId = a; break; }
+  }
+  if (targetId) {
+    const t = dancers[targetId];
+    return Math.atan2(t.x - d.x, t.y - d.y);
+  }
+  return 0;
+}
+
+function generateStep(prev: Keyframe, instr: Extract<Instruction, { type: 'step' }>): Keyframe[] {
+  const selected = new Set(SELECTOR_MAP[instr.selector]);
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  // Precompute displacement per selected dancer (resolve heading from prev positions)
+  const displacements: Record<string, { dx: number; dy: number }> = {};
+  for (const id of DANCER_IDS) {
+    if (!selected.has(id)) continue;
+    const d = prev.dancers[id];
+    const heading = resolveHeading(instr.direction, d, id, prev.dancers);
+    // heading uses atan2(dx,dy) convention: 0 = +y (up on screen)
+    displacements[id] = {
+      dx: Math.sin(heading) * instr.distance,
+      dy: Math.cos(heading) * instr.distance,
+    };
+  }
+
+  const keyframes: Keyframe[] = [];
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const tEased = easeInOut(t);
+    const dancers = copyDancers(prev.dancers);
+    for (const id of DANCER_IDS) {
+      const disp = displacements[id];
+      if (!disp) continue;
+      dancers[id].x = prev.dancers[id].x + disp.dx * tEased;
+      dancers[id].y = prev.dancers[id].y + disp.dy * tEased;
+    }
+    keyframes.push({ beat, dancers, hands: prev.hands });
+  }
+  return keyframes;
+}
+
 // --- Top-level generator ---
 
 export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
@@ -204,6 +265,9 @@ export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
         break;
       case 'face':
         newFrames = generateFace(prev, instr);
+        break;
+      case 'step':
+        newFrames = generateStep(prev, instr);
         break;
     }
 

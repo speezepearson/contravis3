@@ -18,6 +18,7 @@ export type Instruction = {
   | { type: 'drop_hands'; relationship: Relationship }
   | { type: 'allemande'; relationship: Relationship; direction: 'cw' | 'ccw'; rotations: number }
   | { type: 'face'; target: FaceTarget }
+  | { type: 'step'; direction: FaceTarget; distance: number }
 );
 
 export interface DancerState {

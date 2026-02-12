@@ -46,6 +46,13 @@ function summarize(instr: Instruction): string {
         : t.value;
       return `${sel}face ${desc} (${instr.beats}b)`;
     }
+    case 'step': {
+      const t = instr.direction;
+      const desc = t.kind === 'direction' ? t.value
+        : t.kind === 'degrees' ? `${t.value}°`
+        : t.value;
+      return `${sel}step ${desc} ${instr.distance} (${instr.beats}b)`;
+    }
   }
 }
 
@@ -59,6 +66,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
   const [faceText, setFaceText] = useState('');
   const [faceCompletion, setFaceCompletion] = useState('');
   const faceInputRef = useRef<HTMLInputElement>(null);
+  const [stepText, setStepText] = useState('');
+  const [stepCompletion, setStepCompletion] = useState('');
+  const stepInputRef = useRef<HTMLInputElement>(null);
+  const [distance, setDistance] = useState(0.5);
   const [beats, setBeats] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -78,6 +89,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
     } else if (instr.type === 'face') {
       setFaceText(faceTargetToText(instr.target));
       setFaceCompletion('');
+    } else if (instr.type === 'step') {
+      setStepText(faceTargetToText(instr.direction));
+      setStepCompletion('');
+      setDistance(instr.distance);
     }
   }
 
@@ -93,6 +108,10 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
       case 'face': {
         const target = parseFaceTarget(faceText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'face', target };
+      }
+      case 'step': {
+        const dir = parseFaceTarget(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
+        return { ...base, type: 'step', direction: dir, distance };
       }
     }
   }
@@ -155,6 +174,7 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
             <option value="drop_hands">drop hands</option>
             <option value="allemande">allemande</option>
             <option value="face">face</option>
+            <option value="step">step</option>
           </select>
         </label>
 
@@ -236,6 +256,55 @@ export default function CommandPane({ instructions, setInstructions }: Props) {
               )}
             </div>
           </label>
+        )}
+
+        {action === 'step' && (
+          <>
+            <label>
+              Direction
+              <div className="face-input-wrap">
+                <input
+                  ref={stepInputRef}
+                  type="text"
+                  className="face-input"
+                  value={stepText}
+                  placeholder="e.g. across, neighbor, 45"
+                  onChange={e => {
+                    const val = e.target.value;
+                    setStepText(val);
+                    const lower = val.trim().toLowerCase();
+                    if (lower) {
+                      const match = FACE_COMPLETIONS.find(c => c.startsWith(lower) && c !== lower);
+                      setStepCompletion(match ?? '');
+                    } else {
+                      setStepCompletion('');
+                    }
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Tab' && stepCompletion) {
+                      e.preventDefault();
+                      setStepText(stepCompletion);
+                      setStepCompletion('');
+                    }
+                  }}
+                  onBlur={() => setStepCompletion('')}
+                />
+                {stepCompletion && (
+                  <span className="face-ghost">{stepCompletion}</span>
+                )}
+              </div>
+            </label>
+            <label>
+              Distance
+              <input
+                type="number"
+                min={0}
+                step={0.25}
+                value={distance}
+                onChange={e => setDistance(Number(e.target.value))}
+              />
+            </label>
+          </>
         )}
 
         <label>
