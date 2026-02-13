@@ -46,10 +46,10 @@ export default function App() {
   const [beat, setBeat] = useState(0);
   const [annotation, setAnnotation] = useState('');
   const [instructions, setInstructions] = useState<Instruction[]>([]);
-  const [smoothness, setSmoothness] = useState(0);
+  const [smoothness, setSmoothness] = useState(100);
 
   const bpmRef = useRef(120);
-  const smoothnessRef = useRef(0);
+  const smoothnessRef = useRef(1);
 
   const keyframes = useMemo(() => generateAllKeyframes(instructions), [instructions]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
