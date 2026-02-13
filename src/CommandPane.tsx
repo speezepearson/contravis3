@@ -980,14 +980,19 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
                 {subList.map(sub => (
                   <SortableItem key={sub.id} id={sub.id}>
                     {(dragHandleProps) => (
-                      <div className={`instruction-item split-sub-item${editingId === sub.id ? ' editing' : ''}`}>
-                        <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                        <span className="instruction-summary">{summarizeAtomic(sub)}</span>
-                        <div className="instruction-actions">
-                          <button onClick={() => startSubEdit(split.id, list, sub)} title="Edit">{'\u270E'}</button>
-                          <button onClick={() => removeSub(split.id, list, sub.id)} title="Delete">{'\u00D7'}</button>
+                      <>
+                        <div className={`instruction-item split-sub-item${editingId === sub.id ? ' editing' : ''}`}>
+                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
+                          <span className="instruction-summary">{summarizeAtomic(sub)}</span>
+                          <div className="instruction-actions">
+                            <button onClick={() => startSubEdit(split.id, list, sub)} title="Edit">{'\u270E'}</button>
+                            <button onClick={() => removeSub(split.id, list, sub.id)} title="Delete">{'\u00D7'}</button>
+                          </div>
                         </div>
-                      </div>
+                        {warnings.get(sub.id) && (
+                          <div className="instruction-warning">{warnings.get(sub.id)}</div>
+                        )}
+                      </>
                     )}
                   </SortableItem>
                 ))}

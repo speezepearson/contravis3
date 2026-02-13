@@ -51,7 +51,7 @@ export default function App() {
   const bpmRef = useRef(120);
   const smoothnessRef = useRef(1);
 
-  const keyframes = useMemo(() => generateAllKeyframes(instructions), [instructions]);
+  const { keyframes, errors: generationErrors } = useMemo(() => generateAllKeyframes(instructions), [instructions]);
   const warnings = useMemo(() => {
     const handWarnings = validateHandDistances(instructions, keyframes);
     const kfWarnings = collectKeyframeWarnings(instructions, keyframes);
@@ -60,8 +60,12 @@ export default function App() {
       const existing = merged.get(id);
       merged.set(id, existing ? `${existing}; ${w}` : w);
     }
+    for (const [id, w] of generationErrors) {
+      const existing = merged.get(id);
+      merged.set(id, existing ? `${existing}; ${w}` : w);
+    }
     return merged;
-  }, [instructions, keyframes]);
+  }, [instructions, keyframes, generationErrors]);
 
   const minBeat = keyframes.length > 0 ? keyframes[0].beat : 0;
   const maxBeat = keyframes.length > 0 ? keyframes[keyframes.length - 1].beat : 0;

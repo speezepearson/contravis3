@@ -2,6 +2,14 @@ import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDi
 import { makeDancerId, parseDancerId, dancerPosition, AtomicInstructionSchema } from './types';
 import { assertNever } from './utils';
 
+class GenerationError extends Error {
+  instrId: number;
+  constructor(instrId: number, message: string) {
+    super(message);
+    this.instrId = instrId;
+  }
+}
+
 const PROTO_DANCER_IDS: readonly ProtoDancerId[] = ['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0'] as const;
 const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 
@@ -87,7 +95,7 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
 
       // 15 candidates: 3 other protos × 5 nearest concrete dancers each
       let bestScore = Infinity;
-      let bestTarget: DancerId = makeDancerId(id, 0); // fallback
+      let bestTarget: DancerId | undefined = undefined;
       for (const otherId of PROTO_DANCER_IDS) {
         if (otherId === id) continue;
         const baseOffset = Math.round((d.y - dancers[otherId].y) / 2);
@@ -100,6 +108,7 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
           const r2 = dx * dx + dy * dy;
           if (r2 < 1e-10) continue;
           const r = Math.sqrt(r2);
+          if (r > 1.4) continue;
           const cosTheta = (ux * dx + uy * dy) / r;
           if (cosTheta < 0) continue;
           const theta = Math.acos(Math.max(-1, Math.min(1, cosTheta)));
@@ -110,6 +119,10 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
             bestTarget = targetId;
           }
         }
+      }
+
+      if (bestTarget === undefined) {
+        throw new Error(`no dancer is ${relationship} of ${id}`)
       }
       return bestTarget;
     }
@@ -161,6 +174,7 @@ function resolveInsideHand(
   target: DancerState,
   label: string,
   warnings: string[],
+  targetId: DancerId,
 ): 'left' | 'right' {
   const facingRad = dancer.facing * Math.PI / 180;
   // Right direction: 90° clockwise from facing (atan2(dx,dy) convention)
@@ -171,7 +185,7 @@ function resolveInsideHand(
   const rightDot = dx * rightX + dy * rightY;
 
   if (Math.abs(rightDot) < 0.01) {
-    warnings.push(`${label}: partner is not to their left or right; defaulting to right hand`);
+    warnings.push(`${label}: hand-taker ${targetId} is not to their left or right; defaulting to right hand`);
     return 'right';
   }
   return rightDot > 0 ? 'right' : 'left';
@@ -184,6 +198,7 @@ function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const target = resolveRelationship(instr.relationship, id, prev.dancers);
+    console.log(`id=${id}, rel=${instr.relationship}, target=${target}`)
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!seen.has(key)) {
@@ -191,8 +206,8 @@ function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
       if (instr.hand === 'inside') {
         const dancerState = prev.dancers[id];
         const targetState = dancerPosition(target, prev.dancers);
-        const myHand = resolveInsideHand(dancerState, targetState, id, warnings);
-        const theirHand = resolveInsideHand(targetState, dancerState, parseDancerId(target).proto, []);
+        const myHand = resolveInsideHand(dancerState, targetState, id, warnings, target);
+        const theirHand = resolveInsideHand(targetState, dancerState, parseDancerId(target).proto, [], id);
         connections.push({ proto: id, hand: myHand, target, targetHand: theirHand });
       } else {
         connections.push({ proto: id, hand: instr.hand, target, targetHand: instr.hand });
@@ -559,16 +574,21 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
-  switch (instr.type) {
-    case 'take_hands':  return generateTakeHands(prev, instr, scope);
-    case 'drop_hands':  return generateDropHands(prev, instr, scope);
-    case 'allemande':   return generateAllemande(prev, instr, scope);
-    case 'do_si_do':    return generateDoSiDo(prev, instr, scope);
-    case 'circle':      return generateCircle(prev, instr, scope);
-    case 'pull_by':     return generatePullBy(prev, instr, scope);
-    case 'turn':        return generateTurn(prev, instr, scope);
-    case 'step':        return generateStep(prev, instr, scope);
-    case 'balance':     return generateBalance(prev, instr, scope);
+  try {
+    switch (instr.type) {
+      case 'take_hands':  return generateTakeHands(prev, instr, scope);
+      case 'drop_hands':  return generateDropHands(prev, instr, scope);
+      case 'allemande':   return generateAllemande(prev, instr, scope);
+      case 'do_si_do':    return generateDoSiDo(prev, instr, scope);
+      case 'circle':      return generateCircle(prev, instr, scope);
+      case 'pull_by':     return generatePullBy(prev, instr, scope);
+      case 'turn':        return generateTurn(prev, instr, scope);
+      case 'step':        return generateStep(prev, instr, scope);
+      case 'balance':     return generateBalance(prev, instr, scope);
+    }
+  } catch (e) {
+    if (e instanceof GenerationError) throw e;
+    throw new GenerationError(instr.id, e instanceof Error ? e.message : String(e));
   }
 }
 
@@ -771,14 +791,24 @@ function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyfram
   }
 }
 
-export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
+export function generateAllKeyframes(instructions: Instruction[]): { keyframes: Keyframe[], errors: Map<number, string> } {
   const result: Keyframe[] = [initialKeyframe()];
+  const errors = new Map<number, string>();
 
   for (const instr of instructions) {
     const prev = result[result.length - 1];
-    const newFrames = processTopLevelInstruction(prev, instr);
-    result.push(...newFrames);
+    try {
+      const newFrames = processTopLevelInstruction(prev, instr);
+      result.push(...newFrames);
+    } catch (e) {
+      if (e instanceof GenerationError) {
+        errors.set(e.instrId, e.message);
+      } else {
+        errors.set(instr.id, e instanceof Error ? e.message : String(e));
+      }
+      break;
+    }
   }
 
-  return result;
+  return { keyframes: result, errors };
 }

@@ -6,7 +6,7 @@ import { generateAllKeyframes, validateHandDistances, validateHandSymmetry } fro
 
 const input = readFileSync(process.stdin.fd, 'utf-8');
 const dance = DanceSchema.parse(JSON.parse(input));
-const kfs = generateAllKeyframes(dance.instructions);
+const { keyframes: kfs, errors: generationErrors } = generateAllKeyframes(dance.instructions);
 const last = kfs[kfs.length - 1];
 
 // Column widths
@@ -77,8 +77,11 @@ if (connections.length === 0) {
 // Validation warnings
 const distWarnings = validateHandDistances(dance.instructions, kfs);
 const symmetryErrors = validateHandSymmetry(kfs);
-if (distWarnings.size > 0 || symmetryErrors.length > 0) {
+if (generationErrors.size > 0 || distWarnings.size > 0 || symmetryErrors.length > 0) {
   console.log('\nWarnings:');
+  for (const [id, msg] of generationErrors) {
+    console.log(`  [instruction ${id}] ERROR: ${msg}`);
+  }
   for (const [id, msg] of distWarnings) {
     console.log(`  [instruction ${id}] ${msg}`);
   }
