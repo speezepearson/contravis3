@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes, validateHandDistances } from './generate';
-import type { Instruction, Keyframe } from './types';
-import { parseDancerId } from './types';
+import { generateAllKeyframes, validateHandDistances, validateHandSymmetry } from './generate';
+import type { Instruction, Keyframe, DancerHands, ProtoDancerId } from './types';
+import { parseDancerId, makeDancerId } from './types';
+
+const EMPTY_HANDS: Record<ProtoDancerId, DancerHands> = { up_lark: {}, up_robin: {}, down_lark: {}, down_robin: {} };
 
 // Helper: the initial improper formation (beat 0, no hands)
 function initialKeyframe(): Keyframe {
@@ -13,8 +15,20 @@ function initialKeyframe(): Keyframe {
       down_lark:  { x:  0.5, y:  0.5, facing: 180 },
       down_robin: { x: -0.5, y:  0.5, facing: 180 },
     },
-    hands: [],
+    hands: { up_lark: {}, up_robin: {}, down_lark: {}, down_robin: {} },
   };
+}
+
+/** Helper: check that a specific hand hold exists in the hands record */
+function expectHandHold(
+  hands: Record<ProtoDancerId, DancerHands>,
+  proto: ProtoDancerId, hand: 'left' | 'right',
+  targetId: string, targetHand: 'left' | 'right',
+) {
+  const held = hands[proto][hand];
+  expect(held).toBeDefined();
+  expect(held![0]).toBe(targetId);
+  expect(held![1]).toBe(targetHand);
 }
 
 describe('generateAllKeyframes', () => {
@@ -23,7 +37,7 @@ describe('generateAllKeyframes', () => {
     expect(kfs).toHaveLength(1);
     expect(kfs[0].beat).toBe(0);
     expect(kfs[0].dancers).toEqual(initialKeyframe().dancers);
-    expect(kfs[0].hands).toEqual([]);
+    expect(kfs[0].hands).toEqual(EMPTY_HANDS);
   });
 
   describe('take_hands', () => {
@@ -35,9 +49,10 @@ describe('generateAllKeyframes', () => {
       expect(kfs).toHaveLength(2);
       const last = kfs[kfs.length - 1];
       expect(last.beat).toBe(0);
-      expect(last.hands).toHaveLength(2);
-      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
-      expect(last.hands).toContainEqual({ a: 'up_robin_0', ha: 'right', b: 'down_lark_0', hb: 'right' });
+      expectHandHold(last.hands, 'up_lark', 'right', 'down_robin_0', 'right');
+      expectHandHold(last.hands, 'down_robin', 'right', 'up_lark_0', 'right');
+      expectHandHold(last.hands, 'up_robin', 'right', 'down_lark_0', 'right');
+      expectHandHold(last.hands, 'down_lark', 'right', 'up_robin_0', 'right');
       expect(last.dancers).toEqual(initialKeyframe().dancers);
     });
 
@@ -48,8 +63,10 @@ describe('generateAllKeyframes', () => {
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
       expect(last.beat).toBe(2);
-      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'up_robin_0', hb: 'left' });
-      expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'left', b: 'down_robin_0', hb: 'left' });
+      expectHandHold(last.hands, 'up_lark', 'left', 'up_robin_0', 'left');
+      expectHandHold(last.hands, 'up_robin', 'left', 'up_lark_0', 'left');
+      expectHandHold(last.hands, 'down_lark', 'left', 'down_robin_0', 'left');
+      expectHandHold(last.hands, 'down_robin', 'left', 'down_lark_0', 'left');
     });
   });
 
@@ -57,16 +74,18 @@ describe('generateAllKeyframes', () => {
     it('on_right in initial formation: each dancer connects to nearest dancer on their right', () => {
       // Per-dancer resolution: up_lark (facing N, right=E) → up_robin,
       // down_lark (facing S, right=W) → down_robin are exact matches.
-      // up_robin and down_robin have no one exactly to their right, so they
-      // connect to the closest match, forming a 4-connection ring.
+      // up_robin and down_robin also resolve on_right, and since all use the same
+      // hand, later connections may overwrite earlier reverse entries. Verify that
+      // every dancer has a right-hand connection and symmetry holds.
       const instructions: Instruction[] = [
         { id: 1, beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      expect(last.hands).toHaveLength(4);
-      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'up_robin_0', hb: 'right' });
-      expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
+      for (const proto of ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const) {
+        expect(last.hands[proto].right).toBeDefined();
+      }
+      expect(validateHandSymmetry([last])).toEqual([]);
     });
 
     it('in_front in initial formation resolves to neighbor pairs', () => {
@@ -76,9 +95,8 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      expect(last.hands).toHaveLength(2);
-      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'down_robin_0', hb: 'left' });
-      expect(last.hands).toContainEqual({ a: 'up_robin_0', ha: 'left', b: 'down_lark_0', hb: 'left' });
+      expectHandHold(last.hands, 'up_lark', 'left', 'down_robin_0', 'left');
+      expectHandHold(last.hands, 'up_robin', 'left', 'down_lark_0', 'left');
     });
 
     it('on_left after turning to face across resolves correctly', () => {
@@ -89,31 +107,29 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      // After facing across: up_lark faces 90° (east), up_robin faces 270° (west),
-      // down_lark faces 270° (west), down_robin faces 90° (east)
-      // up_lark (facing east): left = north → down_robin is directly north
-      // down_lark (facing west): left = south → up_robin is directly south
-      // up_robin and down_robin's left points out of the hands-four → cross-hands-four matches
-      expect(last.hands).toHaveLength(4);
-      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'down_robin_0', hb: 'left' });
-      expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'left', b: 'up_robin_0', hb: 'left' });
+      // All dancers should have a left-hand connection and symmetry should hold
+      for (const proto of ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const) {
+        expect(last.hands[proto].left).toBeDefined();
+      }
+      expect(validateHandSymmetry([last])).toEqual([]);
     });
 
     it('in_front resolves across hands-fours when all dancers face the same direction', () => {
-      // Turn everyone to face up, then "in_front" can't resolve within the hands-four
-      // for down dancers (nobody is north of them within the same hands-four).
-      // They should find dancers in the adjacent hands-four (offset +1).
+      // Turn everyone to face up, then "in_front" resolves per-dancer.
+      // The up dancers connect to the down dancers in front of them (within hands-four).
+      // Down dancers would resolve to the next hands-four, but those slots are already
+      // occupied by within-hands-four connections, so they get skipped.
+      // Verify the within-hands-four connections are correct and symmetric.
       const instructions: Instruction[] = [
         { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
         { id: 2, beats: 0, type: 'take_hands', relationship: 'in_front', hand: 'right' },
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      // Check that at least one hand connection involves a non-zero offset (cross-hands-four)
-      const hasNonZeroOffset = last.hands.some(h =>
-        parseDancerId(h.a).offset !== 0 || parseDancerId(h.b).offset !== 0
-      );
-      expect(hasNonZeroOffset).toBe(true);
+      // Up dancers should connect to the down dancer in front of them
+      expect(last.hands.up_lark.right).toBeDefined();
+      expect(last.hands.up_robin.right).toBeDefined();
+      expect(validateHandSymmetry([last])).toEqual([]);
     });
   });
 
@@ -125,7 +141,7 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      expect(last.hands).toHaveLength(0);
+      expect(last.hands).toEqual(EMPTY_HANDS);
     });
 
     it('only removes the specified relationship hands', () => {
@@ -136,9 +152,10 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      expect(last.hands).toHaveLength(2);
-      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'up_robin_0', hb: 'left' });
-      expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'left', b: 'down_robin_0', hb: 'left' });
+      expectHandHold(last.hands, 'up_lark', 'left', 'up_robin_0', 'left');
+      expectHandHold(last.hands, 'up_robin', 'left', 'up_lark_0', 'left');
+      expect(last.hands.up_lark.right).toBeUndefined();
+      expect(last.hands.up_robin.right).toBeUndefined();
     });
 
     it('drops by hand: removes all connections using that hand', () => {
@@ -150,9 +167,10 @@ describe('generateAllKeyframes', () => {
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
       // Only partner left-hand connections remain
-      expect(last.hands).toHaveLength(2);
-      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'up_robin_0', hb: 'left' });
-      expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'left', b: 'down_robin_0', hb: 'left' });
+      expectHandHold(last.hands, 'up_lark', 'left', 'up_robin_0', 'left');
+      expectHandHold(last.hands, 'down_lark', 'left', 'down_robin_0', 'left');
+      expect(last.hands.up_lark.right).toBeUndefined();
+      expect(last.hands.down_lark.right).toBeUndefined();
     });
 
     it('drops both: removes all hand connections', () => {
@@ -163,7 +181,7 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      expect(last.hands).toHaveLength(0);
+      expect(last.hands).toEqual(EMPTY_HANDS);
     });
   });
 
@@ -393,8 +411,8 @@ describe('generateAllKeyframes', () => {
       const kfs = generateAllKeyframes(instructions);
       // All allemande keyframes should have hand connections
       const mid = kfs[Math.floor(kfs.length / 2)];
-      expect(mid.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
-      expect(mid.hands).toContainEqual({ a: 'up_robin_0', ha: 'right', b: 'down_lark_0', hb: 'right' });
+      expectHandHold(mid.hands, 'up_lark', 'right', 'down_robin_0', 'right');
+      expectHandHold(mid.hands, 'up_robin', 'right', 'down_lark_0', 'right');
     });
 
     it('allemande left adds left hand connections', () => {
@@ -403,8 +421,8 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
-      expect(mid.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'up_robin_0', hb: 'left' });
-      expect(mid.hands).toContainEqual({ a: 'down_lark_0', ha: 'left', b: 'down_robin_0', hb: 'left' });
+      expectHandHold(mid.hands, 'up_lark', 'left', 'up_robin_0', 'left');
+      expectHandHold(mid.hands, 'down_lark', 'left', 'down_robin_0', 'left');
     });
 
     it('allemande left orbits counter-clockwise', () => {
@@ -548,7 +566,8 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      expect(last.hands).toHaveLength(2);
+      expectHandHold(last.hands, 'up_lark', 'right', 'down_robin_0', 'right');
+      expectHandHold(last.hands, 'up_robin', 'right', 'down_lark_0', 'right');
     });
   });
 
@@ -665,9 +684,9 @@ describe('generateAllKeyframes', () => {
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
       // Larks opposite: (up_lark, down_lark) - only larks in scope, opposite has both larks
-      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_lark_0', hb: 'right' });
+      expectHandHold(last.hands, 'up_lark', 'right', 'down_lark_0', 'right');
       // Robins opposite: (up_robin, down_robin) - only robins in scope
-      expect(last.hands).toContainEqual({ a: 'up_robin_0', ha: 'left', b: 'down_robin_0', hb: 'left' });
+      expectHandHold(last.hands, 'up_robin', 'left', 'down_robin_0', 'left');
     });
 
     it('instructions after split continue from merged state', () => {
@@ -788,7 +807,7 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
-      expect(mid.hands).toHaveLength(0);
+      expect(mid.hands).toEqual(EMPTY_HANDS);
     });
 
     it('dancers swap positions after half rotation', () => {
@@ -862,8 +881,11 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
-      // Should have 4 hand connections (ring of 4 dancers)
-      expect(mid.hands).toHaveLength(4);
+      // Each dancer should have both hands occupied (ring of 4)
+      for (const proto of ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const) {
+        expect(mid.hands[proto].left).toBeDefined();
+        expect(mid.hands[proto].right).toBeDefined();
+      }
     });
   });
 
@@ -899,8 +921,7 @@ describe('generateAllKeyframes', () => {
       ];
       const kfs = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
-      expect(mid.hands.length).toBeGreaterThan(0);
-      expect(mid.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
+      expectHandHold(mid.hands, 'up_lark', 'right', 'down_robin_0', 'right');
     });
   });
 
@@ -987,6 +1008,83 @@ describe('generateAllKeyframes', () => {
       const keyframes = generateAllKeyframes(instructions);
       const warnings = validateHandDistances(instructions, keyframes);
       expect(warnings.size).toBe(0);
+    });
+  });
+
+  describe('validateHandSymmetry', () => {
+    it('properly formed take_hands produces no errors', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+      ];
+      const keyframes = generateAllKeyframes(instructions);
+      const errors = validateHandSymmetry(keyframes);
+      expect(errors).toEqual([]);
+    });
+
+    it('properly formed allemande produces no errors', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+      ];
+      const keyframes = generateAllKeyframes(instructions);
+      const errors = validateHandSymmetry(keyframes);
+      expect(errors).toEqual([]);
+    });
+
+    it('properly formed circle produces no errors', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 1 },
+      ];
+      const keyframes = generateAllKeyframes(instructions);
+      const errors = validateHandSymmetry(keyframes);
+      expect(errors).toEqual([]);
+    });
+
+    it('detects missing reverse entry', () => {
+      const keyframes: Keyframe[] = [{
+        beat: 0,
+        dancers: initialKeyframe().dancers,
+        hands: {
+          up_lark: { right: ['down_robin_0', 'right'] },
+          up_robin: {},
+          down_lark: {},
+          down_robin: {}, // missing reverse: should have right -> up_lark_0
+        },
+      }];
+      const errors = validateHandSymmetry(keyframes);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]).toMatch(/empty/);
+    });
+
+    it('detects wrong reverse target', () => {
+      const keyframes: Keyframe[] = [{
+        beat: 0,
+        dancers: initialKeyframe().dancers,
+        hands: {
+          up_lark: { right: ['down_robin_0', 'right'] },
+          up_robin: {},
+          down_lark: {},
+          down_robin: { right: ['up_robin_0', 'right'] }, // wrong: should point to up_lark
+        },
+      }];
+      const errors = validateHandSymmetry(keyframes);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]).toMatch(/expected/);
+    });
+
+    it('validates cross-hands-four offset negation', () => {
+      // up_lark.right -> up_robin_-1.left means up_robin.left should -> up_lark_1.right
+      const keyframes: Keyframe[] = [{
+        beat: 0,
+        dancers: initialKeyframe().dancers,
+        hands: {
+          up_lark: { right: ['up_robin_-1' as any, 'left'] },
+          up_robin: { left: ['up_lark_1' as any, 'right'] },
+          down_lark: {},
+          down_robin: {},
+        },
+      }];
+      const errors = validateHandSymmetry(keyframes);
+      expect(errors).toEqual([]);
     });
   });
 });

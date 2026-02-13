@@ -1,4 +1,4 @@
-import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId } from './types';
+import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, DancerHands, ProtoDancerId, DancerId } from './types';
 import { makeDancerId, parseDancerId, dancerPosition } from './types';
 
 const PROTO_DANCER_IDS: readonly ProtoDancerId[] = ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const;
@@ -17,6 +17,8 @@ const SPLIT_GROUPS: Record<'role' | 'position', [Set<ProtoDancerId>, Set<ProtoDa
   position: [new Set(['up_lark', 'up_robin']), new Set(['down_lark', 'down_robin'])],
 };
 
+const EMPTY_HANDS: Record<ProtoDancerId, DancerHands> = { up_lark: {}, up_robin: {}, down_lark: {}, down_robin: {} };
+
 function initialKeyframe(): Keyframe {
   return {
     beat: 0,
@@ -26,7 +28,7 @@ function initialKeyframe(): Keyframe {
       down_lark:  { x:  0.5, y:  0.5, facing: 180 },
       down_robin: { x: -0.5, y:  0.5, facing: 180 },
     },
-    hands: [],
+    hands: { up_lark: {}, up_robin: {}, down_lark: {}, down_robin: {} },
   };
 }
 
@@ -35,6 +37,32 @@ function copyDancers(dancers: Record<ProtoDancerId, DancerState>): Record<ProtoD
   for (const id of PROTO_DANCER_IDS) {
     const d = dancers[id];
     result[id] = { x: d.x, y: d.y, facing: d.facing };
+  }
+  return result;
+}
+
+function copyHands(hands: Record<ProtoDancerId, DancerHands>): Record<ProtoDancerId, DancerHands> {
+  const result = {} as Record<ProtoDancerId, DancerHands>;
+  for (const id of PROTO_DANCER_IDS) {
+    const h = hands[id];
+    result[id] = {};
+    if (h.left) result[id].left = [h.left[0], h.left[1]];
+    if (h.right) result[id].right = [h.right[0], h.right[1]];
+  }
+  return result;
+}
+
+function makeHands(
+  prev: Record<ProtoDancerId, DancerHands>,
+  connections: Array<{proto: ProtoDancerId, hand: 'left'|'right', target: DancerId, targetHand: 'left'|'right'}>
+): Record<ProtoDancerId, DancerHands> {
+  const result = copyHands(prev);
+  for (const c of connections) {
+    const { proto: targetProto, offset } = parseDancerId(c.target);
+    // Skip if either slot is already occupied to maintain symmetry
+    if (result[c.proto][c.hand] || result[targetProto][c.targetHand]) continue;
+    result[c.proto][c.hand] = [c.target, c.targetHand];
+    result[targetProto][c.targetHand] = [makeDancerId(c.proto, -offset), c.hand];
   }
   return result;
 }
@@ -105,7 +133,7 @@ function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoDancerId
 // --- Per-instruction generators ---
 
 function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<ProtoDancerId>): Keyframe[] {
-  const newHands: HandConnection[] = [...prev.hands];
+  const connections: Array<{proto: ProtoDancerId, hand: 'left'|'right', target: DancerId, targetHand: 'left'|'right'}> = [];
   const seen = new Set<string>();
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
@@ -114,41 +142,62 @@ function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!seen.has(key)) {
       seen.add(key);
-      newHands.push({ a: aId, ha: instr.hand, b: target, hb: instr.hand });
+      connections.push({ proto: id, hand: instr.hand, target, targetHand: instr.hand });
     }
   }
   return [{
     beat: prev.beat + instr.beats,
     dancers: copyDancers(prev.dancers),
-    hands: newHands,
+    hands: makeHands(prev.hands, connections),
   }];
 }
 
 function generateDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'drop_hands' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const target = instr.target;
-  let newHands: HandConnection[];
+  const newHands = copyHands(prev.hands);
 
   if (target === 'both') {
-    // Drop all hand connections involving scoped dancers
-    newHands = prev.hands.filter(h => !scope.has(parseDancerId(h.a).proto) && !scope.has(parseDancerId(h.b).proto));
+    // Drop all hand entries for scoped dancers, and remove reverse entries pointing at them
+    for (const id of PROTO_DANCER_IDS) {
+      if (!scope.has(id)) continue;
+      // Remove entries pointing at this dancer from others
+      for (const hand of ['left', 'right'] as const) {
+        const held = newHands[id][hand];
+        if (held) {
+          const { proto: targetProto } = parseDancerId(held[0]);
+          if (newHands[targetProto][held[1]]?.[0] !== undefined) {
+            delete newHands[targetProto][held[1]];
+          }
+        }
+      }
+      newHands[id] = {};
+    }
   } else if (target === 'left' || target === 'right') {
-    // Drop connections where a scoped dancer uses that hand
-    newHands = prev.hands.filter(h => {
-      if (scope.has(parseDancerId(h.a).proto) && h.ha === target) return false;
-      if (scope.has(parseDancerId(h.b).proto) && h.hb === target) return false;
-      return true;
-    });
+    // Drop the specific hand for scoped dancers, and the reverse entry
+    for (const id of PROTO_DANCER_IDS) {
+      if (!scope.has(id)) continue;
+      const held = newHands[id][target];
+      if (held) {
+        const { proto: targetProto } = parseDancerId(held[0]);
+        delete newHands[targetProto][held[1]];
+        delete newHands[id][target];
+      }
+    }
   } else {
     // It's a Relationship — drop hands between those pairs
-    const pairSet = new Set<string>();
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
       const resolved = resolveRelationship(target, id, prev.dancers);
-      const aId = makeDancerId(id, 0);
-      pairSet.add(`${aId}:${resolved}`);
-      pairSet.add(`${resolved}:${aId}`);
+      const { proto: targetProto } = parseDancerId(resolved);
+      // Remove any hand entries connecting id to targetProto
+      for (const hand of ['left', 'right'] as const) {
+        const held = newHands[id][hand];
+        if (held && parseDancerId(held[0]).proto === targetProto) {
+          delete newHands[targetProto][held[1]];
+          delete newHands[id][hand];
+        }
+      }
     }
-    newHands = prev.hands.filter(h => !pairSet.has(`${h.a}:${h.b}`));
   }
 
   return [{
@@ -167,8 +216,8 @@ function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { t
   const shoulderOffset = instr.handedness === 'right' ? -90 : 90;
 
   // Build hand connections and orbit data from per-dancer resolution
+  const connections: Array<{proto: ProtoDancerId, hand: 'left'|'right', target: DancerId, targetHand: 'left'|'right'}> = [];
   const handsSeen = new Set<string>();
-  const allemandHands: HandConnection[] = [];
   const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; radius: number }[] = [];
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
@@ -178,7 +227,7 @@ function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { t
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!handsSeen.has(key)) {
       handsSeen.add(key);
-      allemandHands.push({ a: aId, ha: instr.handedness, b: target, hb: instr.handedness });
+      connections.push({ proto: id, hand: instr.handedness, target, targetHand: instr.handedness });
     }
     // Orbit: each dancer orbits independently around center with their resolved partner
     const da = prev.dancers[id];
@@ -191,7 +240,7 @@ function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { t
       radius: Math.hypot(da.x - cx, da.y - cy),
     });
   }
-  const hands = [...prev.hands, ...allemandHands];
+  const hands = makeHands(prev.hands, connections);
   const result: Keyframe[] = [];
 
   for (let i = 1; i <= nFrames; i++) {
@@ -343,16 +392,17 @@ function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 
   // Build ring hand connections: sort dancers by their starting angle, connect adjacent pairs
   const sorted = [...orbitData].sort((a, b) => a.startAngle - b.startAngle);
-  const ringHands: HandConnection[] = [];
+  const ringConnections: Array<{proto: ProtoDancerId, hand: 'left'|'right', target: DancerId, targetHand: 'left'|'right'}> = [];
   for (let i = 0; i < sorted.length; i++) {
     const curr = sorted[i];
     const next = sorted[(i + 1) % sorted.length];
     const a = makeDancerId(curr.protoId, 0);
     const b = makeDancerId(next.protoId, 0);
-    const [lo, hi] = a < b ? [a, b] : [b, a];
-    ringHands.push({ a: lo, ha: 'left', b: hi, hb: 'right' });
+    const [loProto, loHand, hiId, hiHand]: [ProtoDancerId, 'left'|'right', DancerId, 'left'|'right'] =
+      a < b ? [curr.protoId, 'left', b, 'right'] : [next.protoId, 'right', a, 'left'];
+    ringConnections.push({ proto: loProto, hand: loHand, target: hiId, targetHand: hiHand });
   }
-  const hands = [...prev.hands, ...ringHands];
+  const hands = makeHands(prev.hands, ringConnections);
 
   const result: Keyframe[] = [];
   for (let i = 1; i <= nFrames; i++) {
@@ -379,7 +429,7 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 
   // Build swap pairs and hand connections
   const swapData: { protoId: ProtoDancerId; targetPos: { x: number; y: number }; originalFacing: number }[] = [];
-  const pullHands: HandConnection[] = [];
+  const connections: Array<{proto: ProtoDancerId, hand: 'left'|'right', target: DancerId, targetHand: 'left'|'right'}> = [];
   const seen = new Set<string>();
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
@@ -391,10 +441,10 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!seen.has(key)) {
       seen.add(key);
-      pullHands.push({ a: aId, ha: instr.hand, b: target, hb: instr.hand });
+      connections.push({ proto: id, hand: instr.hand, target, targetHand: instr.hand });
     }
   }
-  const hands = [...prev.hands, ...pullHands];
+  const hands = makeHands(prev.hands, connections);
 
   const result: Keyframe[] = [];
   for (let i = 1; i <= nFrames; i++) {
@@ -490,20 +540,15 @@ function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'spli
       }
     }
 
-    // Merge hands: combine from both timelines, dedup by (a,b) pair
+    // Merge hands: combine entries from both timelines
     const handsA = kfA ? kfA.hands : prev.hands;
     const handsB = kfB ? kfB.hands : prev.hands;
-    const handMap = new Map<string, HandConnection>();
-    for (const h of handsA) {
-      const key = h.a < h.b ? `${h.a}:${h.b}` : `${h.b}:${h.a}`;
-      handMap.set(key, h);
-    }
-    for (const h of handsB) {
-      const key = h.a < h.b ? `${h.a}:${h.b}` : `${h.b}:${h.a}`;
-      handMap.set(key, h);
+    const mergedHands = {} as Record<ProtoDancerId, DancerHands>;
+    for (const id of PROTO_DANCER_IDS) {
+      mergedHands[id] = { ...handsA[id], ...handsB[id] };
     }
 
-    merged.push({ beat, dancers, hands: [...handMap.values()] });
+    merged.push({ beat, dancers, hands: mergedHands });
   }
 
   return merged;
@@ -551,18 +596,22 @@ export function validateHandDistances(
   const warnings = new Map<number, string>();
 
   for (const kf of keyframes) {
-    for (const hand of kf.hands) {
-      const posA = dancerPosition(hand.a, kf.dancers);
-      const posB = dancerPosition(hand.b, kf.dancers);
-      const dist = Math.hypot(posA.x - posB.x, posA.y - posB.y);
-      if (dist > maxDistance) {
-        // Find the instruction owning this beat
-        for (const r of ranges) {
-          if (kf.beat >= r.start - 1e-9 && kf.beat <= r.end + 1e-9) {
-            if (!warnings.has(r.id)) {
-              warnings.set(r.id, `Hands too far apart (${dist.toFixed(2)}m)`);
+    for (const proto of PROTO_DANCER_IDS) {
+      const dh = kf.hands[proto];
+      for (const hand of ['left', 'right'] as const) {
+        const held = dh[hand];
+        if (!held) continue;
+        const posA = dancerPosition(makeDancerId(proto, 0), kf.dancers);
+        const posB = dancerPosition(held[0], kf.dancers);
+        const dist = Math.hypot(posA.x - posB.x, posA.y - posB.y);
+        if (dist > maxDistance) {
+          for (const r of ranges) {
+            if (kf.beat >= r.start - 1e-9 && kf.beat <= r.end + 1e-9) {
+              if (!warnings.has(r.id)) {
+                warnings.set(r.id, `Hands too far apart (${dist.toFixed(2)}m)`);
+              }
+              break;
             }
-            break;
           }
         }
       }
@@ -570,6 +619,28 @@ export function validateHandDistances(
   }
 
   return warnings;
+}
+
+export function validateHandSymmetry(keyframes: Keyframe[]): string[] {
+  const errors: string[] = [];
+  for (const kf of keyframes) {
+    for (const proto of PROTO_DANCER_IDS) {
+      for (const hand of ['left', 'right'] as const) {
+        const held = kf.hands[proto][hand];
+        if (!held) continue;
+        const [targetId, targetHand] = held;
+        const { proto: targetProto, offset } = parseDancerId(targetId);
+        const reverse = kf.hands[targetProto][targetHand];
+        const expectedReverse: DancerId = makeDancerId(proto, -offset);
+        if (!reverse) {
+          errors.push(`Beat ${kf.beat}: ${proto}.${hand} -> ${targetId}.${targetHand}, but ${targetProto}.${targetHand} is empty`);
+        } else if (reverse[0] !== expectedReverse || reverse[1] !== hand) {
+          errors.push(`Beat ${kf.beat}: ${proto}.${hand} -> ${targetId}.${targetHand}, but ${targetProto}.${targetHand} -> ${reverse[0]}.${reverse[1]} (expected ${expectedReverse}.${hand})`);
+        }
+      }
+    }
+  }
+  return errors;
 }
 
 function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyframe[] {

@@ -57,16 +57,12 @@ export interface DancerState {
   facing: number; // degrees: 0=north, 90=east, 180=south, 270=west
 }
 
-export interface HandConnection {
-  a: DancerId;
-  ha: 'left' | 'right';
-  b: DancerId;
-  hb: 'left' | 'right';
-}
+export type HandHold = [DancerId, 'left' | 'right'];
+export type DancerHands = Partial<Record<'left' | 'right', HandHold>>;
 
 export interface Keyframe {
   beat: number;
   dancers: Record<ProtoDancerId, DancerState>;
-  hands: HandConnection[];
+  hands: Record<ProtoDancerId, DancerHands>;
   annotation?: string;
 }
