@@ -1,12 +1,13 @@
 import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, DancerHands, ProtoDancerId, DancerId } from './types';
 import { makeDancerId, parseDancerId, dancerPosition, AtomicInstructionSchema } from './types';
+import { assertNever } from './utils';
 
 const PROTO_DANCER_IDS: readonly ProtoDancerId[] = ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const;
 const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 
 const UPS = new Set<ProtoDancerId>(['up_lark', 'up_robin']);
 
-const STATIC_RELATIONSHIPS: Partial<Record<Relationship, Record<ProtoDancerId, ProtoDancerId>>> = {
+const STATIC_RELATIONSHIPS: Record<'partner'|'neighbor'|'opposite', Record<ProtoDancerId, ProtoDancerId>> = {
   partner:  { up_lark: 'up_robin', up_robin: 'up_lark', down_lark: 'down_robin', down_robin: 'down_lark' },
   neighbor: { up_lark: 'down_robin', up_robin: 'down_lark', down_lark: 'up_robin', down_robin: 'up_lark' },
   opposite: { up_lark: 'down_lark', up_robin: 'down_robin', down_lark: 'up_lark', down_robin: 'up_robin' },
@@ -68,46 +69,54 @@ function makeHands(
 /** Resolve a relationship from a specific dancer's perspective.
  *  Returns the DancerId of the target, which may be in an adjacent hands-four. */
 function resolveRelationship(relationship: Relationship, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): DancerId {
-  const staticMap = STATIC_RELATIONSHIPS[relationship];
-  if (staticMap) {
-    return makeDancerId(staticMap[id], 0);
-  }
-  // Spatial: on_right (+90°), on_left (-90°), in_front (0°)
-  const relAngleDeg = relationship === 'on_right' ? 90 : relationship === 'on_left' ? -90 : 0;
-  const d = dancers[id];
-  const targetRad = (d.facing + relAngleDeg) * Math.PI / 180;
-  const ux = Math.sin(targetRad);
-  const uy = Math.cos(targetRad);
-
-  // 15 candidates: 3 other protos × 5 nearest concrete dancers each
-  let bestScore = Infinity;
-  let bestCosTheta = -Infinity;
-  let bestTarget: DancerId = makeDancerId(id, 0); // fallback
-  for (const otherId of PROTO_DANCER_IDS) {
-    if (otherId === id) continue;
-    const baseOffset = Math.round((d.y - dancers[otherId].y) / 2);
-    for (let delta = -2; delta <= 2; delta++) {
-      const offset = baseOffset + delta;
-      const targetId = makeDancerId(otherId, offset);
-      const pos = dancerPosition(targetId, dancers);
-      const dx = pos.x - d.x;
-      const dy = pos.y - d.y;
-      const r2 = dx * dx + dy * dy;
-      if (r2 < 1e-12) continue;
-      const r = Math.sqrt(r2);
-      const cosTheta = (ux * dx + uy * dy) / r;
-      if (cosTheta < 0) continue;
-      const theta = Math.acos(Math.min(cosTheta, 1));
-      if (Math.cos(1.4 * theta) < 0) continue;
-      const score = r2 / Math.cos(1.5 * theta);
-      if (score < bestScore || (score === bestScore && cosTheta > bestCosTheta)) {
-        bestScore = score;
-        bestCosTheta = cosTheta;
-        bestTarget = targetId;
-      }
+  switch (relationship) {
+    case 'partner':
+    case 'neighbor':
+    case 'opposite': {
+      return makeDancerId(STATIC_RELATIONSHIPS[relationship][id], 0);
     }
+    case 'on_left': case 'on_right': case 'in_front': {
+      // Spatial: on_right (+90°), on_left (-90°), in_front (0°)
+      // ...except, in practice, "on your right/left" should prefer people easier for you to see, i.e. in front of you,
+      // so we don't deviate by a full 90deg, just, say, 70.
+      const relAngleDeg = relationship === 'on_right' ? 70 : relationship === 'on_left' ? -70 : relationship === 'in_front' ? 0 : assertNever(relationship);
+      const d = dancers[id];
+      const targetRad = (d.facing + relAngleDeg) * Math.PI / 180;
+      const ux = Math.sin(targetRad);
+      const uy = Math.cos(targetRad);
+
+      // 15 candidates: 3 other protos × 5 nearest concrete dancers each
+      let bestScore = Infinity;
+      let bestTarget: DancerId = makeDancerId(id, 0); // fallback
+      for (const otherId of PROTO_DANCER_IDS) {
+        if (otherId === id) continue;
+        const baseOffset = Math.round((d.y - dancers[otherId].y) / 2);
+        for (let delta = -2; delta <= 2; delta++) {
+          const offset = baseOffset + delta;
+          const targetId = makeDancerId(otherId, offset);
+          const pos = dancerPosition(targetId, dancers);
+          const dx = pos.x - d.x;
+          const dy = pos.y - d.y;
+          const r2 = dx * dx + dy * dy;
+          if (r2 < 1e-10) continue;
+          const r = Math.sqrt(r2);
+          const cosTheta = (ux * dx + uy * dy) / r;
+          if (cosTheta < 0) continue;
+          const theta = Math.acos(Math.max(-1, Math.min(1, cosTheta)));
+          if (theta > Math.PI/4) continue;
+          const score = r2 / Math.cos(2 * theta);
+          if (score < bestScore) {
+            bestScore = score;
+            bestTarget = targetId;
+          }
+        }
+      }
+      return bestTarget;
+    }
+
+    default:
+      assertNever(relationship)
   }
-  return bestTarget;
 }
 
 function easeInOut(t: number): number {
