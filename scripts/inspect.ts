@@ -1,10 +1,11 @@
 #!/usr/bin/env npx tsx
 import { readFileSync } from 'node:fs';
-import type { Dance, ProtoDancerId } from '../src/types.ts';
+import type { ProtoDancerId } from '../src/types.ts';
+import { DanceSchema } from '../src/types.ts';
 import { generateAllKeyframes, validateHandDistances, validateHandSymmetry } from '../src/generate.ts';
 
 const input = readFileSync(process.stdin.fd, 'utf-8');
-const dance: Dance = JSON.parse(input);
+const dance = DanceSchema.parse(JSON.parse(input));
 const kfs = generateAllKeyframes(dance.instructions);
 const last = kfs[kfs.length - 1];
 
