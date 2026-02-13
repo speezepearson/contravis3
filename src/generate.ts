@@ -215,32 +215,57 @@ function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { t
   // Shoulder offset: right hand → face 90° CCW from partner; left → 90° CW
   const shoulderOffset = instr.handedness === 'right' ? -90 : 90;
 
-  // Build hand connections and orbit data from per-dancer resolution
+  // Build hand connections from per-dancer resolution
   const connections: Array<{proto: ProtoDancerId, hand: 'left'|'right', target: DancerId, targetHand: 'left'|'right'}> = [];
   const handsSeen = new Set<string>();
-  const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; radius: number }[] = [];
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const target = resolveRelationship(instr.relationship, id, prev.dancers);
-    // Hand connection (deduped)
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!handsSeen.has(key)) {
       handsSeen.add(key);
       connections.push({ proto: id, hand: instr.handedness, target, targetHand: instr.handedness });
     }
-    // Orbit: each dancer orbits independently around center with their resolved partner
+  }
+  const hands = makeHands(prev.hands, connections);
+
+  // Build orbit data from the actual hand-connection pairs so both dancers
+  // in a pair share the same center (fixes non-reciprocal resolutions).
+  const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; radius: number }[] = [];
+  const orbited = new Set<ProtoDancerId>();
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id) || orbited.has(id)) continue;
+    const hold = hands[id][instr.handedness];
+    if (!hold) continue;
+    const [targetDancerId] = hold;
+    const { proto: targetProto, offset: targetOffset } = parseDancerId(targetDancerId);
+
     const da = prev.dancers[id];
-    const partnerPos = dancerPosition(target, prev.dancers);
-    const cx = (da.x + partnerPos.x) / 2;
-    const cy = (da.y + partnerPos.y) / 2;
+    const db = dancerPosition(targetDancerId, prev.dancers);
+    const cx = (da.x + db.x) / 2;
+    const cy = (da.y + db.y) / 2;
+    const radius = Math.hypot(da.x - cx, da.y - cy);
+
     orbitData.push({
       protoId: id, cx, cy,
       startAngle: Math.atan2(da.x - cx, da.y - cy),
-      radius: Math.hypot(da.x - cx, da.y - cy),
+      radius,
     });
+    orbited.add(id);
+
+    if (scope.has(targetProto) && !orbited.has(targetProto)) {
+      // Partner's proto-dancer center is offset-adjusted so that the
+      // physical pair (id, targetDancerId) orbits a shared center.
+      const adjCy = cy - targetOffset * 2;
+      orbitData.push({
+        protoId: targetProto, cx, cy: adjCy,
+        startAngle: Math.atan2(prev.dancers[targetProto].x - cx, prev.dancers[targetProto].y - adjCy),
+        radius,
+      });
+      orbited.add(targetProto);
+    }
   }
-  const hands = makeHands(prev.hands, connections);
   const result: Keyframe[] = [];
 
   for (let i = 1; i <= nFrames; i++) {

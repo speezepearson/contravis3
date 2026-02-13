@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, validateHandDistances, validateHandSymmetry } from './generate';
 import type { Instruction, Keyframe, DancerHands, ProtoDancerId } from './types';
-import { parseDancerId, makeDancerId } from './types';
+import { parseDancerId, makeDancerId, dancerPosition } from './types';
 
 const EMPTY_HANDS: Record<ProtoDancerId, DancerHands> = { up_lark: {}, up_robin: {}, down_lark: {}, down_robin: {} };
 
@@ -436,6 +436,35 @@ describe('generateAllKeyframes', () => {
       const last = kfs[kfs.length - 1];
       expect(last.dancers['up_lark'].x).toBeCloseTo(-0.5, 1);
       expect(last.dancers['up_lark'].y).toBeCloseTo(0.5, 1);
+    });
+
+    it('maintains constant distance between hand-connected partners', () => {
+      // on_right from initial formation produces non-reciprocal relationship
+      // resolution (up_lark→up_robin but up_robin→down_lark), yet the hand
+      // connections pair up_lark↔up_robin. Both must orbit the same center.
+      const instructions: Instruction[] = [
+        { id: 1, beats: 4, type: 'allemande', relationship: 'on_right', handedness: 'right', rotations: 0.5 },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      const protos: ProtoDancerId[] = ['up_lark', 'up_robin', 'down_lark', 'down_robin'];
+
+      for (const id of protos) {
+        const hold = kfs[1].hands[id].right;
+        if (!hold) continue;
+        const [targetDancerId] = hold;
+
+        // Distance in the first allemande frame
+        const p0 = kfs[1].dancers[id];
+        const t0 = dancerPosition(targetDancerId, kfs[1].dancers);
+        const d0 = Math.hypot(p0.x - t0.x, p0.y - t0.y);
+
+        for (let i = 2; i < kfs.length; i++) {
+          const pi = kfs[i].dancers[id];
+          const ti = dancerPosition(targetDancerId, kfs[i].dancers);
+          const di = Math.hypot(pi.x - ti.x, pi.y - ti.y);
+          expect(di).toBeCloseTo(d0, 1);
+        }
+      }
     });
   });
 
