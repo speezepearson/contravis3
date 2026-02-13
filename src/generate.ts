@@ -17,8 +17,6 @@ const SPLIT_GROUPS: Record<'role' | 'position', [Set<ProtoDancerId>, Set<ProtoDa
   position: [new Set(['up_lark', 'up_robin']), new Set(['down_lark', 'down_robin'])],
 };
 
-const EMPTY_HANDS: Record<ProtoDancerId, DancerHands> = { up_lark: {}, up_robin: {}, down_lark: {}, down_robin: {} };
-
 function initialKeyframe(): Keyframe {
   return {
     beat: 0,
@@ -98,9 +96,10 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
       if (r2 < 1e-12) continue;
       const r = Math.sqrt(r2);
       const cosTheta = (ux * dx + uy * dy) / r;
-      const cos2Theta = 2 * cosTheta * cosTheta - 1;
-      if (cosTheta < Math.sqrt(2)/2) continue; // not in the right quadrant
-      const score = r2 / cos2Theta;
+      if (cosTheta < 0) continue;
+      const theta = Math.acos(Math.min(cosTheta, 1));
+      if (Math.cos(1.4 * theta) < 0) continue;
+      const score = r2 / Math.cos(1.5 * theta);
       if (score < bestScore || (score === bestScore && cosTheta > bestCosTheta)) {
         bestScore = score;
         bestCosTheta = cosTheta;
