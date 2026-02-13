@@ -890,7 +890,7 @@ describe('generateAllKeyframes', () => {
   });
 
   describe('pull_by', () => {
-    it('dancers swap positions', () => {
+    it('dancers swap positions at the end', () => {
       const instructions: Instruction[] = [
         { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
       ];
@@ -904,24 +904,67 @@ describe('generateAllKeyframes', () => {
       expect(last.dancers['down_robin'].y).toBeCloseTo(init.dancers['up_lark'].y, 5);
     });
 
-    it('dancers maintain original facing', () => {
+    it('dancers face each other throughout', () => {
       const instructions: Instruction[] = [
         { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
       ];
       const kfs = generateAllKeyframes(instructions);
-      const init = initialKeyframe();
-      const last = kfs[kfs.length - 1];
-      expect(last.dancers['up_lark'].facing).toBeCloseTo(init.dancers['up_lark'].facing, 5);
-      expect(last.dancers['down_robin'].facing).toBeCloseTo(init.dancers['down_robin'].facing, 5);
+      // up_lark faces toward down_robin (north = 0°), down_robin faces toward up_lark (south = 180°)
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      expect(mid.dancers['up_lark'].facing).toBeCloseTo(0, 5);
+      expect(mid.dancers['down_robin'].facing).toBeCloseTo(180, 5);
     });
 
-    it('has hand connections during the pull-by', () => {
+    it('has hand connections in the first half, drops them in the second half', () => {
       const instructions: Instruction[] = [
         { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
       ];
       const kfs = generateAllKeyframes(instructions);
-      const mid = kfs[Math.floor(kfs.length / 2)];
-      expectHandHold(mid.hands, 'up_lark', 'right', 'down_robin_0', 'right');
+      // First half: hands present
+      const earlyIdx = 2; // early in the animation
+      expectHandHold(kfs[earlyIdx].hands, 'up_lark', 'right', 'down_robin_0', 'right');
+      // Second half: hands dropped
+      const last = kfs[kfs.length - 1];
+      expect(last.hands.up_lark.right).toBeUndefined();
+      expect(last.hands.down_robin.right).toBeUndefined();
+    });
+
+    it('dancers are laterally displaced at the midpoint (0.5m apart)', () => {
+      const instructions: Instruction[] = [
+        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      ];
+      const kfs = generateAllKeyframes(instructions);
+      // Find the frame closest to the midpoint (beat 1)
+      const mid = kfs.reduce((best, kf) =>
+        Math.abs(kf.beat - 1) < Math.abs(best.beat - 1) ? kf : best
+      );
+      // up_lark (-0.5,-0.5) → down_robin (-0.5,0.5): direction is +y, perp is -x
+      // At midpoint: both at y=0, separated by 0.5 in x
+      const ulX = mid.dancers['up_lark'].x;
+      const drX = mid.dancers['down_robin'].x;
+      expect(Math.abs(ulX - drX)).toBeCloseTo(0.5, 1);
+      // Both should be at y midpoint
+      expect(mid.dancers['up_lark'].y).toBeCloseTo(0, 1);
+      expect(mid.dancers['down_robin'].y).toBeCloseTo(0, 1);
+    });
+
+    it('pull_by left displaces laterally in the opposite direction', () => {
+      const rightInstructions: Instruction[] = [
+        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      ];
+      const leftInstructions: Instruction[] = [
+        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'left' },
+      ];
+      const rightKfs = generateAllKeyframes(rightInstructions);
+      const leftKfs = generateAllKeyframes(leftInstructions);
+      const rightMid = rightKfs.reduce((best, kf) =>
+        Math.abs(kf.beat - 1) < Math.abs(best.beat - 1) ? kf : best
+      );
+      const leftMid = leftKfs.reduce((best, kf) =>
+        Math.abs(kf.beat - 1) < Math.abs(best.beat - 1) ? kf : best
+      );
+      // The lateral displacement should be mirrored
+      expect(rightMid.dancers['up_lark'].x).toBeCloseTo(-leftMid.dancers['up_lark'].x - 1, 1);
     });
   });
 

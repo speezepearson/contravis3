@@ -426,9 +426,12 @@ function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 
 function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+  const lateralSign = instr.hand === 'right' ? 1 : -1;
+  const halfwayBeat = prev.beat + instr.beats / 2;
 
-  // Build swap pairs and hand connections
-  const swapData: { protoId: ProtoDancerId; targetPos: { x: number; y: number }; originalFacing: number }[] = [];
+  // Build swap pairs, perpendicular offsets, and hand connections
+  const swapData: { protoId: ProtoDancerId; startX: number; startY: number;
+    targetX: number; targetY: number; perpX: number; perpY: number; facingDeg: number }[] = [];
   const connections: Array<{proto: ProtoDancerId, hand: 'left'|'right', target: DancerId, targetHand: 'left'|'right'}> = [];
   const seen = new Set<string>();
   for (const id of PROTO_DANCER_IDS) {
@@ -436,7 +439,16 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     const target = resolveRelationship(instr.relationship, id, prev.dancers);
     const da = prev.dancers[id];
     const targetPos = dancerPosition(target, prev.dancers);
-    swapData.push({ protoId: id, targetPos: { x: targetPos.x, y: targetPos.y }, originalFacing: da.facing });
+    const dx = targetPos.x - da.x;
+    const dy = targetPos.y - da.y;
+    const dist = Math.hypot(dx, dy);
+    // Perpendicular: CCW 90° rotation of direction, scaled by lateralSign
+    const perpX = dist > 0 ? (-dy / dist) * lateralSign : 0;
+    const perpY = dist > 0 ? (dx / dist) * lateralSign : 0;
+    // Facing: toward partner throughout
+    const facingDeg = ((Math.atan2(dx, dy) * 180 / Math.PI) % 360 + 360) % 360;
+    swapData.push({ protoId: id, startX: da.x, startY: da.y,
+      targetX: targetPos.x, targetY: targetPos.y, perpX, perpY, facingDeg });
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!seen.has(key)) {
@@ -444,22 +456,22 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
       connections.push({ proto: id, hand: instr.hand, target, targetHand: instr.hand });
     }
   }
-  const hands = makeHands(prev.hands, connections);
+  const handsFirst = makeHands(prev.hands, connections);
+  const handsSecond = copyHands(prev.hands);
 
   const result: Keyframe[] = [];
   for (let i = 1; i <= nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
     const tEased = easeInOut(t);
+    const lateral = Math.sin(Math.PI * t) * 0.25;
     const dancers = copyDancers(prev.dancers);
     for (const sd of swapData) {
-      const startX = prev.dancers[sd.protoId].x;
-      const startY = prev.dancers[sd.protoId].y;
-      dancers[sd.protoId].x = startX + (sd.targetPos.x - startX) * tEased;
-      dancers[sd.protoId].y = startY + (sd.targetPos.y - startY) * tEased;
-      dancers[sd.protoId].facing = sd.originalFacing; // maintain facing
+      dancers[sd.protoId].x = sd.startX + (sd.targetX - sd.startX) * tEased + sd.perpX * lateral;
+      dancers[sd.protoId].y = sd.startY + (sd.targetY - sd.startY) * tEased + sd.perpY * lateral;
+      dancers[sd.protoId].facing = sd.facingDeg;
     }
-    result.push({ beat, dancers, hands });
+    result.push({ beat, dancers, hands: beat <= halfwayBeat ? handsFirst : handsSecond });
   }
   return result;
 }
