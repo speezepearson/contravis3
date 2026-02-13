@@ -74,23 +74,36 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
   if (staticMap) {
     return makeDancerId(staticMap[id], 0);
   }
-  // Dynamic: on_right (90°), on_left (-90°), in_front (0°)
-  const targetAngle = relationship === 'on_right' ? 90 : relationship === 'on_left' ? -90 : 0;
+  // Spatial: on_right (+90°), on_left (-90°), in_front (0°)
+  const relAngleDeg = relationship === 'on_right' ? 90 : relationship === 'on_left' ? -90 : 0;
   const d = dancers[id];
+  const targetRad = (d.facing + relAngleDeg) * Math.PI / 180;
+  const ux = Math.sin(targetRad);
+  const uy = Math.cos(targetRad);
+
+  // 15 candidates: 3 other protos × 5 nearest concrete dancers each
   let bestScore = Infinity;
-  let bestAbsOffset = Infinity;
+  let bestCosTheta = -Infinity;
   let bestTarget: DancerId = makeDancerId(id, 0); // fallback
   for (const otherId of PROTO_DANCER_IDS) {
     if (otherId === id) continue;
-    for (const offset of [-1, 0, 1]) {
+    const baseOffset = Math.round((d.y - dancers[otherId].y) / 2);
+    for (let delta = -2; delta <= 2; delta++) {
+      const offset = baseOffset + delta;
       const targetId = makeDancerId(otherId, offset);
-      const targetPos = dancerPosition(targetId, dancers);
-      const heading = Math.atan2(targetPos.x - d.x, targetPos.y - d.y) * 180 / Math.PI;
-      const rel = ((heading - d.facing + 540) % 360) - 180;
-      const score = Math.abs(rel - targetAngle);
-      if (score < bestScore || (score === bestScore && Math.abs(offset) < bestAbsOffset)) {
+      const pos = dancerPosition(targetId, dancers);
+      const dx = pos.x - d.x;
+      const dy = pos.y - d.y;
+      const r2 = dx * dx + dy * dy;
+      if (r2 < 1e-12) continue;
+      const r = Math.sqrt(r2);
+      const cosTheta = (ux * dx + uy * dy) / r;
+      const cos2Theta = 2 * cosTheta * cosTheta - 1;
+      if (cosTheta < Math.sqrt(2)/2) continue; // not in the right quadrant
+      const score = r2 / cos2Theta;
+      if (score < bestScore || (score === bestScore && cosTheta > bestCosTheta)) {
         bestScore = score;
-        bestAbsOffset = Math.abs(offset);
+        bestCosTheta = cosTheta;
         bestTarget = targetId;
       }
     }
