@@ -2,32 +2,32 @@ import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDi
 import { makeDancerId, parseDancerId, dancerPosition, AtomicInstructionSchema } from './types';
 import { assertNever } from './utils';
 
-const PROTO_DANCER_IDS: readonly ProtoDancerId[] = ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const;
+const PROTO_DANCER_IDS: readonly ProtoDancerId[] = ['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0'] as const;
 const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 
-const UPS = new Set<ProtoDancerId>(['up_lark', 'up_robin']);
+const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
 
 const STATIC_RELATIONSHIPS: Record<'partner'|'neighbor'|'opposite', Record<ProtoDancerId, ProtoDancerId>> = {
-  partner:  { up_lark: 'up_robin', up_robin: 'up_lark', down_lark: 'down_robin', down_robin: 'down_lark' },
-  neighbor: { up_lark: 'down_robin', up_robin: 'down_lark', down_lark: 'up_robin', down_robin: 'up_lark' },
-  opposite: { up_lark: 'down_lark', up_robin: 'down_robin', down_lark: 'up_lark', down_robin: 'up_robin' },
+  partner:  { up_lark_0: 'up_robin_0', up_robin_0: 'up_lark_0', down_lark_0: 'down_robin_0', down_robin_0: 'down_lark_0' },
+  neighbor: { up_lark_0: 'down_robin_0', up_robin_0: 'down_lark_0', down_lark_0: 'up_robin_0', down_robin_0: 'up_lark_0' },
+  opposite: { up_lark_0: 'down_lark_0', up_robin_0: 'down_robin_0', down_lark_0: 'up_lark_0', down_robin_0: 'up_robin_0' },
 };
 
 const SPLIT_GROUPS: Record<'role' | 'position', [Set<ProtoDancerId>, Set<ProtoDancerId>]> = {
-  role:     [new Set(['up_lark', 'down_lark']), new Set(['up_robin', 'down_robin'])],
-  position: [new Set(['up_lark', 'up_robin']), new Set(['down_lark', 'down_robin'])],
+  role:     [new Set(['up_lark_0', 'down_lark_0']), new Set(['up_robin_0', 'down_robin_0'])],
+  position: [new Set(['up_lark_0', 'up_robin_0']), new Set(['down_lark_0', 'down_robin_0'])],
 };
 
 function initialKeyframe(): Keyframe {
   return {
     beat: 0,
     dancers: {
-      up_lark:    { x: -0.5, y: -0.5, facing: 0 },
-      up_robin:   { x:  0.5, y: -0.5, facing: 0 },
-      down_lark:  { x:  0.5, y:  0.5, facing: 180 },
-      down_robin: { x: -0.5, y:  0.5, facing: 180 },
+      up_lark_0:    { x: -0.5, y: -0.5, facing: 0 },
+      up_robin_0:   { x:  0.5, y: -0.5, facing: 0 },
+      down_lark_0:  { x:  0.5, y:  0.5, facing: 180 },
+      down_robin_0: { x: -0.5, y:  0.5, facing: 180 },
     },
-    hands: { up_lark: {}, up_robin: {}, down_lark: {}, down_robin: {} },
+    hands: { up_lark_0: {}, up_robin_0: {}, down_lark_0: {}, down_robin_0: {} },
   };
 }
 

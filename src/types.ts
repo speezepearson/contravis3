@@ -2,25 +2,28 @@ import { z } from 'zod';
 
 // --- Leaf enums ---
 
-export const RoleSchema = z.enum(['lark', 'robin']).brand<'Role'>();
+export const RoleSchema = z.enum(['lark', 'robin']);
 export type Role = z.infer<typeof RoleSchema>;
 
-export const ProtoDancerIdSchema = z.enum(['up_lark', 'up_robin', 'down_lark', 'down_robin']);
+export const ProgressionDirSchema = z.enum(['up', 'down'])
+export type ProgressionDir = z.infer<typeof ProgressionDirSchema>;
+
+export const ProtoDancerIdSchema = z.templateLiteral([ProgressionDirSchema, '_', RoleSchema, '_0'])
 export type ProtoDancerId = z.infer<typeof ProtoDancerIdSchema>;
 
-// Template literal type can't be expressed in Zod; manual type + runtime validator.
-export type DancerId = `${ProtoDancerId}_${number}`;
-export const DancerIdSchema = z.custom<DancerId>(
-  (val) => typeof val === 'string' && /^(up_lark|up_robin|down_lark|down_robin)_-?\d+$/.test(val),
-);
+export const DancerIdSchema = z.templateLiteral([ProgressionDirSchema, '_', RoleSchema, '_', z.number().int()])
+export type DancerId = z.infer<typeof DancerIdSchema>;
+
+null! as ProtoDancerId satisfies DancerId; // assert that ProtoDancerId < DancerId
 
 export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
   const i = id.lastIndexOf('_');
-  return { proto: ProtoDancerIdSchema.parse(id.slice(0, i)), offset: parseInt(id.slice(i + 1)) };
+  return { proto: ProtoDancerIdSchema.parse(id.slice(0, i) + '_0'), offset: parseInt(id.slice(i + 1)) };
 }
 
 export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
-  return DancerIdSchema.parse(`${proto}_${offset}`);
+  const base = proto.slice(0, proto.lastIndexOf('_'));
+  return DancerIdSchema.parse(`${base}_${offset}`);
 }
 
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
@@ -176,7 +179,7 @@ export const DancerHandsSchema = z.object({
 export type DancerHands = z.infer<typeof DancerHandsSchema>;
 
 const ProtoDancerRecord = <T extends z.ZodType>(v: T) => z.object({
-  up_lark: v, up_robin: v, down_lark: v, down_robin: v,
+  up_lark_0: v, up_robin_0: v, down_lark_0: v, down_robin_0: v,
 });
 
 export const KeyframeSchema = z.object({

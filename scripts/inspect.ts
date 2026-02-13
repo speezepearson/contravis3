@@ -37,7 +37,7 @@ for (const [id, d] of Object.entries(last.dancers)) {
 }
 
 console.log('\nHand connections:');
-const protoIds: ProtoDancerId[] = ['up_lark', 'up_robin', 'down_lark', 'down_robin'];
+const protoIds: ProtoDancerId[] = ['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0'];
 const seen = new Set<string>();
 const connections: { a: string; ha: string; b: string; hb: string }[] = [];
 for (const id of protoIds) {
