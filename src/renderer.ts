@@ -46,6 +46,15 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
 
+    // Flash background slightly brighter on each beat
+    const beatFrac = frame.beat % 1;
+    const flash = Math.max(0, 1 - beatFrac * 5);   // quick decay over 0.2 beats
+    if (flash > 0) {
+      const brightness = Math.round(flash * 12);
+      ctx.fillStyle = `rgb(${15 + brightness}, ${15 + brightness}, ${35 + brightness})`;
+      ctx.fillRect(0, 0, this.width, this.height);
+    }
+
     this.cameraY = progressionRate * frame.beat;
 
     const viewYMin = this.cameraY - Y_RANGE / 2;
