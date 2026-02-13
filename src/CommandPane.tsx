@@ -37,6 +37,7 @@ const DROP_TARGET_LABELS: Record<string, string> = {
 };
 
 const HAND_OPTIONS = ['right', 'left'];
+const TAKE_HANDS_HAND_OPTIONS = ['right', 'left', 'inside'];
 const CIRCLE_DIR_OPTIONS = ['left', 'right'];
 
 function parseDirection(text: string): RelativeDirection | null {
@@ -310,7 +311,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   const [action, setAction] = useState<ActionType | 'split' | 'group'>('take_hands');
   const [relationship, setRelationship] = useState<Relationship>('neighbor');
   const [dropTarget, setDropTarget] = useState<DropHandsTarget>('neighbor');
-  const [hand, setHand] = useState<'left' | 'right'>('right');
+  const [hand, setHand] = useState<'left' | 'right' | 'inside'>('right');
   const [handedness, setHandedness] = useState<'left' | 'right'>('right');
   const [rotations, setRotations] = useState('1');
   const [turnText, setTurnText] = useState('');
@@ -384,7 +385,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
       case 'circle':
         return { ...base, type: 'circle', direction: handedness, rotations: Number(rotations) || 1 };
       case 'pull_by':
-        return { ...base, type: 'pull_by', relationship, hand };
+        return { ...base, type: 'pull_by', relationship, hand: hand === 'inside' ? 'right' : hand };
       case 'turn': {
         const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'turn', target, offset: Number(turnOffset) || 0 };
@@ -738,9 +739,9 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           <label>
             Hand
             <SearchableDropdown
-              options={HAND_OPTIONS}
+              options={action === 'take_hands' ? TAKE_HANDS_HAND_OPTIONS : HAND_OPTIONS}
               value={hand}
-              onChange={v => setHand(v as 'left' | 'right')}
+              onChange={v => setHand(v as 'left' | 'right' | 'inside')}
             />
           </label>
         )}

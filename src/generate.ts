@@ -153,9 +153,34 @@ function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoDancerId
 
 // --- Per-instruction generators ---
 
+/** Determine which hand is the "inside" hand — the one closer to the target.
+ *  Returns 'right' if the target is to the dancer's right, 'left' if to their left.
+ *  If the target is directly ahead/behind (ambiguous), defaults to 'right' and pushes a warning. */
+function resolveInsideHand(
+  dancer: DancerState,
+  target: DancerState,
+  label: string,
+  warnings: string[],
+): 'left' | 'right' {
+  const facingRad = dancer.facing * Math.PI / 180;
+  // Right direction: 90° clockwise from facing (atan2(dx,dy) convention)
+  const rightX = Math.cos(facingRad);
+  const rightY = -Math.sin(facingRad);
+  const dx = target.x - dancer.x;
+  const dy = target.y - dancer.y;
+  const rightDot = dx * rightX + dy * rightY;
+
+  if (Math.abs(rightDot) < 0.01) {
+    warnings.push(`${label}: partner is not to their left or right; defaulting to right hand`);
+    return 'right';
+  }
+  return rightDot > 0 ? 'right' : 'left';
+}
+
 function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const connections: Array<{proto: ProtoDancerId, hand: 'left'|'right', target: DancerId, targetHand: 'left'|'right'}> = [];
   const seen = new Set<string>();
+  const warnings: string[] = [];
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const target = resolveRelationship(instr.relationship, id, prev.dancers);
@@ -163,13 +188,22 @@ function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!seen.has(key)) {
       seen.add(key);
-      connections.push({ proto: id, hand: instr.hand, target, targetHand: instr.hand });
+      if (instr.hand === 'inside') {
+        const dancerState = prev.dancers[id];
+        const targetState = dancerPosition(target, prev.dancers);
+        const myHand = resolveInsideHand(dancerState, targetState, id, warnings);
+        const theirHand = resolveInsideHand(targetState, dancerState, parseDancerId(target).proto, []);
+        connections.push({ proto: id, hand: myHand, target, targetHand: theirHand });
+      } else {
+        connections.push({ proto: id, hand: instr.hand, target, targetHand: instr.hand });
+      }
     }
   }
   return [{
     beat: prev.beat + instr.beats,
     dancers: copyDancers(prev.dancers),
     hands: makeHands(prev.hands, connections),
+    ...(warnings.length > 0 ? { warnings } : {}),
   }];
 }
 
@@ -676,6 +710,23 @@ export function validateHandDistances(
     }
   }
 
+  return warnings;
+}
+
+export function collectKeyframeWarnings(instructions: Instruction[], keyframes: Keyframe[]): Map<number, string> {
+  const ranges = buildBeatRanges(instructions);
+  const warnings = new Map<number, string>();
+  for (const kf of keyframes) {
+    if (!kf.warnings?.length) continue;
+    for (const r of ranges) {
+      if (kf.beat >= r.start - 1e-9 && kf.beat <= r.end + 1e-9) {
+        if (!warnings.has(r.id)) {
+          warnings.set(r.id, kf.warnings.join('; '));
+        }
+        break;
+      }
+    }
+  }
   return warnings;
 }
 

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
-import { generateAllKeyframes, validateHandDistances } from './generate';
+import { generateAllKeyframes, validateHandDistances, collectKeyframeWarnings } from './generate';
 import CommandPane from './CommandPane';
 import type { Instruction } from './types';
 
@@ -52,7 +52,16 @@ export default function App() {
   const smoothnessRef = useRef(1);
 
   const keyframes = useMemo(() => generateAllKeyframes(instructions), [instructions]);
-  const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
+  const warnings = useMemo(() => {
+    const handWarnings = validateHandDistances(instructions, keyframes);
+    const kfWarnings = collectKeyframeWarnings(instructions, keyframes);
+    const merged = new Map(handWarnings);
+    for (const [id, w] of kfWarnings) {
+      const existing = merged.get(id);
+      merged.set(id, existing ? `${existing}; ${w}` : w);
+    }
+    return merged;
+  }, [instructions, keyframes]);
 
   const minBeat = keyframes.length > 0 ? keyframes[0].beat : 0;
   const maxBeat = keyframes.length > 0 ? keyframes[keyframes.length - 1].beat : 0;

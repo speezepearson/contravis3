@@ -16,11 +16,11 @@ export const DancerIdSchema = z.custom<DancerId>(
 
 export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
   const i = id.lastIndexOf('_');
-  return { proto: id.slice(0, i) as ProtoDancerId, offset: parseInt(id.slice(i + 1)) };
+  return { proto: ProtoDancerIdSchema.parse(id.slice(0, i)), offset: parseInt(id.slice(i + 1)) };
 }
 
 export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
-  return `${proto}_${offset}` as DancerId;
+  return DancerIdSchema.parse(`${proto}_${offset}`);
 }
 
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
@@ -31,6 +31,9 @@ export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, Danc
 
 export const HandSchema = z.enum(['left', 'right']);
 export type Hand = z.infer<typeof HandSchema>;
+
+export const TakeHandsHandSchema = z.enum(['left', 'right', 'inside']);
+export type TakeHandsHand = z.infer<typeof TakeHandsHandSchema>;
 
 export const RelationshipSchema = z.enum(['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front']);
 export type Relationship = z.infer<typeof RelationshipSchema>;
@@ -58,7 +61,7 @@ const TakeHandsSchema = z.object({
   id: z.number(), beats: z.number(),
   type: z.literal('take_hands'),
   relationship: RelationshipSchema,
-  hand: HandSchema,
+  hand: TakeHandsHandSchema,
 });
 
 const DropHandsInstructionSchema = z.object({
@@ -181,6 +184,7 @@ export const KeyframeSchema = z.object({
   dancers: ProtoDancerRecord(DancerStateSchema),
   hands: ProtoDancerRecord(DancerHandsSchema),
   annotation: z.string().optional(),
+  warnings: z.array(z.string()).optional(),
 });
 export type Keyframe = z.infer<typeof KeyframeSchema>;
 
