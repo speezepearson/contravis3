@@ -1,5 +1,5 @@
 import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, DancerHands, ProtoDancerId, DancerId } from './types';
-import { makeDancerId, parseDancerId, dancerPosition } from './types';
+import { makeDancerId, parseDancerId, dancerPosition, AtomicInstructionSchema } from './types';
 
 const PROTO_DANCER_IDS: readonly ProtoDancerId[] = ['up_lark', 'up_robin', 'down_lark', 'down_robin'] as const;
 const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
@@ -351,11 +351,11 @@ function generateStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 
 
 function generateBalance(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'balance' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const halfBeats = instr.beats / 2;
-  const stepOut = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: instr.distance };
-  const outFrames = generateStep(prev, stepOut, scope);
+  const stepOut = AtomicInstructionSchema.parse({ id: 0, beats: halfBeats, type: 'step', direction: instr.direction, distance: instr.distance });
+  const outFrames = generateStep(prev, stepOut as Extract<AtomicInstruction, { type: 'step' }>, scope);
   const lastOut = outFrames.length > 0 ? outFrames[outFrames.length - 1] : prev;
-  const stepBack = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -instr.distance };
-  const backFrames = generateStep(lastOut, stepBack, scope);
+  const stepBack = AtomicInstructionSchema.parse({ id: 0, beats: halfBeats, type: 'step', direction: instr.direction, distance: -instr.distance });
+  const backFrames = generateStep(lastOut, stepBack as Extract<AtomicInstruction, { type: 'step' }>, scope);
   return [...outFrames, ...backFrames];
 }
 
