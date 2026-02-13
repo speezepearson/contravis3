@@ -60,6 +60,11 @@ export interface DancerState {
 export type HandHold = [DancerId, 'left' | 'right'];
 export type DancerHands = Partial<Record<'left' | 'right', HandHold>>;
 
+export type Dance = {
+  initFormation: 'beckett' | 'improper';
+  instructions: Instruction[];
+};
+
 export interface Keyframe {
   beat: number;
   dancers: Record<ProtoDancerId, DancerState>;

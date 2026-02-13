@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, Dance } from './types';
 
 type ActionType = AtomicInstruction['type'];
 
@@ -602,16 +602,18 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   }
 
   function copyJson() {
-    navigator.clipboard.writeText(JSON.stringify(instructions, null, 2));
+    const dance: Dance = { initFormation: 'improper', instructions };
+    navigator.clipboard.writeText(JSON.stringify(dance, null, 2));
     setCopyFeedback('Copied!');
     setTimeout(() => setCopyFeedback(''), 1500);
   }
 
   function tryLoadJson(text: string) {
     try {
-      const parsed = JSON.parse(text) as Instruction[];
-      if (!Array.isArray(parsed)) return;
-      setInstructions(parsed);
+      const parsed = JSON.parse(text) as Dance;
+      if (typeof parsed !== 'object' || parsed === null) return;
+      if (!Array.isArray(parsed.instructions)) return;
+      setInstructions(parsed.instructions);
       // Advance nextId past all loaded IDs
       function maxId(instrs: Instruction[]): number {
         let m = 0;
@@ -625,7 +627,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         }
         return m;
       }
-      nextId = maxId(parsed) + 1;
+      nextId = maxId(parsed.instructions) + 1;
       setEditingId(null);
       setContext({ level: 'top' });
     } catch { /* invalid JSON, ignore */ }
