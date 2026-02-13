@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, Dance } from './types';
+import { AtomicInstructionSchema, DanceSchema } from './types';
 
 type ActionType = AtomicInstruction['type'];
 
@@ -243,27 +244,14 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       return `${label} pull by ${instr.hand} (${instr.beats}b)`;
     }
     case 'turn': {
-      const t = instr.target;
-      const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'cw' ? `${t.value}\u00B0`
-        : t.value;
+      const desc = instr.target.value;
       const offsetStr = instr.offset ? ` +${instr.offset}\u00B0` : '';
       return `turn ${desc}${offsetStr} (${instr.beats}b)`;
     }
-    case 'step': {
-      const t = instr.direction;
-      const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'cw' ? `${t.value}\u00B0`
-        : t.value;
-      return `step ${desc} ${instr.distance} (${instr.beats}b)`;
-    }
-    case 'balance': {
-      const t = instr.direction;
-      const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'cw' ? `${t.value}\u00B0`
-        : t.value;
-      return `balance ${desc} ${instr.distance} (${instr.beats}b)`;
-    }
+    case 'step':
+      return `step ${instr.direction.value} ${instr.distance} (${instr.beats}b)`;
+    case 'balance':
+      return `balance ${instr.direction.value} ${instr.distance} (${instr.beats}b)`;
   }
 }
 
@@ -373,32 +361,34 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
 
   function buildAtomicInstruction(id: number): AtomicInstruction {
     const base = { id, beats: Number(beats) || 0 };
+    let raw;
     switch (action as ActionType) {
       case 'take_hands':
-        return { id, beats: 0, type: 'take_hands', relationship, hand };
+        raw = { id, beats: 0, type: 'take_hands' as const, relationship, hand }; break;
       case 'drop_hands':
-        return { id, beats: 0, type: 'drop_hands', target: dropTarget };
+        raw = { id, beats: 0, type: 'drop_hands' as const, target: dropTarget }; break;
       case 'allemande':
-        return { ...base, type: 'allemande', relationship, handedness, rotations: Number(rotations) || 1 };
+        raw = { ...base, type: 'allemande' as const, relationship, handedness, rotations: Number(rotations) || 1 }; break;
       case 'do_si_do':
-        return { ...base, type: 'do_si_do', relationship, rotations: Number(rotations) || 1 };
+        raw = { ...base, type: 'do_si_do' as const, relationship, rotations: Number(rotations) || 1 }; break;
       case 'circle':
-        return { ...base, type: 'circle', direction: handedness, rotations: Number(rotations) || 1 };
+        raw = { ...base, type: 'circle' as const, direction: handedness, rotations: Number(rotations) || 1 }; break;
       case 'pull_by':
-        return { ...base, type: 'pull_by', relationship, hand: hand === 'inside' ? 'right' : hand };
+        raw = { ...base, type: 'pull_by' as const, relationship, hand: hand === 'inside' ? 'right' as const : hand }; break;
       case 'turn': {
         const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
-        return { ...base, type: 'turn', target, offset: Number(turnOffset) || 0 };
+        raw = { ...base, type: 'turn' as const, target, offset: Number(turnOffset) || 0 }; break;
       }
       case 'step': {
         const dir = parseDirection(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
-        return { ...base, type: 'step', direction: dir, distance: Number(distance) || 0 };
+        raw = { ...base, type: 'step' as const, direction: dir, distance: Number(distance) || 0 }; break;
       }
       case 'balance': {
         const dir = parseDirection(balanceText) ?? { kind: 'direction' as const, value: 'across' as const };
-        return { ...base, type: 'balance', direction: dir, distance: Number(distance) || 0 };
+        raw = { ...base, type: 'balance' as const, direction: dir, distance: Number(distance) || 0 }; break;
       }
     }
+    return AtomicInstructionSchema.parse(raw);
   }
 
   function buildInstruction(id: number): Instruction {
@@ -603,7 +593,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   }
 
   function copyJson() {
-    const dance: Dance = { initFormation: 'improper', instructions };
+    const dance = DanceSchema.parse({ initFormation: 'improper', instructions });
     navigator.clipboard.writeText(JSON.stringify(dance, null, 2));
     setCopyFeedback('Copied!');
     setTimeout(() => setCopyFeedback(''), 1500);

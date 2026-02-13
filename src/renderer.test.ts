@@ -17,7 +17,7 @@ function makeKeyframe(beat: number, positions: {
       down_lark:  { x: positions.down_lark[0],  y: positions.down_lark[1],  facing: positions.down_lark[2] },
       down_robin: { x: positions.down_robin[0], y: positions.down_robin[1], facing: positions.down_robin[2] },
     },
-    hands: [],
+    hands: { up_lark: {}, up_robin: {}, down_lark: {}, down_robin: {} },
   };
 }
 
