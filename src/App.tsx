@@ -228,7 +228,7 @@ export default function App() {
             value={scrubberValue}
             onChange={(e) => scrub(Number(e.target.value))}
           />
-          <div className="beat-display">Beat {beat.toFixed(1)}</div>
+          <div className="beat-display">Beat {Math.floor(beat)}</div>
         </div>
         <div className="controls">
           <span className="speed-display">{bpm} BPM</span>
