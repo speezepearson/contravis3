@@ -5,33 +5,34 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, Dance } from './types';
-import { AtomicInstructionSchema, DanceSchema } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, InstructionId } from './types';
+import { AtomicInstructionSchema, DanceSchema, makeInstructionId, instructionIdNonce } from './types';
+import { assertNever } from './utils';
 
 type ActionType = AtomicInstruction['type'];
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
 const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'turn', 'step', 'balance', 'split', 'group'];
-const ACTION_LABELS: Record<string, string> = {
+const ACTION_LABELS: Record<ActionType | 'split' | 'group', string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', circle: 'circle', pull_by: 'pull by',
   turn: 'turn', step: 'step', balance: 'balance', split: 'split', group: 'group',
 };
 
 const SPLIT_BY_OPTIONS = ['role', 'position'];
-const SPLIT_BY_LABELS: Record<string, string> = {
+const SPLIT_BY_LABELS: Record<SplitBy, string> = {
   role: 'role (larks / robins)', position: 'position (ups / downs)',
 };
 
 const RELATIONSHIP_OPTIONS: Relationship[] = ['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front'];
-const RELATIONSHIP_LABELS: Record<string, string> = {
+const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   partner: 'partner', neighbor: 'neighbor', opposite: 'opposite',
   on_right: 'on your right', on_left: 'on your left', in_front: 'in front of you',
 };
 
 const DROP_TARGET_OPTIONS: DropHandsTarget[] = ['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front', 'right', 'left', 'both'];
-const DROP_TARGET_LABELS: Record<string, string> = {
+const DROP_TARGET_LABELS: Record<DropHandsTarget, string> = {
   partner: 'partner hands', neighbor: 'neighbor hands', opposite: 'opposite hands',
   on_right: 'on-your-right hands', on_left: 'on-your-left hands', in_front: 'in-front hands',
   right: 'right hand', left: 'left hand', both: 'both hands',
@@ -77,24 +78,24 @@ function defaultBeats(action: string): string {
   }
 }
 
-let nextId = 1;
+let nextNonce = 1;
 
 // --- Tree manipulation helpers for cross-container drag ---
 
 function parseContainerId(id: string):
   | { type: 'top' }
-  | { type: 'group'; groupId: number }
-  | { type: 'split'; splitId: number; list: 'A' | 'B' }
+  | { type: 'group'; groupId: InstructionId }
+  | { type: 'split'; splitId: InstructionId; list: 'A' | 'B' }
 {
   if (id === 'top') return { type: 'top' };
-  const groupMatch = id.match(/^group-(\d+)$/);
-  if (groupMatch) return { type: 'group', groupId: Number(groupMatch[1]) };
-  const splitMatch = id.match(/^split-(\d+)-(A|B)$/);
-  if (splitMatch) return { type: 'split', splitId: Number(splitMatch[1]), list: splitMatch[2] as 'A' | 'B' };
+  const groupMatch = id.match(/^group-(insn_\d+)$/);
+  if (groupMatch) return { type: 'group', groupId: groupMatch[1] as InstructionId };
+  const splitMatch = id.match(/^split-(insn_\d+)-(A|B)$/);
+  if (splitMatch) return { type: 'split', splitId: splitMatch[1] as InstructionId, list: splitMatch[2] as 'A' | 'B' };
   return { type: 'top' };
 }
 
-function findInstructionById(instrs: Instruction[], id: number): Instruction | null {
+function findInstructionById(instrs: Instruction[], id: InstructionId): Instruction | null {
   for (const i of instrs) {
     if (i.id === id) return i;
     if (i.type === 'group') {
@@ -110,14 +111,14 @@ function findInstructionById(instrs: Instruction[], id: number): Instruction | n
   return null;
 }
 
-function instructionContainsId(instr: Instruction, id: number): boolean {
+function instructionContainsId(instr: Instruction, id: InstructionId): boolean {
   if (instr.id === id) return true;
   if (instr.type === 'group') return instr.instructions.some(c => instructionContainsId(c, id));
   if (instr.type === 'split') return [...instr.listA, ...instr.listB].some(c => instructionContainsId(c, id));
   return false;
 }
 
-function removeFromTree(instrs: Instruction[], targetId: number): [Instruction[], Instruction | null] {
+function removeFromTree(instrs: Instruction[], targetId: InstructionId): [Instruction[], Instruction | null] {
   const topIdx = instrs.findIndex(i => i.id === targetId);
   if (topIdx !== -1) {
     return [[...instrs.slice(0, topIdx), ...instrs.slice(topIdx + 1)], instrs[topIdx]];
@@ -203,14 +204,14 @@ function getContainerItems(instrs: Instruction[], containerId: string): Instruct
 interface Props {
   instructions: Instruction[];
   setInstructions: (instructions: Instruction[]) => void;
-  activeId: number | null;
-  warnings: Map<number, string>;
+  activeId: InstructionId | null;
+  warnings: Map<InstructionId, string>;
 }
 
 type BuilderContext =
   | { level: 'top' }
-  | { level: 'sub'; splitId: number; list: 'A' | 'B' }
-  | { level: 'group'; groupId: number };
+  | { level: 'sub'; splitId: InstructionId; list: 'A' | 'B' }
+  | { level: 'group'; groupId: InstructionId };
 
 function summarizeAtomic(instr: AtomicInstruction): string {
   switch (instr.type) {
@@ -275,7 +276,7 @@ function summarize(instr: Instruction): string {
   return summarizeAtomic(instr);
 }
 
-function SortableItem({ id, children }: { id: number; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
+function SortableItem({ id, children }: { id: InstructionId; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -310,7 +311,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   const [beats, setBeats] = useState('0');
   const [splitBy, setSplitBy] = useState<SplitBy>('role');
   const [groupLabel, setGroupLabel] = useState('');
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const actionRef = useRef<SearchableDropdownHandle>(null);
 
@@ -359,10 +360,12 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     }
   }
 
-  function buildAtomicInstruction(id: number): AtomicInstruction {
+  function buildAtomicInstruction(id: InstructionId): AtomicInstruction {
     const base = { id, beats: Number(beats) || 0 };
+    const a = action;
+    if (a === 'split' || a === 'group') throw new Error(`buildAtomicInstruction called with non-atomic action: ${a}`);
     let raw;
-    switch (action as ActionType) {
+    switch (a) {
       case 'take_hands':
         raw = { id, beats: 0, type: 'take_hands' as const, relationship, hand }; break;
       case 'drop_hands':
@@ -387,11 +390,12 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         const dir = parseDirection(balanceText) ?? { kind: 'direction' as const, value: 'across' as const };
         raw = { ...base, type: 'balance' as const, direction: dir, distance: Number(distance) || 0 }; break;
       }
+      default: assertNever(a);
     }
     return AtomicInstructionSchema.parse(raw);
   }
 
-  function buildInstruction(id: number): Instruction {
+  function buildInstruction(id: InstructionId): Instruction {
     if (action === 'group') {
       return { id, type: 'group', label: groupLabel || 'Untitled', instructions: [] };
     }
@@ -402,7 +406,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   }
 
   /** Recursively update a group's instructions by its id. */
-  function updateGroup(instrs: Instruction[], groupId: number, updater: (children: Instruction[]) => Instruction[]): Instruction[] {
+  function updateGroup(instrs: Instruction[], groupId: InstructionId, updater: (children: Instruction[]) => Instruction[]): Instruction[] {
     return instrs.map(i => {
       if (i.type === 'group' && i.id === groupId) {
         return { ...i, instructions: updater(i.instructions) };
@@ -425,7 +429,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
       // Adding to a split's sub-list
       const { splitId, list } = context;
       if (action === 'split') return; // no nesting
-      const newInstr = buildAtomicInstruction(nextId++);
+      const newInstr = buildAtomicInstruction(makeInstructionId(nextNonce++));
       if (editingId !== null) {
         setInstructions(instructions.map(i => {
           if (i.type !== 'split' || i.id !== splitId) return i;
@@ -444,7 +448,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     } else if (context.level === 'group') {
       // Adding to a group's children
       const { groupId } = context;
-      const newInstr = buildInstruction(nextId++);
+      const newInstr = buildInstruction(makeInstructionId(nextNonce++));
       if (editingId !== null) {
         setInstructions(updateGroup(instructions, groupId, children =>
           children.map(i => i.id === editingId ? newInstr : i)
@@ -462,7 +466,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
         setInstructions(instructions.map(i => i.id === editingId ? buildInstruction(editingId) : i));
         setEditingId(null);
       } else {
-        setInstructions([...instructions, buildInstruction(nextId++)]);
+        setInstructions([...instructions, buildInstruction(makeInstructionId(nextNonce++))]);
         resetForm();
       }
     }
@@ -474,7 +478,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     setContext({ level: 'top' });
   }
 
-  function startSubEdit(splitId: number, list: 'A' | 'B', instr: AtomicInstruction) {
+  function startSubEdit(splitId: InstructionId, list: 'A' | 'B', instr: AtomicInstruction) {
     loadAtomicIntoForm(instr);
     setEditingId(instr.id);
     setContext({ level: 'sub', splitId, list });
@@ -485,7 +489,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     setContext({ level: 'top' });
   }
 
-  function remove(id: number) {
+  function remove(id: InstructionId) {
     setInstructions(instructions.filter(i => i.id !== id));
     if (editingId === id) {
       setEditingId(null);
@@ -493,7 +497,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     }
   }
 
-  function removeSub(splitId: number, list: 'A' | 'B', subId: number) {
+  function removeSub(splitId: InstructionId, list: 'A' | 'B', subId: InstructionId) {
     setInstructions(instructions.map(i => {
       if (i.type !== 'split' || i.id !== splitId) return i;
       const key = list === 'A' ? 'listA' : 'listB';
@@ -529,7 +533,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     }
 
     // Cross-container move (or drop on a DropZone)
-    const activeId = active.id as number;
+    const activeId = active.id as InstructionId;
     const draggedInstr = findInstructionById(instructions, activeId);
     if (!draggedInstr) return;
 
@@ -564,25 +568,25 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     }
   }
 
-  function enterSubContext(splitId: number, list: 'A' | 'B') {
+  function enterSubContext(splitId: InstructionId, list: 'A' | 'B') {
     setContext({ level: 'sub', splitId, list });
     setEditingId(null);
     setAction('take_hands');
   }
 
-  function enterGroupContext(groupId: number) {
+  function enterGroupContext(groupId: InstructionId) {
     setContext({ level: 'group', groupId });
     setEditingId(null);
     setAction('take_hands');
   }
 
-  function startGroupChildEdit(groupId: number, instr: Instruction) {
+  function startGroupChildEdit(groupId: InstructionId, instr: Instruction) {
     loadIntoForm(instr);
     setEditingId(instr.id);
     setContext({ level: 'group', groupId });
   }
 
-  function removeGroupChild(groupId: number, childId: number) {
+  function removeGroupChild(groupId: InstructionId, childId: InstructionId) {
     setInstructions(updateGroup(instructions, groupId, children =>
       children.filter(i => i.id !== childId)
     ));
@@ -600,28 +604,28 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   }
 
   function tryLoadJson(text: string) {
-    try {
-      const parsed = JSON.parse(text) as Dance;
-      if (typeof parsed !== 'object' || parsed === null) return;
-      if (!Array.isArray(parsed.instructions)) return;
-      setInstructions(parsed.instructions);
-      // Advance nextId past all loaded IDs
-      function maxId(instrs: Instruction[]): number {
-        let m = 0;
-        for (const i of instrs) {
-          m = Math.max(m, i.id);
-          if (i.type === 'split') {
-            for (const sub of [...i.listA, ...i.listB]) m = Math.max(m, sub.id);
-          } else if (i.type === 'group') {
-            m = Math.max(m, maxId(i.instructions));
-          }
+    let json: unknown;
+    try { json = JSON.parse(text); } catch { return; /* invalid JSON, ignore */ }
+    const result = DanceSchema.safeParse(json);
+    if (!result.success) return;
+    const dance = result.data;
+    setInstructions(dance.instructions);
+    // Advance nextNonce past all loaded IDs
+    function maxNonce(instrs: Instruction[]): number {
+      let m = 0;
+      for (const i of instrs) {
+        m = Math.max(m, instructionIdNonce(i.id));
+        if (i.type === 'split') {
+          for (const sub of [...i.listA, ...i.listB]) m = Math.max(m, instructionIdNonce(sub.id));
+        } else if (i.type === 'group') {
+          m = Math.max(m, maxNonce(i.instructions));
         }
-        return m;
       }
-      nextId = maxId(parsed.instructions) + 1;
-      setEditingId(null);
-      setContext({ level: 'top' });
-    } catch { /* invalid JSON, ignore */ }
+      return m;
+    }
+    nextNonce = maxNonce(dance.instructions) + 1;
+    setEditingId(null);
+    setContext({ level: 'top' });
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -632,7 +636,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     ? instructions.find(i => i.type === 'split' && i.id === context.splitId) as Extract<Instruction, { type: 'split' }> | undefined
     : undefined;
 
-  function findGroup(instrs: Instruction[], id: number): Extract<Instruction, { type: 'group' }> | undefined {
+  function findGroup(instrs: Instruction[], id: InstructionId): Extract<Instruction, { type: 'group' }> | undefined {
     for (const i of instrs) {
       if (i.type === 'group' && i.id === id) return i;
       if (i.type === 'group') {
@@ -673,7 +677,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               setAction(a);
               if (editingId === null) setBeats(defaultBeats(a));
             }}
-            getLabel={v => ACTION_LABELS[v] ?? v}
+            getLabel={v => ACTION_LABELS[v as keyof typeof ACTION_LABELS]}
           />
         </label>
 
@@ -684,7 +688,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               options={SPLIT_BY_OPTIONS}
               value={splitBy}
               onChange={v => setSplitBy(v as SplitBy)}
-              getLabel={v => SPLIT_BY_LABELS[v] ?? v}
+              getLabel={v => SPLIT_BY_LABELS[v as keyof typeof SPLIT_BY_LABELS]}
             />
           </label>
         )}
@@ -708,7 +712,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               options={RELATIONSHIP_OPTIONS as string[]}
               value={relationship}
               onChange={v => setRelationship(v as Relationship)}
-              getLabel={v => RELATIONSHIP_LABELS[v] ?? v}
+              getLabel={v => RELATIONSHIP_LABELS[v as keyof typeof RELATIONSHIP_LABELS]}
             />
           </label>
         )}
@@ -720,7 +724,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               options={DROP_TARGET_OPTIONS as string[]}
               value={dropTarget}
               onChange={v => setDropTarget(v as DropHandsTarget)}
-              getLabel={v => DROP_TARGET_LABELS[v] ?? v}
+              getLabel={v => DROP_TARGET_LABELS[v as keyof typeof DROP_TARGET_LABELS]}
             />
           </label>
         )}

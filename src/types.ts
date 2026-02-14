@@ -1,5 +1,18 @@
 import { z } from 'zod';
 
+// --- Instruction identity ---
+
+export const InstructionIdSchema = z.templateLiteral(['insn_', z.number().int()]);
+export type InstructionId = z.infer<typeof InstructionIdSchema>;
+
+export function makeInstructionId(nonce: number): InstructionId {
+  return `insn_${nonce}` as InstructionId;
+}
+
+export function instructionIdNonce(id: InstructionId): number {
+  return parseInt(id.slice(5));
+}
+
 // --- Leaf enums ---
 
 export const RoleSchema = z.enum(['lark', 'robin']);
@@ -61,20 +74,20 @@ export type RelativeDirection = z.infer<typeof RelativeDirectionSchema>;
 // --- Atomic instruction variants ---
 
 const TakeHandsSchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('take_hands'),
   relationship: RelationshipSchema,
   hand: TakeHandsHandSchema,
 });
 
 const DropHandsInstructionSchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('drop_hands'),
   target: DropHandsTargetSchema,
 });
 
 const AllemandeSchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('allemande'),
   relationship: RelationshipSchema,
   handedness: HandSchema,
@@ -82,42 +95,42 @@ const AllemandeSchema = z.object({
 });
 
 const DoSiDoSchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('do_si_do'),
   relationship: RelationshipSchema,
   rotations: z.number(),
 });
 
 const CircleSchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('circle'),
   direction: HandSchema,
   rotations: z.number(),
 });
 
 const PullBySchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('pull_by'),
   relationship: RelationshipSchema,
   hand: HandSchema,
 });
 
 const TurnSchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('turn'),
   target: RelativeDirectionSchema,
   offset: z.number(),
 });
 
 const StepSchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('step'),
   direction: RelativeDirectionSchema,
   distance: z.number(),
 });
 
 const BalanceSchema = z.object({
-  id: z.number(), beats: z.number(),
+  id: InstructionIdSchema, beats: z.number(),
   type: z.literal('balance'),
   direction: RelativeDirectionSchema,
   distance: z.number(),
@@ -136,20 +149,20 @@ export type SplitBy = z.infer<typeof SplitBySchema>;
 
 export type Instruction =
   | AtomicInstruction
-  | { id: number; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] }
-  | { id: number; type: 'group'; label: string; instructions: Instruction[] };
+  | { id: InstructionId; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] }
+  | { id: InstructionId; type: 'group'; label: string; instructions: Instruction[] };
 
 const SplitInstructionSchema = z.object({
-  id: z.number(), type: z.literal('split'),
+  id: InstructionIdSchema, type: z.literal('split'),
   by: SplitBySchema,
   listA: z.array(AtomicInstructionSchema),
   listB: z.array(AtomicInstructionSchema),
 });
 
 const GroupInstructionSchema: z.ZodType<
-  { id: number; type: 'group'; label: string; instructions: Instruction[] }
+  { id: InstructionId; type: 'group'; label: string; instructions: Instruction[] }
 > = z.object({
-  id: z.number(), type: z.literal('group'),
+  id: InstructionIdSchema, type: z.literal('group'),
   label: z.string(),
   instructions: z.lazy(() => z.array(InstructionSchema)),
 });
