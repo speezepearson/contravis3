@@ -1,9 +1,13 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
 body {
   background: #1a1a2e;
   color: #e0e0e0;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: "Segoe UI", system-ui, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -54,9 +58,17 @@ button {
   cursor: pointer;
   font-size: 14px;
 }
-button:hover { background: #3a3a5a; }
-button.active { background: #4a4a7a; border-color: #6a6aaa; }
-button:disabled { opacity: 0.4; cursor: default; }
+button:hover {
+  background: #3a3a5a;
+}
+button.active {
+  background: #4a4a7a;
+  border-color: #6a6aaa;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 
 input[type="range"] {
   width: 300px;
@@ -70,7 +82,10 @@ input[type="range"] {
   text-align: center;
 }
 
-.speed-display { font-size: 0.9em; color: #888; }
+.speed-display {
+  font-size: 0.9em;
+  color: #888;
+}
 
 .legend {
   margin-top: 10px;
@@ -159,13 +174,17 @@ input[type="range"] {
   background: #3a5a3a;
   border-color: #5a7a5a;
 }
-.add-btn:hover { background: #4a6a4a; }
+.add-btn:hover {
+  background: #4a6a4a;
+}
 
 .cancel-btn {
   background: #5a3a3a;
   border-color: #7a5a5a;
 }
-.cancel-btn:hover { background: #6a4a4a; }
+.cancel-btn:hover {
+  background: #6a4a4a;
+}
 
 .instruction-list {
   display: flex;
@@ -202,8 +221,12 @@ input[type="range"] {
   user-select: none;
   font-size: 12px;
 }
-.drag-handle:hover { color: #aaa; }
-.drag-handle:active { cursor: grabbing; }
+.drag-handle:hover {
+  color: #aaa;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
 
 .instruction-summary {
   flex: 1;
@@ -288,7 +311,9 @@ input[type="range"] {
   border-color: #3a5a6a;
   color: #8ac;
 }
-.split-add-btn:hover { background: #3a4a5a; }
+.split-add-btn:hover {
+  background: #3a4a5a;
+}
 
 /* Group nesting */
 
