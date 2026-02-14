@@ -786,7 +786,12 @@ export default function CommandPane({
       return; /* invalid JSON, ignore */
     }
     const result = DanceSchema.safeParse(json);
-    if (!result.success) return;
+    if (!result.success) {
+      alert(
+        `Invalid dance JSON:\n${result.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n")}`,
+      );
+      return;
+    }
     const dance = result.data;
     setInstructions(dance.instructions);
     // Advance nextNonce past all loaded IDs
