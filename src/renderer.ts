@@ -1,11 +1,14 @@
-import type { DancerState, Keyframe, ProtoDancerId } from './types';
-import { dancerPosition, makeDancerId, parseDancerId } from './types';
+import type { DancerState, Keyframe, ProtoDancerId } from "./types";
+import { dancerPosition, makeDancerId, parseDancerId } from "./types";
 
-const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
-  up_lark_0:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
-  up_robin_0:   { fill: '#d94a4a', stroke: '#ff6a6a', label: 'UR' },
-  down_lark_0:  { fill: '#2a60a9', stroke: '#4a80c9', label: 'DL' },
-  down_robin_0: { fill: '#a92a2a', stroke: '#c94a4a', label: 'DR' },
+const COLORS: Record<
+  ProtoDancerId,
+  { fill: string; stroke: string; label: string }
+> = {
+  up_lark_0: { fill: "#4a90d9", stroke: "#6ab0ff", label: "UL" },
+  up_robin_0: { fill: "#d94a4a", stroke: "#ff6a6a", label: "UR" },
+  down_lark_0: { fill: "#2a60a9", stroke: "#4a80c9", label: "DL" },
+  down_robin_0: { fill: "#a92a2a", stroke: "#c94a4a", label: "DR" },
 };
 
 const MARGIN = 40;
@@ -19,7 +22,8 @@ export class Renderer {
   private usableH: number;
   private xRange: number;
   private cameraY = 0;
-  private trails: Partial<Record<ProtoDancerId, { x: number; y: number }[]>> = {};
+  private trails: Partial<Record<ProtoDancerId, { x: number; y: number }[]>> =
+    {};
   private trailLength = 20;
 
   constructor(ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -37,8 +41,9 @@ export class Renderer {
   }
 
   private worldToCanvas(wx: number, wy: number): [number, number] {
-    const cx = MARGIN + (wx + this.xRange / 2) / this.xRange * this.usableW;
-    const cy = MARGIN + ((this.cameraY + Y_RANGE / 2) - wy) / Y_RANGE * this.usableH;
+    const cx = MARGIN + ((wx + this.xRange / 2) / this.xRange) * this.usableW;
+    const cy =
+      MARGIN + ((this.cameraY + Y_RANGE / 2 - wy) / Y_RANGE) * this.usableH;
     return [cx, cy];
   }
 
@@ -48,7 +53,7 @@ export class Renderer {
 
     // Flash background slightly brighter on each beat
     const beatFrac = frame.beat % 1;
-    const flash = Math.max(0, 1 - beatFrac * 5);   // quick decay over 0.2 beats
+    const flash = Math.max(0, 1 - beatFrac * 5); // quick decay over 0.2 beats
     if (flash > 0) {
       const brightness = Math.round(flash * 12);
       ctx.fillStyle = `rgb(${15 + brightness}, ${15 + brightness}, ${35 + brightness})`;
@@ -61,7 +66,7 @@ export class Renderer {
     const viewYMax = this.cameraY + Y_RANGE / 2;
 
     // Grid lines (set boundaries at x = ±0.5)
-    ctx.strokeStyle = '#222';
+    ctx.strokeStyle = "#222";
     ctx.lineWidth = 1;
     for (const x of [-0.5, 0.5]) {
       const [cx1, cy1] = this.worldToCanvas(x, viewYMax + 1);
@@ -74,7 +79,7 @@ export class Renderer {
 
     // Horizontal dividers between hands-fours (every 2m)
     ctx.setLineDash([5, 5]);
-    ctx.strokeStyle = '#222';
+    ctx.strokeStyle = "#222";
     const firstDivider = Math.floor((viewYMin - 1) / 2) * 2;
     for (let y = firstDivider; y <= viewYMax + 1; y += 2) {
       const [cx1, cy1] = this.worldToCanvas(-this.xRange / 2, y);
@@ -87,19 +92,27 @@ export class Renderer {
     ctx.setLineDash([]);
 
     // "up" arrow label
-    ctx.fillStyle = '#444';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    const [arx, ary] = this.worldToCanvas(-this.xRange / 2 + 0.15, viewYMax - 0.3);
-    ctx.fillText('\u2191 up', arx, ary);
+    ctx.fillStyle = "#444";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    const [arx, ary] = this.worldToCanvas(
+      -this.xRange / 2 + 0.15,
+      viewYMax - 0.3,
+    );
+    ctx.fillText("\u2191 up", arx, ary);
 
     // Hand connections (deduplicate: only draw when proto < targetProto, or same proto with offset > 0)
-    ctx.strokeStyle = '#666';
+    ctx.strokeStyle = "#666";
     ctx.lineWidth = 2;
-    const PROTO_IDS: ProtoDancerId[] = ['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0'];
+    const PROTO_IDS: ProtoDancerId[] = [
+      "up_lark_0",
+      "up_robin_0",
+      "down_lark_0",
+      "down_robin_0",
+    ];
     for (const proto of PROTO_IDS) {
       const dh = frame.hands[proto];
-      for (const hand of ['left', 'right'] as const) {
+      for (const hand of ["left", "right"] as const) {
         const held = dh[hand];
         if (!held) continue;
         const [targetId, targetHand] = held;
@@ -117,19 +130,34 @@ export class Renderer {
     const firstCopy = Math.floor((viewYMin - 1) / 2) * 2;
     const lastCopy = Math.ceil((viewYMax + 1) / 2) * 2;
     for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
-      for (const [id, d] of Object.entries(frame.dancers) as [ProtoDancerId, DancerState][]) {
-        this.drawDancer(id, d.x, d.y + offset, d.facing, offset === 0 ? 1.0 : 0.35);
+      for (const [id, d] of Object.entries(frame.dancers) as [
+        ProtoDancerId,
+        DancerState,
+      ][]) {
+        this.drawDancer(
+          id,
+          d.x,
+          d.y + offset,
+          d.facing,
+          offset === 0 ? 1.0 : 0.35,
+        );
       }
     }
 
     // Update and draw trails
-    for (const [id, d] of Object.entries(frame.dancers) as [ProtoDancerId, DancerState][]) {
+    for (const [id, d] of Object.entries(frame.dancers) as [
+      ProtoDancerId,
+      DancerState,
+    ][]) {
       if (!this.trails[id]) this.trails[id] = [];
       this.trails[id]!.push({ x: d.x, y: d.y });
       if (this.trails[id]!.length > this.trailLength) this.trails[id]!.shift();
     }
 
-    for (const [id, trail] of Object.entries(this.trails) as [ProtoDancerId, { x: number; y: number }[]][]) {
+    for (const [id, trail] of Object.entries(this.trails) as [
+      ProtoDancerId,
+      { x: number; y: number }[],
+    ][]) {
       const color = COLORS[id];
       ctx.strokeStyle = color.fill;
       ctx.lineWidth = 1;
@@ -145,13 +173,22 @@ export class Renderer {
     }
   }
 
-  private handAnchorOffset(facing: number, hand: 'left' | 'right', r: number): [number, number] {
-    const fRad = facing * Math.PI / 180;
-    const sign = hand === 'right' ? 1 : -1;
+  private handAnchorOffset(
+    facing: number,
+    hand: "left" | "right",
+    r: number,
+  ): [number, number] {
+    const fRad = (facing * Math.PI) / 180;
+    const sign = hand === "right" ? 1 : -1;
     return [Math.cos(fRad) * sign * r, Math.sin(fRad) * sign * r];
   }
 
-  private drawHandsForAllCopies(da: DancerState, handA: 'left' | 'right', db: DancerState, handB: 'left' | 'right') {
+  private drawHandsForAllCopies(
+    da: DancerState,
+    handA: "left" | "right",
+    db: DancerState,
+    handB: "left" | "right",
+  ) {
     const ctx = this.ctx;
     const viewYMin = this.cameraY - Y_RANGE / 2;
     const viewYMax = this.cameraY + Y_RANGE / 2;
@@ -172,7 +209,13 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
-  private drawDancer(id: ProtoDancerId, x: number, y: number, facing: number, alpha: number) {
+  private drawDancer(
+    id: ProtoDancerId,
+    x: number,
+    y: number,
+    facing: number,
+    alpha: number,
+  ) {
     const color = COLORS[id];
     if (!color) return;
     const ctx = this.ctx;
@@ -191,8 +234,8 @@ export class Renderer {
     ctx.stroke();
 
     // Facing arrow
-    const ax = cx + Math.sin(facing * Math.PI / 180) * (r + 6);
-    const ay = cy - Math.cos(facing * Math.PI / 180) * (r + 6);
+    const ax = cx + Math.sin((facing * Math.PI) / 180) * (r + 6);
+    const ay = cy - Math.cos((facing * Math.PI) / 180) * (r + 6);
     ctx.strokeStyle = color.stroke;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -206,16 +249,22 @@ export class Renderer {
     const angle = Math.atan2(ay - cy, ax - cx);
     ctx.beginPath();
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - headLen * Math.cos(angle - headAngle), ay - headLen * Math.sin(angle - headAngle));
+    ctx.lineTo(
+      ax - headLen * Math.cos(angle - headAngle),
+      ay - headLen * Math.sin(angle - headAngle),
+    );
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - headLen * Math.cos(angle + headAngle), ay - headLen * Math.sin(angle + headAngle));
+    ctx.lineTo(
+      ax - headLen * Math.cos(angle + headAngle),
+      ay - headLen * Math.sin(angle + headAngle),
+    );
     ctx.stroke();
 
     // Label
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText(color.label, cx, cy);
 
     ctx.globalAlpha = 1.0;
@@ -241,10 +290,12 @@ function unwrapAngle(angle: number, ref: number): number {
 function rawFrameAtBeat(keyframes: Keyframe[], beat: number): Keyframe | null {
   if (keyframes.length === 0) return null;
   if (beat <= keyframes[0].beat) return keyframes[0];
-  if (beat >= keyframes[keyframes.length - 1].beat) return keyframes[keyframes.length - 1];
+  if (beat >= keyframes[keyframes.length - 1].beat)
+    return keyframes[keyframes.length - 1];
 
   // Binary search for surrounding frames
-  let lo = 0, hi = keyframes.length - 1;
+  let lo = 0,
+    hi = keyframes.length - 1;
   while (lo < hi - 1) {
     const mid = (lo + hi) >> 1;
     if (keyframes[mid].beat <= beat) lo = mid;
@@ -270,7 +321,7 @@ function rawFrameAtBeat(keyframes: Keyframe[], beat: number): Keyframe | null {
     beat,
     dancers,
     hands: f1.hands,
-    annotation: f0.annotation || f1.annotation || '',
+    annotation: f0.annotation || f1.annotation || "",
   };
 }
 
@@ -280,7 +331,11 @@ const SMOOTH_SAMPLES = 10;
  * Get an interpolated frame at `beat`.
  * `smoothness` is the width of a moving-average window in beats (0 = raw linear).
  */
-export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: number = 0): Keyframe | null {
+export function getFrameAtBeat(
+  keyframes: Keyframe[],
+  beat: number,
+  smoothness: number = 0,
+): Keyframe | null {
   if (keyframes.length === 0) return null;
 
   if (smoothness === 0) {
@@ -305,7 +360,8 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
   const dancers = {} as Record<ProtoDancerId, DancerState>;
 
   for (const id of ids) {
-    let sumX = 0, sumY = 0;
+    let sumX = 0,
+      sumY = 0;
     // Unwrap all facing angles relative to the first sample to avoid 0/360 jumps
     const refFacing = samples[0].dancers[id].facing;
     let sumFacing = 0;
@@ -321,7 +377,7 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
     dancers[id] = {
       x: sumX / n,
       y: sumY / n,
-      facing: ((sumFacing / n % 360) + 360) % 360,
+      facing: (((sumFacing / n) % 360) + 360) % 360,
     };
   }
 
@@ -331,6 +387,6 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
     beat,
     dancers,
     hands: center.hands,
-    annotation: center.annotation || '',
+    annotation: center.annotation || "",
   };
 }

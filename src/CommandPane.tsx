@@ -1,65 +1,170 @@
-import { useState, useRef } from 'react';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import SearchableDropdown from './SearchableDropdown';
-import type { SearchableDropdownHandle } from './SearchableDropdown';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, InstructionId } from './types';
-import { AtomicInstructionSchema, DanceSchema, makeInstructionId, instructionIdNonce } from './types';
-import { assertNever } from './utils';
+import { useState, useRef } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import SearchableDropdown from "./SearchableDropdown";
+import type { SearchableDropdownHandle } from "./SearchableDropdown";
+import type {
+  Instruction,
+  AtomicInstruction,
+  Relationship,
+  RelativeDirection,
+  SplitBy,
+  DropHandsTarget,
+  InstructionId,
+} from "./types";
+import {
+  AtomicInstructionSchema,
+  DanceSchema,
+  makeInstructionId,
+  instructionIdNonce,
+} from "./types";
+import { assertNever } from "./utils";
 
-type ActionType = AtomicInstruction['type'];
+type ActionType = AtomicInstruction["type"];
 
-const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
+const DIR_OPTIONS = [
+  "up",
+  "down",
+  "across",
+  "out",
+  "progression",
+  "forward",
+  "back",
+  "right",
+  "left",
+  "partner",
+  "neighbor",
+  "opposite",
+];
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'turn', 'step', 'balance', 'split', 'group'];
-const ACTION_LABELS: Record<ActionType | 'split' | 'group', string> = {
-  take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
-  do_si_do: 'do-si-do', circle: 'circle', pull_by: 'pull by',
-  turn: 'turn', step: 'step', balance: 'balance', split: 'split', group: 'group',
+const ACTION_OPTIONS: (ActionType | "split" | "group")[] = [
+  "take_hands",
+  "drop_hands",
+  "allemande",
+  "do_si_do",
+  "circle",
+  "pull_by",
+  "turn",
+  "step",
+  "balance",
+  "split",
+  "group",
+];
+const ACTION_LABELS: Record<ActionType | "split" | "group", string> = {
+  take_hands: "take hands",
+  drop_hands: "drop hands",
+  allemande: "allemande",
+  do_si_do: "do-si-do",
+  circle: "circle",
+  pull_by: "pull by",
+  turn: "turn",
+  step: "step",
+  balance: "balance",
+  split: "split",
+  group: "group",
 };
 
-const SPLIT_BY_OPTIONS = ['role', 'position'];
+const SPLIT_BY_OPTIONS = ["role", "position"];
 const SPLIT_BY_LABELS: Record<SplitBy, string> = {
-  role: 'role (larks / robins)', position: 'position (ups / downs)',
+  role: "role (larks / robins)",
+  position: "position (ups / downs)",
 };
 
-const RELATIONSHIP_OPTIONS: Relationship[] = ['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front'];
+const RELATIONSHIP_OPTIONS: Relationship[] = [
+  "partner",
+  "neighbor",
+  "opposite",
+  "on_right",
+  "on_left",
+  "in_front",
+];
 const RELATIONSHIP_LABELS: Record<Relationship, string> = {
-  partner: 'partner', neighbor: 'neighbor', opposite: 'opposite',
-  on_right: 'on your right', on_left: 'on your left', in_front: 'in front of you',
+  partner: "partner",
+  neighbor: "neighbor",
+  opposite: "opposite",
+  on_right: "on your right",
+  on_left: "on your left",
+  in_front: "in front of you",
 };
 
-const DROP_TARGET_OPTIONS: DropHandsTarget[] = ['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front', 'right', 'left', 'both'];
+const DROP_TARGET_OPTIONS: DropHandsTarget[] = [
+  "partner",
+  "neighbor",
+  "opposite",
+  "on_right",
+  "on_left",
+  "in_front",
+  "right",
+  "left",
+  "both",
+];
 const DROP_TARGET_LABELS: Record<DropHandsTarget, string> = {
-  partner: 'partner hands', neighbor: 'neighbor hands', opposite: 'opposite hands',
-  on_right: 'on-your-right hands', on_left: 'on-your-left hands', in_front: 'in-front hands',
-  right: 'right hand', left: 'left hand', both: 'both hands',
+  partner: "partner hands",
+  neighbor: "neighbor hands",
+  opposite: "opposite hands",
+  on_right: "on-your-right hands",
+  on_left: "on-your-left hands",
+  in_front: "in-front hands",
+  right: "right hand",
+  left: "left hand",
+  both: "both hands",
 };
 
-const HAND_OPTIONS = ['right', 'left'];
-const TAKE_HANDS_HAND_OPTIONS = ['right', 'left', 'inside'];
-const CIRCLE_DIR_OPTIONS = ['left', 'right'];
+const HAND_OPTIONS = ["right", "left"];
+const TAKE_HANDS_HAND_OPTIONS = ["right", "left", "inside"];
+const CIRCLE_DIR_OPTIONS = ["left", "right"];
 
 function parseDirection(text: string): RelativeDirection | null {
   const trimmed = text.trim().toLowerCase();
   if (!trimmed) return null;
-  const directions = new Set(['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left']);
-  const relationships = new Set(['partner', 'neighbor', 'opposite']);
-  if (directions.has(trimmed)) return { kind: 'direction', value: trimmed as RelativeDirection & { kind: 'direction' } extends { value: infer V } ? V : never };
-  if (relationships.has(trimmed)) return { kind: 'relationship', value: trimmed as Relationship };
+  const directions = new Set([
+    "up",
+    "down",
+    "across",
+    "out",
+    "progression",
+    "forward",
+    "back",
+    "right",
+    "left",
+  ]);
+  const relationships = new Set(["partner", "neighbor", "opposite"]);
+  if (directions.has(trimmed))
+    return {
+      kind: "direction",
+      value: trimmed as RelativeDirection & { kind: "direction" } extends {
+        value: infer V;
+      }
+        ? V
+        : never,
+    };
+  if (relationships.has(trimmed))
+    return { kind: "relationship", value: trimmed as Relationship };
   return null;
 }
 
 function directionToText(dir: RelativeDirection): string {
-  if (dir.kind === 'direction') return dir.value;
+  if (dir.kind === "direction") return dir.value;
   return dir.value;
 }
 
-function splitGroupLabel(by: SplitBy, list: 'A' | 'B'): string {
-  if (by === 'role') return list === 'A' ? 'Larks' : 'Robins';
-  return list === 'A' ? 'Ups' : 'Downs';
+function splitGroupLabel(by: SplitBy, list: "A" | "B"): string {
+  if (by === "role") return list === "A" ? "Larks" : "Robins";
+  return list === "A" ? "Ups" : "Downs";
 }
 
 function sumBeats(instructions: AtomicInstruction[]): number {
@@ -68,13 +173,20 @@ function sumBeats(instructions: AtomicInstruction[]): number {
 
 function defaultBeats(action: string): string {
   switch (action) {
-    case 'allemande': return '8';
-    case 'do_si_do':  return '8';
-    case 'circle':    return '8';
-    case 'pull_by':   return '2';
-    case 'step':      return '2';
-    case 'balance':   return '4';
-    default:          return '0';
+    case "allemande":
+      return "8";
+    case "do_si_do":
+      return "8";
+    case "circle":
+      return "8";
+    case "pull_by":
+      return "2";
+    case "step":
+      return "2";
+    case "balance":
+      return "4";
+    default:
+      return "0";
   }
 }
 
@@ -82,27 +194,37 @@ let nextNonce = 1;
 
 // --- Tree manipulation helpers for cross-container drag ---
 
-function parseContainerId(id: string):
-  | { type: 'top' }
-  | { type: 'group'; groupId: InstructionId }
-  | { type: 'split'; splitId: InstructionId; list: 'A' | 'B' }
-{
-  if (id === 'top') return { type: 'top' };
+function parseContainerId(
+  id: string,
+):
+  | { type: "top" }
+  | { type: "group"; groupId: InstructionId }
+  | { type: "split"; splitId: InstructionId; list: "A" | "B" } {
+  if (id === "top") return { type: "top" };
   const groupMatch = id.match(/^group-(insn_\d+)$/);
-  if (groupMatch) return { type: 'group', groupId: groupMatch[1] as InstructionId };
+  if (groupMatch)
+    return { type: "group", groupId: groupMatch[1] as InstructionId };
   const splitMatch = id.match(/^split-(insn_\d+)-(A|B)$/);
-  if (splitMatch) return { type: 'split', splitId: splitMatch[1] as InstructionId, list: splitMatch[2] as 'A' | 'B' };
-  return { type: 'top' };
+  if (splitMatch)
+    return {
+      type: "split",
+      splitId: splitMatch[1] as InstructionId,
+      list: splitMatch[2] as "A" | "B",
+    };
+  return { type: "top" };
 }
 
-function findInstructionById(instrs: Instruction[], id: InstructionId): Instruction | null {
+function findInstructionById(
+  instrs: Instruction[],
+  id: InstructionId,
+): Instruction | null {
   for (const i of instrs) {
     if (i.id === id) return i;
-    if (i.type === 'group') {
+    if (i.type === "group") {
       const found = findInstructionById(i.instructions, id);
       if (found) return found;
     }
-    if (i.type === 'split') {
+    if (i.type === "split") {
       for (const s of [...i.listA, ...i.listB]) {
         if (s.id === id) return s;
       }
@@ -113,87 +235,169 @@ function findInstructionById(instrs: Instruction[], id: InstructionId): Instruct
 
 function instructionContainsId(instr: Instruction, id: InstructionId): boolean {
   if (instr.id === id) return true;
-  if (instr.type === 'group') return instr.instructions.some(c => instructionContainsId(c, id));
-  if (instr.type === 'split') return [...instr.listA, ...instr.listB].some(c => instructionContainsId(c, id));
+  if (instr.type === "group")
+    return instr.instructions.some((c) => instructionContainsId(c, id));
+  if (instr.type === "split")
+    return [...instr.listA, ...instr.listB].some((c) =>
+      instructionContainsId(c, id),
+    );
   return false;
 }
 
-function removeFromTree(instrs: Instruction[], targetId: InstructionId): [Instruction[], Instruction | null] {
-  const topIdx = instrs.findIndex(i => i.id === targetId);
+function removeFromTree(
+  instrs: Instruction[],
+  targetId: InstructionId,
+): [Instruction[], Instruction | null] {
+  const topIdx = instrs.findIndex((i) => i.id === targetId);
   if (topIdx !== -1) {
-    return [[...instrs.slice(0, topIdx), ...instrs.slice(topIdx + 1)], instrs[topIdx]];
+    return [
+      [...instrs.slice(0, topIdx), ...instrs.slice(topIdx + 1)],
+      instrs[topIdx],
+    ];
   }
   let removed: Instruction | null = null;
-  const mapped = instrs.map(i => {
+  const mapped = instrs.map((i) => {
     if (removed) return i;
-    if (i.type === 'split') {
-      const aIdx = i.listA.findIndex(s => s.id === targetId);
-      if (aIdx !== -1) { removed = i.listA[aIdx]; return { ...i, listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)] }; }
-      const bIdx = i.listB.findIndex(s => s.id === targetId);
-      if (bIdx !== -1) { removed = i.listB[bIdx]; return { ...i, listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)] }; }
+    if (i.type === "split") {
+      const aIdx = i.listA.findIndex((s) => s.id === targetId);
+      if (aIdx !== -1) {
+        removed = i.listA[aIdx];
+        return {
+          ...i,
+          listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)],
+        };
+      }
+      const bIdx = i.listB.findIndex((s) => s.id === targetId);
+      if (bIdx !== -1) {
+        removed = i.listB[bIdx];
+        return {
+          ...i,
+          listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)],
+        };
+      }
     }
-    if (i.type === 'group') {
+    if (i.type === "group") {
       const [newChildren, r] = removeFromTree(i.instructions, targetId);
-      if (r) { removed = r; return { ...i, instructions: newChildren }; }
+      if (r) {
+        removed = r;
+        return { ...i, instructions: newChildren };
+      }
     }
     return i;
   });
   return [mapped, removed];
 }
 
-function insertIntoContainer(instrs: Instruction[], containerId: string, item: Instruction, index: number): Instruction[] {
+function insertIntoContainer(
+  instrs: Instruction[],
+  containerId: string,
+  item: Instruction,
+  index: number,
+): Instruction[] {
   const parsed = parseContainerId(containerId);
-  if (parsed.type === 'top') {
+  if (parsed.type === "top") {
     const copy = [...instrs];
     copy.splice(index, 0, item);
     return copy;
   }
-  return instrs.map(i => {
-    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) {
+  return instrs.map((i) => {
+    if (
+      parsed.type === "group" &&
+      i.type === "group" &&
+      i.id === parsed.groupId
+    ) {
       const copy = [...i.instructions];
       copy.splice(index, 0, item);
       return { ...i, instructions: copy };
     }
-    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
-      const key = parsed.list === 'A' ? 'listA' : 'listB';
+    if (
+      parsed.type === "split" &&
+      i.type === "split" &&
+      i.id === parsed.splitId
+    ) {
+      const key = parsed.list === "A" ? "listA" : "listB";
       const copy = [...i[key]];
       copy.splice(index, 0, item as AtomicInstruction);
       return { ...i, [key]: copy };
     }
-    if (i.type === 'group') {
-      return { ...i, instructions: insertIntoContainer(i.instructions, containerId, item, index) };
+    if (i.type === "group") {
+      return {
+        ...i,
+        instructions: insertIntoContainer(
+          i.instructions,
+          containerId,
+          item,
+          index,
+        ),
+      };
     }
     return i;
   });
 }
 
-function reorderInContainer(instrs: Instruction[], containerId: string, oldIndex: number, newIndex: number): Instruction[] {
+function reorderInContainer(
+  instrs: Instruction[],
+  containerId: string,
+  oldIndex: number,
+  newIndex: number,
+): Instruction[] {
   const parsed = parseContainerId(containerId);
-  if (parsed.type === 'top') return arrayMove(instrs, oldIndex, newIndex);
-  return instrs.map(i => {
-    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) {
-      return { ...i, instructions: arrayMove(i.instructions, oldIndex, newIndex) };
+  if (parsed.type === "top") return arrayMove(instrs, oldIndex, newIndex);
+  return instrs.map((i) => {
+    if (
+      parsed.type === "group" &&
+      i.type === "group" &&
+      i.id === parsed.groupId
+    ) {
+      return {
+        ...i,
+        instructions: arrayMove(i.instructions, oldIndex, newIndex),
+      };
     }
-    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
-      const key = parsed.list === 'A' ? 'listA' : 'listB';
+    if (
+      parsed.type === "split" &&
+      i.type === "split" &&
+      i.id === parsed.splitId
+    ) {
+      const key = parsed.list === "A" ? "listA" : "listB";
       return { ...i, [key]: arrayMove(i[key], oldIndex, newIndex) };
     }
-    if (i.type === 'group') {
-      return { ...i, instructions: reorderInContainer(i.instructions, containerId, oldIndex, newIndex) };
+    if (i.type === "group") {
+      return {
+        ...i,
+        instructions: reorderInContainer(
+          i.instructions,
+          containerId,
+          oldIndex,
+          newIndex,
+        ),
+      };
     }
     return i;
   });
 }
 
-function getContainerItems(instrs: Instruction[], containerId: string): Instruction[] | null {
+function getContainerItems(
+  instrs: Instruction[],
+  containerId: string,
+): Instruction[] | null {
   const parsed = parseContainerId(containerId);
-  if (parsed.type === 'top') return instrs;
+  if (parsed.type === "top") return instrs;
   for (const i of instrs) {
-    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) return i.instructions;
-    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
-      return parsed.list === 'A' ? i.listA : i.listB;
+    if (
+      parsed.type === "group" &&
+      i.type === "group" &&
+      i.id === parsed.groupId
+    )
+      return i.instructions;
+    if (
+      parsed.type === "split" &&
+      i.type === "split" &&
+      i.id === parsed.splitId
+    ) {
+      return parsed.list === "A" ? i.listA : i.listB;
     }
-    if (i.type === 'group') {
+    if (i.type === "group") {
       const found = getContainerItems(i.instructions, containerId);
       if (found !== null) return found;
     }
@@ -209,75 +413,123 @@ interface Props {
 }
 
 type BuilderContext =
-  | { level: 'top' }
-  | { level: 'sub'; splitId: InstructionId; list: 'A' | 'B' }
-  | { level: 'group'; groupId: InstructionId };
+  | { level: "top" }
+  | { level: "sub"; splitId: InstructionId; list: "A" | "B" }
+  | { level: "group"; groupId: InstructionId };
 
 function summarizeAtomic(instr: AtomicInstruction): string {
   switch (instr.type) {
-    case 'take_hands': {
+    case "take_hands": {
       const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : `${r}s`;
+      const label =
+        r === "on_right"
+          ? "on-your-right"
+          : r === "on_left"
+            ? "on-your-left"
+            : r === "in_front"
+              ? "in-front"
+              : `${r}s`;
       return `${label} take ${instr.hand} hands`;
     }
-    case 'drop_hands': {
+    case "drop_hands": {
       const t = instr.target;
-      if (t === 'both') return 'drop all hands';
-      if (t === 'left' || t === 'right') return `drop ${t} hand`;
-      const label = t === 'on_right' ? 'on-your-right' : t === 'on_left' ? 'on-your-left' : t === 'in_front' ? 'in-front' : t;
+      if (t === "both") return "drop all hands";
+      if (t === "left" || t === "right") return `drop ${t} hand`;
+      const label =
+        t === "on_right"
+          ? "on-your-right"
+          : t === "on_left"
+            ? "on-your-left"
+            : t === "in_front"
+              ? "in-front"
+              : t;
       return `drop ${label} hands`;
     }
-    case 'allemande': {
+    case "allemande": {
       const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      const label =
+        r === "on_right"
+          ? "on-your-right"
+          : r === "on_left"
+            ? "on-your-left"
+            : r === "in_front"
+              ? "in-front"
+              : r;
       return `${label} allemande ${instr.handedness} ${instr.rotations}x (${instr.beats}b)`;
     }
-    case 'do_si_do': {
+    case "do_si_do": {
       const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      const label =
+        r === "on_right"
+          ? "on-your-right"
+          : r === "on_left"
+            ? "on-your-left"
+            : r === "in_front"
+              ? "in-front"
+              : r;
       return `${label} do-si-do ${instr.rotations}x (${instr.beats}b)`;
     }
-    case 'circle':
+    case "circle":
       return `circle ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
-    case 'pull_by': {
+    case "pull_by": {
       const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      const label =
+        r === "on_right"
+          ? "on-your-right"
+          : r === "on_left"
+            ? "on-your-left"
+            : r === "in_front"
+              ? "in-front"
+              : r;
       return `${label} pull by ${instr.hand} (${instr.beats}b)`;
     }
-    case 'turn': {
+    case "turn": {
       const desc = instr.target.value;
-      const offsetStr = instr.offset ? ` +${instr.offset}\u00B0` : '';
+      const offsetStr = instr.offset ? ` +${instr.offset}\u00B0` : "";
       return `turn ${desc}${offsetStr} (${instr.beats}b)`;
     }
-    case 'step':
+    case "step":
       return `step ${instr.direction.value} ${instr.distance} (${instr.beats}b)`;
-    case 'balance':
+    case "balance":
       return `balance ${instr.direction.value} ${instr.distance} (${instr.beats}b)`;
   }
 }
 
 function instrDuration(instr: Instruction): number {
-  if (instr.type === 'split')
+  if (instr.type === "split")
     return Math.max(sumBeats(instr.listA), sumBeats(instr.listB));
-  if (instr.type === 'group')
+  if (instr.type === "group")
     return instr.instructions.reduce((s, i) => s + instrDuration(i), 0);
   return instr.beats;
 }
 
 function summarize(instr: Instruction): string {
-  if (instr.type === 'split') {
+  if (instr.type === "split") {
     const totalBeats = Math.max(sumBeats(instr.listA), sumBeats(instr.listB));
     return `split by ${instr.by} (${totalBeats}b)`;
   }
-  if (instr.type === 'group') {
+  if (instr.type === "group") {
     const totalBeats = instrDuration(instr);
     return `${instr.label} (${totalBeats}b)`;
   }
   return summarizeAtomic(instr);
 }
 
-function SortableItem({ id, children }: { id: InstructionId; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+function SortableItem({
+  id,
+  children,
+}: {
+  id: InstructionId;
+  children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -292,68 +544,80 @@ function SortableItem({ id, children }: { id: InstructionId; children: (dragHand
 
 function DropZone({ containerId }: { containerId: string }) {
   const { setNodeRef, isOver } = useDroppable({ id: containerId });
-  return <div ref={setNodeRef} className={`drop-zone${isOver ? ' drop-zone-active' : ''}`} />;
+  return (
+    <div
+      ref={setNodeRef}
+      className={`drop-zone${isOver ? " drop-zone-active" : ""}`}
+    />
+  );
 }
 
-export default function CommandPane({ instructions, setInstructions, activeId, warnings }: Props) {
-  const [context, setContext] = useState<BuilderContext>({ level: 'top' });
-  const [action, setAction] = useState<ActionType | 'split' | 'group'>('take_hands');
-  const [relationship, setRelationship] = useState<Relationship>('neighbor');
-  const [dropTarget, setDropTarget] = useState<DropHandsTarget>('neighbor');
-  const [hand, setHand] = useState<'left' | 'right' | 'inside'>('right');
-  const [handedness, setHandedness] = useState<'left' | 'right'>('right');
-  const [rotations, setRotations] = useState('1');
-  const [turnText, setTurnText] = useState('');
-  const [turnOffset, setTurnOffset] = useState('0');
-  const [stepText, setStepText] = useState('');
-  const [balanceText, setBalanceText] = useState('');
-  const [distance, setDistance] = useState('0.5');
-  const [beats, setBeats] = useState('0');
-  const [splitBy, setSplitBy] = useState<SplitBy>('role');
-  const [groupLabel, setGroupLabel] = useState('');
+export default function CommandPane({
+  instructions,
+  setInstructions,
+  activeId,
+  warnings,
+}: Props) {
+  const [context, setContext] = useState<BuilderContext>({ level: "top" });
+  const [action, setAction] = useState<ActionType | "split" | "group">(
+    "take_hands",
+  );
+  const [relationship, setRelationship] = useState<Relationship>("neighbor");
+  const [dropTarget, setDropTarget] = useState<DropHandsTarget>("neighbor");
+  const [hand, setHand] = useState<"left" | "right" | "inside">("right");
+  const [handedness, setHandedness] = useState<"left" | "right">("right");
+  const [rotations, setRotations] = useState("1");
+  const [turnText, setTurnText] = useState("");
+  const [turnOffset, setTurnOffset] = useState("0");
+  const [stepText, setStepText] = useState("");
+  const [balanceText, setBalanceText] = useState("");
+  const [distance, setDistance] = useState("0.5");
+  const [beats, setBeats] = useState("0");
+  const [splitBy, setSplitBy] = useState<SplitBy>("role");
+  const [groupLabel, setGroupLabel] = useState("");
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
-  const [copyFeedback, setCopyFeedback] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState("");
   const actionRef = useRef<SearchableDropdownHandle>(null);
 
   function loadAtomicIntoForm(instr: AtomicInstruction) {
     setAction(instr.type);
     setBeats(String(instr.beats));
-    if (instr.type === 'take_hands') {
+    if (instr.type === "take_hands") {
       setRelationship(instr.relationship);
       setHand(instr.hand);
-    } else if (instr.type === 'drop_hands') {
+    } else if (instr.type === "drop_hands") {
       setDropTarget(instr.target);
-    } else if (instr.type === 'allemande') {
+    } else if (instr.type === "allemande") {
       setRelationship(instr.relationship);
       setHandedness(instr.handedness);
       setRotations(String(instr.rotations));
-    } else if (instr.type === 'do_si_do') {
+    } else if (instr.type === "do_si_do") {
       setRelationship(instr.relationship);
       setRotations(String(instr.rotations));
-    } else if (instr.type === 'circle') {
+    } else if (instr.type === "circle") {
       setHandedness(instr.direction);
       setRotations(String(instr.rotations));
-    } else if (instr.type === 'pull_by') {
+    } else if (instr.type === "pull_by") {
       setRelationship(instr.relationship);
       setHand(instr.hand);
-    } else if (instr.type === 'turn') {
+    } else if (instr.type === "turn") {
       setTurnText(directionToText(instr.target));
       setTurnOffset(String(instr.offset));
-    } else if (instr.type === 'step') {
+    } else if (instr.type === "step") {
       setStepText(directionToText(instr.direction));
       setDistance(String(instr.distance));
-    } else if (instr.type === 'balance') {
+    } else if (instr.type === "balance") {
       setBalanceText(directionToText(instr.direction));
       setDistance(String(instr.distance));
     }
   }
 
   function loadIntoForm(instr: Instruction) {
-    if (instr.type === 'split') {
-      setAction('split');
+    if (instr.type === "split") {
+      setAction("split");
       setSplitBy(instr.by);
-    } else if (instr.type === 'group') {
-      setAction('group');
+    } else if (instr.type === "group") {
+      setAction("group");
       setGroupLabel(instr.label);
     } else {
       loadAtomicIntoForm(instr);
@@ -363,110 +627,201 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   function buildAtomicInstruction(id: InstructionId): AtomicInstruction {
     const base = { id, beats: Number(beats) || 0 };
     const a = action;
-    if (a === 'split' || a === 'group') throw new Error(`buildAtomicInstruction called with non-atomic action: ${a}`);
+    if (a === "split" || a === "group")
+      throw new Error(
+        `buildAtomicInstruction called with non-atomic action: ${a}`,
+      );
     let raw;
     switch (a) {
-      case 'take_hands':
-        raw = { id, beats: 0, type: 'take_hands' as const, relationship, hand }; break;
-      case 'drop_hands':
-        raw = { id, beats: 0, type: 'drop_hands' as const, target: dropTarget }; break;
-      case 'allemande':
-        raw = { ...base, type: 'allemande' as const, relationship, handedness, rotations: Number(rotations) || 1 }; break;
-      case 'do_si_do':
-        raw = { ...base, type: 'do_si_do' as const, relationship, rotations: Number(rotations) || 1 }; break;
-      case 'circle':
-        raw = { ...base, type: 'circle' as const, direction: handedness, rotations: Number(rotations) || 1 }; break;
-      case 'pull_by':
-        raw = { ...base, type: 'pull_by' as const, relationship, hand: hand === 'inside' ? 'right' as const : hand }; break;
-      case 'turn': {
-        const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
-        raw = { ...base, type: 'turn' as const, target, offset: Number(turnOffset) || 0 }; break;
+      case "take_hands":
+        raw = { id, beats: 0, type: "take_hands" as const, relationship, hand };
+        break;
+      case "drop_hands":
+        raw = { id, beats: 0, type: "drop_hands" as const, target: dropTarget };
+        break;
+      case "allemande":
+        raw = {
+          ...base,
+          type: "allemande" as const,
+          relationship,
+          handedness,
+          rotations: Number(rotations) || 1,
+        };
+        break;
+      case "do_si_do":
+        raw = {
+          ...base,
+          type: "do_si_do" as const,
+          relationship,
+          rotations: Number(rotations) || 1,
+        };
+        break;
+      case "circle":
+        raw = {
+          ...base,
+          type: "circle" as const,
+          direction: handedness,
+          rotations: Number(rotations) || 1,
+        };
+        break;
+      case "pull_by":
+        raw = {
+          ...base,
+          type: "pull_by" as const,
+          relationship,
+          hand: hand === "inside" ? ("right" as const) : hand,
+        };
+        break;
+      case "turn": {
+        const target = parseDirection(turnText) ?? {
+          kind: "direction" as const,
+          value: "up" as const,
+        };
+        raw = {
+          ...base,
+          type: "turn" as const,
+          target,
+          offset: Number(turnOffset) || 0,
+        };
+        break;
       }
-      case 'step': {
-        const dir = parseDirection(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
-        raw = { ...base, type: 'step' as const, direction: dir, distance: Number(distance) || 0 }; break;
+      case "step": {
+        const dir = parseDirection(stepText) ?? {
+          kind: "direction" as const,
+          value: "up" as const,
+        };
+        raw = {
+          ...base,
+          type: "step" as const,
+          direction: dir,
+          distance: Number(distance) || 0,
+        };
+        break;
       }
-      case 'balance': {
-        const dir = parseDirection(balanceText) ?? { kind: 'direction' as const, value: 'across' as const };
-        raw = { ...base, type: 'balance' as const, direction: dir, distance: Number(distance) || 0 }; break;
+      case "balance": {
+        const dir = parseDirection(balanceText) ?? {
+          kind: "direction" as const,
+          value: "across" as const,
+        };
+        raw = {
+          ...base,
+          type: "balance" as const,
+          direction: dir,
+          distance: Number(distance) || 0,
+        };
+        break;
       }
-      default: assertNever(a);
+      default:
+        assertNever(a);
     }
     return AtomicInstructionSchema.parse(raw);
   }
 
   function buildInstruction(id: InstructionId): Instruction {
-    if (action === 'group') {
-      return { id, type: 'group', label: groupLabel || 'Untitled', instructions: [] };
+    if (action === "group") {
+      return {
+        id,
+        type: "group",
+        label: groupLabel || "Untitled",
+        instructions: [],
+      };
     }
-    if (action === 'split') {
-      return { id, type: 'split', by: splitBy, listA: [], listB: [] };
+    if (action === "split") {
+      return { id, type: "split", by: splitBy, listA: [], listB: [] };
     }
     return buildAtomicInstruction(id);
   }
 
   /** Recursively update a group's instructions by its id. */
-  function updateGroup(instrs: Instruction[], groupId: InstructionId, updater: (children: Instruction[]) => Instruction[]): Instruction[] {
-    return instrs.map(i => {
-      if (i.type === 'group' && i.id === groupId) {
+  function updateGroup(
+    instrs: Instruction[],
+    groupId: InstructionId,
+    updater: (children: Instruction[]) => Instruction[],
+  ): Instruction[] {
+    return instrs.map((i) => {
+      if (i.type === "group" && i.id === groupId) {
         return { ...i, instructions: updater(i.instructions) };
       }
-      if (i.type === 'group') {
-        return { ...i, instructions: updateGroup(i.instructions, groupId, updater) };
+      if (i.type === "group") {
+        return {
+          ...i,
+          instructions: updateGroup(i.instructions, groupId, updater),
+        };
       }
       return i;
     });
   }
 
   function resetForm() {
-    setAction('take_hands');
-    setBeats(defaultBeats('take_hands'));
+    setAction("take_hands");
+    setBeats(defaultBeats("take_hands"));
     actionRef.current?.focus();
   }
 
   function add() {
-    if (context.level === 'sub') {
+    if (context.level === "sub") {
       // Adding to a split's sub-list
       const { splitId, list } = context;
-      if (action === 'split') return; // no nesting
+      if (action === "split") return; // no nesting
       const newInstr = buildAtomicInstruction(makeInstructionId(nextNonce++));
       if (editingId !== null) {
-        setInstructions(instructions.map(i => {
-          if (i.type !== 'split' || i.id !== splitId) return i;
-          const key = list === 'A' ? 'listA' : 'listB';
-          return { ...i, [key]: i[key].map(sub => sub.id === editingId ? newInstr : sub) };
-        }));
+        setInstructions(
+          instructions.map((i) => {
+            if (i.type !== "split" || i.id !== splitId) return i;
+            const key = list === "A" ? "listA" : "listB";
+            return {
+              ...i,
+              [key]: i[key].map((sub) =>
+                sub.id === editingId ? newInstr : sub,
+              ),
+            };
+          }),
+        );
         setEditingId(null);
       } else {
-        setInstructions(instructions.map(i => {
-          if (i.type !== 'split' || i.id !== splitId) return i;
-          const key = list === 'A' ? 'listA' : 'listB';
-          return { ...i, [key]: [...i[key], newInstr] };
-        }));
+        setInstructions(
+          instructions.map((i) => {
+            if (i.type !== "split" || i.id !== splitId) return i;
+            const key = list === "A" ? "listA" : "listB";
+            return { ...i, [key]: [...i[key], newInstr] };
+          }),
+        );
         resetForm();
       }
-    } else if (context.level === 'group') {
+    } else if (context.level === "group") {
       // Adding to a group's children
       const { groupId } = context;
       const newInstr = buildInstruction(makeInstructionId(nextNonce++));
       if (editingId !== null) {
-        setInstructions(updateGroup(instructions, groupId, children =>
-          children.map(i => i.id === editingId ? newInstr : i)
-        ));
+        setInstructions(
+          updateGroup(instructions, groupId, (children) =>
+            children.map((i) => (i.id === editingId ? newInstr : i)),
+          ),
+        );
         setEditingId(null);
       } else {
-        setInstructions(updateGroup(instructions, groupId, children =>
-          [...children, newInstr]
-        ));
+        setInstructions(
+          updateGroup(instructions, groupId, (children) => [
+            ...children,
+            newInstr,
+          ]),
+        );
         resetForm();
       }
     } else {
       // Top-level
       if (editingId !== null) {
-        setInstructions(instructions.map(i => i.id === editingId ? buildInstruction(editingId) : i));
+        setInstructions(
+          instructions.map((i) =>
+            i.id === editingId ? buildInstruction(editingId) : i,
+          ),
+        );
         setEditingId(null);
       } else {
-        setInstructions([...instructions, buildInstruction(makeInstructionId(nextNonce++))]);
+        setInstructions([
+          ...instructions,
+          buildInstruction(makeInstructionId(nextNonce++)),
+        ]);
         resetForm();
       }
     }
@@ -475,37 +830,47 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   function startEdit(instr: Instruction) {
     loadIntoForm(instr);
     setEditingId(instr.id);
-    setContext({ level: 'top' });
+    setContext({ level: "top" });
   }
 
-  function startSubEdit(splitId: InstructionId, list: 'A' | 'B', instr: AtomicInstruction) {
+  function startSubEdit(
+    splitId: InstructionId,
+    list: "A" | "B",
+    instr: AtomicInstruction,
+  ) {
     loadAtomicIntoForm(instr);
     setEditingId(instr.id);
-    setContext({ level: 'sub', splitId, list });
+    setContext({ level: "sub", splitId, list });
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setContext({ level: 'top' });
+    setContext({ level: "top" });
   }
 
   function remove(id: InstructionId) {
-    setInstructions(instructions.filter(i => i.id !== id));
+    setInstructions(instructions.filter((i) => i.id !== id));
     if (editingId === id) {
       setEditingId(null);
-      setContext({ level: 'top' });
+      setContext({ level: "top" });
     }
   }
 
-  function removeSub(splitId: InstructionId, list: 'A' | 'B', subId: InstructionId) {
-    setInstructions(instructions.map(i => {
-      if (i.type !== 'split' || i.id !== splitId) return i;
-      const key = list === 'A' ? 'listA' : 'listB';
-      return { ...i, [key]: i[key].filter(sub => sub.id !== subId) };
-    }));
+  function removeSub(
+    splitId: InstructionId,
+    list: "A" | "B",
+    subId: InstructionId,
+  ) {
+    setInstructions(
+      instructions.map((i) => {
+        if (i.type !== "split" || i.id !== splitId) return i;
+        const key = list === "A" ? "listA" : "listB";
+        return { ...i, [key]: i[key].filter((sub) => sub.id !== subId) };
+      }),
+    );
     if (editingId === subId) {
       setEditingId(null);
-      setContext({ level: 'top' });
+      setContext({ level: "top" });
     }
   }
 
@@ -513,8 +878,11 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     const { active, over } = event;
     if (!over) return;
 
-    const srcContainer = (active.data.current?.sortable?.containerId as string) ?? 'top';
-    const overSortableContainer = over.data.current?.sortable?.containerId as string | undefined;
+    const srcContainer =
+      (active.data.current?.sortable?.containerId as string) ?? "top";
+    const overSortableContainer = over.data.current?.sortable?.containerId as
+      | string
+      | undefined;
     const destContainer = overSortableContainer ?? String(over.id);
 
     // Dropping on itself
@@ -524,10 +892,12 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     if (srcContainer === destContainer && overSortableContainer) {
       const items = getContainerItems(instructions, srcContainer);
       if (!items) return;
-      const oldIndex = items.findIndex(i => i.id === active.id);
-      const newIndex = items.findIndex(i => i.id === over.id);
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
       if (oldIndex !== -1 && newIndex !== -1) {
-        setInstructions(reorderInContainer(instructions, srcContainer, oldIndex, newIndex));
+        setInstructions(
+          reorderInContainer(instructions, srcContainer, oldIndex, newIndex),
+        );
       }
       return;
     }
@@ -540,11 +910,23 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     const destParsed = parseContainerId(destContainer);
 
     // Splits only accept atomic instructions
-    if (destParsed.type === 'split' && (draggedInstr.type === 'group' || draggedInstr.type === 'split')) return;
+    if (
+      destParsed.type === "split" &&
+      (draggedInstr.type === "group" || draggedInstr.type === "split")
+    )
+      return;
 
     // Prevent cycles: can't drop a container into itself or its descendants
-    if (destParsed.type === 'group' && instructionContainsId(draggedInstr, destParsed.groupId)) return;
-    if (destParsed.type === 'split' && instructionContainsId(draggedInstr, destParsed.splitId)) return;
+    if (
+      destParsed.type === "group" &&
+      instructionContainsId(draggedInstr, destParsed.groupId)
+    )
+      return;
+    if (
+      destParsed.type === "split" &&
+      instructionContainsId(draggedInstr, destParsed.splitId)
+    )
+      return;
 
     const [treeWithout, removed] = removeFromTree(instructions, activeId);
     if (!removed) return;
@@ -553,59 +935,72 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     if (overSortableContainer) {
       // Dropped on a specific item in the destination container
       const destItems = getContainerItems(treeWithout, destContainer);
-      const overIdx = destItems ? destItems.findIndex(i => i.id === over.id) : -1;
+      const overIdx = destItems
+        ? destItems.findIndex((i) => i.id === over.id)
+        : -1;
       insertIdx = overIdx !== -1 ? overIdx : (destItems?.length ?? 0);
     } else {
       // Dropped on a DropZone — append at end
       insertIdx = getContainerItems(treeWithout, destContainer)?.length ?? 0;
     }
 
-    setInstructions(insertIntoContainer(treeWithout, destContainer, removed, insertIdx));
+    setInstructions(
+      insertIntoContainer(treeWithout, destContainer, removed, insertIdx),
+    );
     // Cancel any active edit since the item moved
     if (editingId === activeId) {
       setEditingId(null);
-      setContext({ level: 'top' });
+      setContext({ level: "top" });
     }
   }
 
-  function enterSubContext(splitId: InstructionId, list: 'A' | 'B') {
-    setContext({ level: 'sub', splitId, list });
+  function enterSubContext(splitId: InstructionId, list: "A" | "B") {
+    setContext({ level: "sub", splitId, list });
     setEditingId(null);
-    setAction('take_hands');
+    setAction("take_hands");
   }
 
   function enterGroupContext(groupId: InstructionId) {
-    setContext({ level: 'group', groupId });
+    setContext({ level: "group", groupId });
     setEditingId(null);
-    setAction('take_hands');
+    setAction("take_hands");
   }
 
   function startGroupChildEdit(groupId: InstructionId, instr: Instruction) {
     loadIntoForm(instr);
     setEditingId(instr.id);
-    setContext({ level: 'group', groupId });
+    setContext({ level: "group", groupId });
   }
 
   function removeGroupChild(groupId: InstructionId, childId: InstructionId) {
-    setInstructions(updateGroup(instructions, groupId, children =>
-      children.filter(i => i.id !== childId)
-    ));
+    setInstructions(
+      updateGroup(instructions, groupId, (children) =>
+        children.filter((i) => i.id !== childId),
+      ),
+    );
     if (editingId === childId) {
       setEditingId(null);
-      setContext({ level: 'top' });
+      setContext({ level: "top" });
     }
   }
 
   function copyJson() {
-    const dance = DanceSchema.parse({ initFormation: 'improper', instructions });
+    const dance = DanceSchema.parse({
+      initFormation: "improper",
+      instructions,
+    });
     navigator.clipboard.writeText(JSON.stringify(dance, null, 2));
-    setCopyFeedback('Copied!');
-    setTimeout(() => setCopyFeedback(''), 1500);
+    setCopyFeedback("Copied!");
+    setTimeout(() => setCopyFeedback(""), 1500);
   }
 
   function tryLoadJson(text: string) {
     let json: unknown;
-    try { json = JSON.parse(text); } catch { return; /* invalid JSON, ignore */ }
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return; /* invalid JSON, ignore */
+    }
     const result = DanceSchema.safeParse(json);
     if (!result.success) return;
     const dance = result.data;
@@ -615,9 +1010,10 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
       let m = 0;
       for (const i of instrs) {
         m = Math.max(m, instructionIdNonce(i.id));
-        if (i.type === 'split') {
-          for (const sub of [...i.listA, ...i.listB]) m = Math.max(m, instructionIdNonce(sub.id));
-        } else if (i.type === 'group') {
+        if (i.type === "split") {
+          for (const sub of [...i.listA, ...i.listB])
+            m = Math.max(m, instructionIdNonce(sub.id));
+        } else if (i.type === "group") {
           m = Math.max(m, maxNonce(i.instructions));
         }
       }
@@ -625,28 +1021,37 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     }
     nextNonce = maxNonce(dance.instructions) + 1;
     setEditingId(null);
-    setContext({ level: 'top' });
+    setContext({ level: "top" });
   }
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
 
-  const isSubContext = context.level === 'sub';
-  const isGroupContext = context.level === 'group';
+  const isSubContext = context.level === "sub";
+  const isGroupContext = context.level === "group";
   const currentSplit = isSubContext
-    ? instructions.find(i => i.type === 'split' && i.id === context.splitId) as Extract<Instruction, { type: 'split' }> | undefined
+    ? (instructions.find(
+        (i) => i.type === "split" && i.id === context.splitId,
+      ) as Extract<Instruction, { type: "split" }> | undefined)
     : undefined;
 
-  function findGroup(instrs: Instruction[], id: InstructionId): Extract<Instruction, { type: 'group' }> | undefined {
+  function findGroup(
+    instrs: Instruction[],
+    id: InstructionId,
+  ): Extract<Instruction, { type: "group" }> | undefined {
     for (const i of instrs) {
-      if (i.type === 'group' && i.id === id) return i;
-      if (i.type === 'group') {
+      if (i.type === "group" && i.id === id) return i;
+      if (i.type === "group") {
         const found = findGroup(i.instructions, id);
         if (found) return found;
       }
     }
     return undefined;
   }
-  const currentGroup = isGroupContext ? findGroup(instructions, context.groupId) : undefined;
+  const currentGroup = isGroupContext
+    ? findGroup(instructions, context.groupId)
+    : undefined;
 
   return (
     <div className="command-pane">
@@ -655,13 +1060,29 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
       {isSubContext && currentSplit && (
         <div className="builder-context">
           Adding to {splitGroupLabel(currentSplit.by, context.list)}
-          <button className="back-btn" onClick={() => { setContext({ level: 'top' }); setEditingId(null); }}>Back</button>
+          <button
+            className="back-btn"
+            onClick={() => {
+              setContext({ level: "top" });
+              setEditingId(null);
+            }}
+          >
+            Back
+          </button>
         </div>
       )}
       {isGroupContext && currentGroup && (
         <div className="builder-context">
           Adding to {currentGroup.label}
-          <button className="back-btn" onClick={() => { setContext({ level: 'top' }); setEditingId(null); }}>Back</button>
+          <button
+            className="back-btn"
+            onClick={() => {
+              setContext({ level: "top" });
+              setEditingId(null);
+            }}
+          >
+            Back
+          </button>
         </div>
       )}
 
@@ -670,84 +1091,101 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           Action
           <SearchableDropdown
             ref={actionRef}
-            options={isSubContext ? ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group') : ACTION_OPTIONS as string[]}
+            options={
+              isSubContext
+                ? ACTION_OPTIONS.filter((o) => o !== "split" && o !== "group")
+                : (ACTION_OPTIONS as string[])
+            }
             value={action}
-            onChange={v => {
-              const a = v as ActionType | 'split' | 'group';
+            onChange={(v) => {
+              const a = v as ActionType | "split" | "group";
               setAction(a);
               if (editingId === null) setBeats(defaultBeats(a));
             }}
-            getLabel={v => ACTION_LABELS[v as keyof typeof ACTION_LABELS]}
+            getLabel={(v) => ACTION_LABELS[v as keyof typeof ACTION_LABELS]}
           />
         </label>
 
-        {action === 'split' && (
+        {action === "split" && (
           <label>
             Split by
             <SearchableDropdown
               options={SPLIT_BY_OPTIONS}
               value={splitBy}
-              onChange={v => setSplitBy(v as SplitBy)}
-              getLabel={v => SPLIT_BY_LABELS[v as keyof typeof SPLIT_BY_LABELS]}
+              onChange={(v) => setSplitBy(v as SplitBy)}
+              getLabel={(v) =>
+                SPLIT_BY_LABELS[v as keyof typeof SPLIT_BY_LABELS]
+              }
             />
           </label>
         )}
 
-        {action === 'group' && (
+        {action === "group" && (
           <label>
             Label
             <input
               type="text"
               value={groupLabel}
-              onChange={e => setGroupLabel(e.target.value)}
+              onChange={(e) => setGroupLabel(e.target.value)}
               placeholder="e.g. Allemande figure"
             />
           </label>
         )}
 
-        {action !== 'split' && action !== 'group' && (action === 'take_hands' || action === 'allemande' || action === 'do_si_do' || action === 'pull_by') && (
-          <label>
-            With
-            <SearchableDropdown
-              options={RELATIONSHIP_OPTIONS as string[]}
-              value={relationship}
-              onChange={v => setRelationship(v as Relationship)}
-              getLabel={v => RELATIONSHIP_LABELS[v as keyof typeof RELATIONSHIP_LABELS]}
-            />
-          </label>
-        )}
+        {action !== "split" &&
+          action !== "group" &&
+          (action === "take_hands" ||
+            action === "allemande" ||
+            action === "do_si_do" ||
+            action === "pull_by") && (
+            <label>
+              With
+              <SearchableDropdown
+                options={RELATIONSHIP_OPTIONS as string[]}
+                value={relationship}
+                onChange={(v) => setRelationship(v as Relationship)}
+                getLabel={(v) =>
+                  RELATIONSHIP_LABELS[v as keyof typeof RELATIONSHIP_LABELS]
+                }
+              />
+            </label>
+          )}
 
-        {action === 'drop_hands' && (
+        {action === "drop_hands" && (
           <label>
             Drop
             <SearchableDropdown
               options={DROP_TARGET_OPTIONS as string[]}
               value={dropTarget}
-              onChange={v => setDropTarget(v as DropHandsTarget)}
-              getLabel={v => DROP_TARGET_LABELS[v as keyof typeof DROP_TARGET_LABELS]}
+              onChange={(v) => setDropTarget(v as DropHandsTarget)}
+              getLabel={(v) =>
+                DROP_TARGET_LABELS[v as keyof typeof DROP_TARGET_LABELS]
+              }
             />
           </label>
         )}
 
-        {(action === 'take_hands' || action === 'pull_by') && (
+        {(action === "take_hands" || action === "pull_by") && (
           <label>
             Hand
             <SearchableDropdown
-              options={action === 'take_hands' ? TAKE_HANDS_HAND_OPTIONS : HAND_OPTIONS}
+              options={
+                action === "take_hands" ? TAKE_HANDS_HAND_OPTIONS : HAND_OPTIONS
+              }
               value={hand}
-              onChange={v => setHand(v as 'left' | 'right' | 'inside')}
+              onChange={(v) => setHand(v as "left" | "right" | "inside")}
             />
           </label>
         )}
 
-        {action === 'allemande' && (
+        {action === "allemande" && (
           <>
             <label>
               Hand
               <SearchableDropdown
                 options={HAND_OPTIONS}
                 value={handedness}
-                onChange={v => setHandedness(v as 'left' | 'right')}
+                onChange={(v) => setHandedness(v as "left" | "right")}
               />
             </label>
             <label>
@@ -756,32 +1194,32 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
                 type="text"
                 inputMode="decimal"
                 value={rotations}
-                onChange={e => setRotations(e.target.value)}
+                onChange={(e) => setRotations(e.target.value)}
               />
             </label>
           </>
         )}
 
-        {action === 'do_si_do' && (
+        {action === "do_si_do" && (
           <label>
             Rotations
             <input
               type="text"
               inputMode="decimal"
               value={rotations}
-              onChange={e => setRotations(e.target.value)}
+              onChange={(e) => setRotations(e.target.value)}
             />
           </label>
         )}
 
-        {action === 'circle' && (
+        {action === "circle" && (
           <>
             <label>
               Direction
               <SearchableDropdown
                 options={CIRCLE_DIR_OPTIONS}
                 value={handedness}
-                onChange={v => setHandedness(v as 'left' | 'right')}
+                onChange={(v) => setHandedness(v as "left" | "right")}
               />
             </label>
             <label>
@@ -790,13 +1228,13 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
                 type="text"
                 inputMode="decimal"
                 value={rotations}
-                onChange={e => setRotations(e.target.value)}
+                onChange={(e) => setRotations(e.target.value)}
               />
             </label>
           </>
         )}
 
-        {action === 'turn' && (
+        {action === "turn" && (
           <>
             <label>
               Target
@@ -813,13 +1251,13 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
                 type="text"
                 inputMode="decimal"
                 value={turnOffset}
-                onChange={e => setTurnOffset(e.target.value)}
+                onChange={(e) => setTurnOffset(e.target.value)}
               />
             </label>
           </>
         )}
 
-        {action === 'step' && (
+        {action === "step" && (
           <>
             <label>
               Direction
@@ -836,13 +1274,13 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
                 type="text"
                 inputMode="decimal"
                 value={distance}
-                onChange={e => setDistance(e.target.value)}
+                onChange={(e) => setDistance(e.target.value)}
               />
             </label>
           </>
         )}
 
-        {action === 'balance' && (
+        {action === "balance" && (
           <>
             <label>
               Direction
@@ -859,101 +1297,153 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
                 type="text"
                 inputMode="decimal"
                 value={distance}
-                onChange={e => setDistance(e.target.value)}
+                onChange={(e) => setDistance(e.target.value)}
               />
             </label>
           </>
         )}
 
-        {action !== 'split' && action !== 'take_hands' && action !== 'drop_hands' && (
-          <label>
-            Beats
-            <input
-              type="text"
-              inputMode="decimal"
-              value={beats}
-              onChange={e => setBeats(e.target.value)}
-            />
-          </label>
-        )}
+        {action !== "split" &&
+          action !== "take_hands" &&
+          action !== "drop_hands" && (
+            <label>
+              Beats
+              <input
+                type="text"
+                inputMode="decimal"
+                value={beats}
+                onChange={(e) => setBeats(e.target.value)}
+              />
+            </label>
+          )}
 
         <div className="builder-buttons">
-          <button className="add-btn" onClick={add}>{editingId !== null ? 'Save' : 'Add'}</button>
-          {editingId !== null && <button className="cancel-btn" onClick={cancelEdit}>Cancel</button>}
+          <button className="add-btn" onClick={add}>
+            {editingId !== null ? "Save" : "Add"}
+          </button>
+          {editingId !== null && (
+            <button className="cancel-btn" onClick={cancelEdit}>
+              Cancel
+            </button>
+          )}
         </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <div className="instruction-list">
-          <SortableContext id="top" items={instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            {instructions.map(instr => (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="instruction-list">
+          <SortableContext
+            id="top"
+            items={instructions.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {instructions.map((instr) => (
               <SortableItem key={instr.id} id={instr.id}>
                 {(dragHandleProps) => (
                   <>
-                    <div className={`instruction-item${editingId === instr.id && context.level === 'top' ? ' editing' : ''}${instr.id === activeId ? ' active' : ''}`}>
-                      <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                      <span className="instruction-summary">{summarize(instr)}</span>
+                    <div
+                      className={`instruction-item${editingId === instr.id && context.level === "top" ? " editing" : ""}${instr.id === activeId ? " active" : ""}`}
+                    >
+                      <span className="drag-handle" {...dragHandleProps}>
+                        {"\u2630"}
+                      </span>
+                      <span className="instruction-summary">
+                        {summarize(instr)}
+                      </span>
                       <div className="instruction-actions">
-                        <button onClick={() => startEdit(instr)} title="Edit">{'\u270E'}</button>
-                        <button onClick={() => remove(instr.id)} title="Delete">{'\u00D7'}</button>
+                        <button onClick={() => startEdit(instr)} title="Edit">
+                          {"\u270E"}
+                        </button>
+                        <button onClick={() => remove(instr.id)} title="Delete">
+                          {"\u00D7"}
+                        </button>
                       </div>
                     </div>
                     {warnings.get(instr.id) && (
-                      <div className="instruction-warning">{warnings.get(instr.id)}</div>
+                      <div className="instruction-warning">
+                        {warnings.get(instr.id)}
+                      </div>
                     )}
-                    {instr.type === 'split' && renderSplitBody(instr)}
-                    {instr.type === 'group' && renderGroupBody(instr)}
+                    {instr.type === "split" && renderSplitBody(instr)}
+                    {instr.type === "group" && renderGroupBody(instr)}
                   </>
                 )}
               </SortableItem>
             ))}
           </SortableContext>
           <DropZone containerId="top" />
-        {instructions.length === 0 && (
-          <div className="instruction-empty">No instructions yet. Add one above.</div>
-        )}
-      </div>
+          {instructions.length === 0 && (
+            <div className="instruction-empty">
+              No instructions yet. Add one above.
+            </div>
+          )}
+        </div>
 
-      <div className="json-io">
-        <button onClick={copyJson}>{copyFeedback || 'Copy JSON'}</button>
-        <textarea
-          value=""
-          onChange={() => {}}
-          onPaste={e => {
-            e.preventDefault();
-            const text = e.clipboardData.getData('text');
-            tryLoadJson(text);
-          }}
-          placeholder="Paste JSON here to load"
-          rows={3}
-        />
-      </div>
+        <div className="json-io">
+          <button onClick={copyJson}>{copyFeedback || "Copy JSON"}</button>
+          <textarea
+            value=""
+            onChange={() => {}}
+            onPaste={(e) => {
+              e.preventDefault();
+              const text = e.clipboardData.getData("text");
+              tryLoadJson(text);
+            }}
+            placeholder="Paste JSON here to load"
+            rows={3}
+          />
+        </div>
       </DndContext>
     </div>
   );
 
-  function renderGroupBody(group: Extract<Instruction, { type: 'group' }>) {
+  function renderGroupBody(group: Extract<Instruction, { type: "group" }>) {
     const containerId = `group-${group.id}`;
     return (
       <div className="group-body">
-        <SortableContext id={containerId} items={group.instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {group.instructions.map(child => (
+        <SortableContext
+          id={containerId}
+          items={group.instructions.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {group.instructions.map((child) => (
             <SortableItem key={child.id} id={child.id}>
               {(dragHandleProps) => (
                 <>
-                  <div className={`instruction-item group-child-item${editingId === child.id ? ' editing' : ''}${child.id === activeId ? ' active' : ''}`}>
-                    <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                    <span className="instruction-summary">{summarize(child)}</span>
+                  <div
+                    className={`instruction-item group-child-item${editingId === child.id ? " editing" : ""}${child.id === activeId ? " active" : ""}`}
+                  >
+                    <span className="drag-handle" {...dragHandleProps}>
+                      {"\u2630"}
+                    </span>
+                    <span className="instruction-summary">
+                      {summarize(child)}
+                    </span>
                     <div className="instruction-actions">
-                      <button onClick={() => startGroupChildEdit(group.id, child)} title="Edit">{'\u270E'}</button>
-                      <button onClick={() => removeGroupChild(group.id, child.id)} title="Delete">{'\u00D7'}</button>
+                      <button
+                        onClick={() => startGroupChildEdit(group.id, child)}
+                        title="Edit"
+                      >
+                        {"\u270E"}
+                      </button>
+                      <button
+                        onClick={() => removeGroupChild(group.id, child.id)}
+                        title="Delete"
+                      >
+                        {"\u00D7"}
+                      </button>
                     </div>
                   </div>
                   {warnings.get(child.id) && (
-                    <div className="instruction-warning">{warnings.get(child.id)}</div>
+                    <div className="instruction-warning">
+                      {warnings.get(child.id)}
+                    </div>
                   )}
-                  {child.type === 'split' && renderSplitBody(child)}
-                  {child.type === 'group' && renderGroupBody(child)}
+                  {child.type === "split" && renderSplitBody(child)}
+                  {child.type === "group" && renderGroupBody(child)}
                 </>
               )}
             </SortableItem>
@@ -970,31 +1460,53 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     );
   }
 
-  function renderSplitBody(split: Extract<Instruction, { type: 'split' }>) {
+  function renderSplitBody(split: Extract<Instruction, { type: "split" }>) {
     return (
       <div className="split-body">
-        {(['A', 'B'] as const).map(list => {
-          const subList = list === 'A' ? split.listA : split.listB;
+        {(["A", "B"] as const).map((list) => {
+          const subList = list === "A" ? split.listA : split.listB;
           const label = splitGroupLabel(split.by, list);
           const containerId = `split-${split.id}-${list}`;
           return (
             <div key={list} className="split-group">
               <div className="split-group-header">{label}:</div>
-              <SortableContext id={containerId} items={subList.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                {subList.map(sub => (
+              <SortableContext
+                id={containerId}
+                items={subList.map((s) => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {subList.map((sub) => (
                   <SortableItem key={sub.id} id={sub.id}>
                     {(dragHandleProps) => (
                       <>
-                        <div className={`instruction-item split-sub-item${editingId === sub.id ? ' editing' : ''}`}>
-                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                          <span className="instruction-summary">{summarizeAtomic(sub)}</span>
+                        <div
+                          className={`instruction-item split-sub-item${editingId === sub.id ? " editing" : ""}`}
+                        >
+                          <span className="drag-handle" {...dragHandleProps}>
+                            {"\u2630"}
+                          </span>
+                          <span className="instruction-summary">
+                            {summarizeAtomic(sub)}
+                          </span>
                           <div className="instruction-actions">
-                            <button onClick={() => startSubEdit(split.id, list, sub)} title="Edit">{'\u270E'}</button>
-                            <button onClick={() => removeSub(split.id, list, sub.id)} title="Delete">{'\u00D7'}</button>
+                            <button
+                              onClick={() => startSubEdit(split.id, list, sub)}
+                              title="Edit"
+                            >
+                              {"\u270E"}
+                            </button>
+                            <button
+                              onClick={() => removeSub(split.id, list, sub.id)}
+                              title="Delete"
+                            >
+                              {"\u00D7"}
+                            </button>
                           </div>
                         </div>
                         {warnings.get(sub.id) && (
-                          <div className="instruction-warning">{warnings.get(sub.id)}</div>
+                          <div className="instruction-warning">
+                            {warnings.get(sub.id)}
+                          </div>
                         )}
                       </>
                     )}
