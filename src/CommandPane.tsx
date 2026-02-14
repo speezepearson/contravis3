@@ -353,7 +353,7 @@ export default function CommandPane({
   const [turnOffset, setTurnOffset] = useState("0");
   const [stepText, setStepText] = useState("");
   const [balanceText, setBalanceText] = useState("");
-  const [distance, setDistance] = useState("0.5");
+  const [distance, setDistance] = useState("0.2");
   const [beats, setBeats] = useState("0");
   const [splitBy, setSplitBy] = useState<SplitBy>("role");
   const [groupLabel, setGroupLabel] = useState("");
