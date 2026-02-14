@@ -1,10 +1,7 @@
 import z from "zod";
 import { describe, it, expect } from "vitest";
-import {
-  generateAllKeyframes,
-  validateHandDistances,
-  validateHandSymmetry,
-} from "./generate";
+import { generateAllKeyframes } from "./generate";
+import { validateHandDistances, validateHandSymmetry } from "./validate";
 import type {
   Instruction,
   Keyframe,

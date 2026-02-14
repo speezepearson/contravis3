@@ -1,27 +1,17 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { Renderer, getFrameAtBeat } from "./renderer";
+import { generateAllKeyframes } from "./generate";
 import {
-  generateAllKeyframes,
   validateHandDistances,
   collectKeyframeWarnings,
-} from "./generate";
+} from "./validate";
+import { instructionDuration } from "./instruction-tree";
 import CommandPane from "./CommandPane";
 import type { Instruction, InstructionId } from "./types";
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 700;
 const PROGRESSION_RATE = -1 / 64;
-
-function instructionDuration(instr: Instruction): number {
-  if (instr.type === "split")
-    return Math.max(
-      instr.listA.reduce((s, i) => s + i.beats, 0),
-      instr.listB.reduce((s, i) => s + i.beats, 0),
-    );
-  if (instr.type === "group")
-    return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
-  return instr.beats;
-}
 
 function activeInstructionId(
   instructions: Instruction[],

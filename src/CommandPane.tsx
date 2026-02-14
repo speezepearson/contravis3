@@ -12,7 +12,6 @@ import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import SearchableDropdown from "./SearchableDropdown";
@@ -26,13 +25,19 @@ import type {
   DropHandsTarget,
   InstructionId,
 } from "./types";
-import {
-  AtomicInstructionSchema,
-  DanceSchema,
-  makeInstructionId,
-  instructionIdNonce,
-} from "./types";
+import { AtomicInstructionSchema, DanceSchema, makeInstructionId } from "./types";
 import { assertNever } from "./utils";
+import {
+  instructionDuration,
+  instructionContainsId,
+  maxInstructionNonce,
+  findInstructionById,
+  parseContainerId,
+  removeFromTree,
+  insertIntoContainer,
+  reorderInContainer,
+  getContainerItems,
+} from "./instruction-tree";
 
 type ActionType = AtomicInstruction["type"];
 
@@ -192,219 +197,6 @@ function defaultBeats(action: string): string {
 
 let nextNonce = 1;
 
-// --- Tree manipulation helpers for cross-container drag ---
-
-function parseContainerId(
-  id: string,
-):
-  | { type: "top" }
-  | { type: "group"; groupId: InstructionId }
-  | { type: "split"; splitId: InstructionId; list: "A" | "B" } {
-  if (id === "top") return { type: "top" };
-  const groupMatch = id.match(/^group-(insn_\d+)$/);
-  if (groupMatch)
-    return { type: "group", groupId: groupMatch[1] as InstructionId };
-  const splitMatch = id.match(/^split-(insn_\d+)-(A|B)$/);
-  if (splitMatch)
-    return {
-      type: "split",
-      splitId: splitMatch[1] as InstructionId,
-      list: splitMatch[2] as "A" | "B",
-    };
-  return { type: "top" };
-}
-
-function findInstructionById(
-  instrs: Instruction[],
-  id: InstructionId,
-): Instruction | null {
-  for (const i of instrs) {
-    if (i.id === id) return i;
-    if (i.type === "group") {
-      const found = findInstructionById(i.instructions, id);
-      if (found) return found;
-    }
-    if (i.type === "split") {
-      for (const s of [...i.listA, ...i.listB]) {
-        if (s.id === id) return s;
-      }
-    }
-  }
-  return null;
-}
-
-function instructionContainsId(instr: Instruction, id: InstructionId): boolean {
-  if (instr.id === id) return true;
-  if (instr.type === "group")
-    return instr.instructions.some((c) => instructionContainsId(c, id));
-  if (instr.type === "split")
-    return [...instr.listA, ...instr.listB].some((c) =>
-      instructionContainsId(c, id),
-    );
-  return false;
-}
-
-function removeFromTree(
-  instrs: Instruction[],
-  targetId: InstructionId,
-): [Instruction[], Instruction | null] {
-  const topIdx = instrs.findIndex((i) => i.id === targetId);
-  if (topIdx !== -1) {
-    return [
-      [...instrs.slice(0, topIdx), ...instrs.slice(topIdx + 1)],
-      instrs[topIdx],
-    ];
-  }
-  let removed: Instruction | null = null;
-  const mapped = instrs.map((i) => {
-    if (removed) return i;
-    if (i.type === "split") {
-      const aIdx = i.listA.findIndex((s) => s.id === targetId);
-      if (aIdx !== -1) {
-        removed = i.listA[aIdx];
-        return {
-          ...i,
-          listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)],
-        };
-      }
-      const bIdx = i.listB.findIndex((s) => s.id === targetId);
-      if (bIdx !== -1) {
-        removed = i.listB[bIdx];
-        return {
-          ...i,
-          listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)],
-        };
-      }
-    }
-    if (i.type === "group") {
-      const [newChildren, r] = removeFromTree(i.instructions, targetId);
-      if (r) {
-        removed = r;
-        return { ...i, instructions: newChildren };
-      }
-    }
-    return i;
-  });
-  return [mapped, removed];
-}
-
-function insertIntoContainer(
-  instrs: Instruction[],
-  containerId: string,
-  item: Instruction,
-  index: number,
-): Instruction[] {
-  const parsed = parseContainerId(containerId);
-  if (parsed.type === "top") {
-    const copy = [...instrs];
-    copy.splice(index, 0, item);
-    return copy;
-  }
-  return instrs.map((i) => {
-    if (
-      parsed.type === "group" &&
-      i.type === "group" &&
-      i.id === parsed.groupId
-    ) {
-      const copy = [...i.instructions];
-      copy.splice(index, 0, item);
-      return { ...i, instructions: copy };
-    }
-    if (
-      parsed.type === "split" &&
-      i.type === "split" &&
-      i.id === parsed.splitId
-    ) {
-      const key = parsed.list === "A" ? "listA" : "listB";
-      const copy = [...i[key]];
-      copy.splice(index, 0, item as AtomicInstruction);
-      return { ...i, [key]: copy };
-    }
-    if (i.type === "group") {
-      return {
-        ...i,
-        instructions: insertIntoContainer(
-          i.instructions,
-          containerId,
-          item,
-          index,
-        ),
-      };
-    }
-    return i;
-  });
-}
-
-function reorderInContainer(
-  instrs: Instruction[],
-  containerId: string,
-  oldIndex: number,
-  newIndex: number,
-): Instruction[] {
-  const parsed = parseContainerId(containerId);
-  if (parsed.type === "top") return arrayMove(instrs, oldIndex, newIndex);
-  return instrs.map((i) => {
-    if (
-      parsed.type === "group" &&
-      i.type === "group" &&
-      i.id === parsed.groupId
-    ) {
-      return {
-        ...i,
-        instructions: arrayMove(i.instructions, oldIndex, newIndex),
-      };
-    }
-    if (
-      parsed.type === "split" &&
-      i.type === "split" &&
-      i.id === parsed.splitId
-    ) {
-      const key = parsed.list === "A" ? "listA" : "listB";
-      return { ...i, [key]: arrayMove(i[key], oldIndex, newIndex) };
-    }
-    if (i.type === "group") {
-      return {
-        ...i,
-        instructions: reorderInContainer(
-          i.instructions,
-          containerId,
-          oldIndex,
-          newIndex,
-        ),
-      };
-    }
-    return i;
-  });
-}
-
-function getContainerItems(
-  instrs: Instruction[],
-  containerId: string,
-): Instruction[] | null {
-  const parsed = parseContainerId(containerId);
-  if (parsed.type === "top") return instrs;
-  for (const i of instrs) {
-    if (
-      parsed.type === "group" &&
-      i.type === "group" &&
-      i.id === parsed.groupId
-    )
-      return i.instructions;
-    if (
-      parsed.type === "split" &&
-      i.type === "split" &&
-      i.id === parsed.splitId
-    ) {
-      return parsed.list === "A" ? i.listA : i.listB;
-    }
-    if (i.type === "group") {
-      const found = getContainerItems(i.instructions, containerId);
-      if (found !== null) return found;
-    }
-  }
-  return null;
-}
-
 interface Props {
   instructions: Instruction[];
   setInstructions: (instructions: Instruction[]) => void;
@@ -495,21 +287,13 @@ function summarizeAtomic(instr: AtomicInstruction): string {
   }
 }
 
-function instrDuration(instr: Instruction): number {
-  if (instr.type === "split")
-    return Math.max(sumBeats(instr.listA), sumBeats(instr.listB));
-  if (instr.type === "group")
-    return instr.instructions.reduce((s, i) => s + instrDuration(i), 0);
-  return instr.beats;
-}
-
 function summarize(instr: Instruction): string {
   if (instr.type === "split") {
     const totalBeats = Math.max(sumBeats(instr.listA), sumBeats(instr.listB));
     return `split by ${instr.by} (${totalBeats}b)`;
   }
   if (instr.type === "group") {
-    const totalBeats = instrDuration(instr);
+    const totalBeats = instructionDuration(instr);
     return `${instr.label} (${totalBeats}b)`;
   }
   return summarizeAtomic(instr);
@@ -1006,20 +790,7 @@ export default function CommandPane({
     const dance = result.data;
     setInstructions(dance.instructions);
     // Advance nextNonce past all loaded IDs
-    function maxNonce(instrs: Instruction[]): number {
-      let m = 0;
-      for (const i of instrs) {
-        m = Math.max(m, instructionIdNonce(i.id));
-        if (i.type === "split") {
-          for (const sub of [...i.listA, ...i.listB])
-            m = Math.max(m, instructionIdNonce(sub.id));
-        } else if (i.type === "group") {
-          m = Math.max(m, maxNonce(i.instructions));
-        }
-      }
-      return m;
-    }
-    nextNonce = maxNonce(dance.instructions) + 1;
+    nextNonce = maxInstructionNonce(dance.instructions) + 1;
     setEditingId(null);
     setContext({ level: "top" });
   }

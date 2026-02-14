@@ -32,6 +32,13 @@ export const ProtoDancerIdSchema = z.templateLiteral([
 ]);
 export type ProtoDancerId = z.infer<typeof ProtoDancerIdSchema>;
 
+export const PROTO_DANCER_IDS: readonly ProtoDancerId[] = [
+  "up_lark_0",
+  "up_robin_0",
+  "down_lark_0",
+  "down_robin_0",
+] as const;
+
 export const DancerIdSchema = z.templateLiteral([
   ProgressionDirSchema,
   "_",

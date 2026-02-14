@@ -1,5 +1,10 @@
 import type { DancerState, Keyframe, ProtoDancerId } from "./types";
-import { dancerPosition, makeDancerId, parseDancerId } from "./types";
+import {
+  PROTO_DANCER_IDS,
+  dancerPosition,
+  makeDancerId,
+  parseDancerId,
+} from "./types";
 
 const COLORS: Record<
   ProtoDancerId,
@@ -104,13 +109,7 @@ export class Renderer {
     // Hand connections (deduplicate: only draw when proto < targetProto, or same proto with offset > 0)
     ctx.strokeStyle = "#666";
     ctx.lineWidth = 2;
-    const PROTO_IDS: ProtoDancerId[] = [
-      "up_lark_0",
-      "up_robin_0",
-      "down_lark_0",
-      "down_robin_0",
-    ];
-    for (const proto of PROTO_IDS) {
+    for (const proto of PROTO_DANCER_IDS) {
       const dh = frame.hands[proto];
       for (const hand of ["left", "right"] as const) {
         const held = dh[hand];
