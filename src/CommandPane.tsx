@@ -204,11 +204,6 @@ interface Props {
   warnings: Map<InstructionId, string>;
 }
 
-type BuilderContext =
-  | { level: "top" }
-  | { level: "sub"; splitId: InstructionId; list: "A" | "B" }
-  | { level: "group"; groupId: InstructionId };
-
 function summarizeAtomic(instr: AtomicInstruction): string {
   switch (instr.type) {
     case "take_hands": {
@@ -342,9 +337,12 @@ export default function CommandPane({
   activeId,
   warnings,
 }: Props) {
-  const [context, setContext] = useState<BuilderContext>({ level: "top" });
-  const [action, setAction] = useState<ActionType | "split" | "group">(
-    "take_hands",
+  const [addingAt, setAddingAt] = useState<{
+    containerId: string;
+    index: number;
+  } | null>(null);
+  const [action, setAction] = useState<ActionType | "split" | "group" | null>(
+    null,
   );
   const [relationship, setRelationship] = useState<Relationship>("neighbor");
   const [dropTarget, setDropTarget] = useState<DropHandsTarget>("neighbor");
@@ -411,7 +409,7 @@ export default function CommandPane({
   function buildAtomicInstruction(id: InstructionId): AtomicInstruction {
     const base = { id, beats: Number(beats) || 0 };
     const a = action;
-    if (a === "split" || a === "group")
+    if (a === "split" || a === "group" || a === null)
       throw new Error(
         `buildAtomicInstruction called with non-atomic action: ${a}`,
       );
@@ -502,34 +500,49 @@ export default function CommandPane({
   }
 
   function buildInstruction(id: InstructionId): Instruction {
+    if (action === null) throw new Error("No action selected");
     if (action === "group") {
+      const existing = findInstructionById(instructions, id);
+      const children =
+        existing?.type === "group" ? existing.instructions : [];
       return {
         id,
         type: "group",
         label: groupLabel || "Untitled",
-        instructions: [],
+        instructions: children,
       };
     }
     if (action === "split") {
-      return { id, type: "split", by: splitBy, listA: [], listB: [] };
+      const existing = findInstructionById(instructions, id);
+      const listA = existing?.type === "split" ? existing.listA : [];
+      const listB = existing?.type === "split" ? existing.listB : [];
+      return { id, type: "split", by: splitBy, listA, listB };
     }
     return buildAtomicInstruction(id);
   }
 
-  /** Recursively update a group's instructions by its id. */
-  function updateGroup(
+  function replaceInTree(
     instrs: Instruction[],
-    groupId: InstructionId,
-    updater: (children: Instruction[]) => Instruction[],
+    id: InstructionId,
+    replacement: Instruction,
   ): Instruction[] {
     return instrs.map((i) => {
-      if (i.type === "group" && i.id === groupId) {
-        return { ...i, instructions: updater(i.instructions) };
-      }
+      if (i.id === id) return replacement;
       if (i.type === "group") {
         return {
           ...i,
-          instructions: updateGroup(i.instructions, groupId, updater),
+          instructions: replaceInTree(i.instructions, id, replacement),
+        };
+      }
+      if (i.type === "split") {
+        return {
+          ...i,
+          listA: i.listA.map((s) =>
+            s.id === id ? (replacement as AtomicInstruction) : s,
+          ),
+          listB: i.listB.map((s) =>
+            s.id === id ? (replacement as AtomicInstruction) : s,
+          ),
         };
       }
       return i;
@@ -537,125 +550,56 @@ export default function CommandPane({
   }
 
   function resetForm() {
-    setAction("take_hands");
-    setBeats(defaultBeats("take_hands"));
-    actionRef.current?.focus();
+    setAction(null);
+    setBeats("0");
   }
 
   function add() {
-    if (context.level === "sub") {
-      // Adding to a split's sub-list
-      const { splitId, list } = context;
-      if (action === "split") return; // no nesting
-      const newInstr = buildAtomicInstruction(makeInstructionId(nextNonce++));
-      if (editingId !== null) {
-        setInstructions(
-          instructions.map((i) => {
-            if (i.type !== "split" || i.id !== splitId) return i;
-            const key = list === "A" ? "listA" : "listB";
-            return {
-              ...i,
-              [key]: i[key].map((sub) =>
-                sub.id === editingId ? newInstr : sub,
-              ),
-            };
-          }),
-        );
-        setEditingId(null);
-      } else {
-        setInstructions(
-          instructions.map((i) => {
-            if (i.type !== "split" || i.id !== splitId) return i;
-            const key = list === "A" ? "listA" : "listB";
-            return { ...i, [key]: [...i[key], newInstr] };
-          }),
-        );
-        resetForm();
-      }
-    } else if (context.level === "group") {
-      // Adding to a group's children
-      const { groupId } = context;
+    if (action === null) return;
+    if (editingId !== null) {
+      const replacement = buildInstruction(editingId);
+      setInstructions(replaceInTree(instructions, editingId, replacement));
+      setEditingId(null);
+    } else if (addingAt !== null) {
       const newInstr = buildInstruction(makeInstructionId(nextNonce++));
-      if (editingId !== null) {
-        setInstructions(
-          updateGroup(instructions, groupId, (children) =>
-            children.map((i) => (i.id === editingId ? newInstr : i)),
-          ),
-        );
-        setEditingId(null);
-      } else {
-        setInstructions(
-          updateGroup(instructions, groupId, (children) => [
-            ...children,
-            newInstr,
-          ]),
-        );
-        resetForm();
-      }
-    } else {
-      // Top-level
-      if (editingId !== null) {
-        setInstructions(
-          instructions.map((i) =>
-            i.id === editingId ? buildInstruction(editingId) : i,
-          ),
-        );
-        setEditingId(null);
-      } else {
-        setInstructions([
-          ...instructions,
-          buildInstruction(makeInstructionId(nextNonce++)),
-        ]);
-        resetForm();
-      }
+      setInstructions(
+        insertIntoContainer(
+          instructions,
+          addingAt.containerId,
+          newInstr,
+          addingAt.index,
+        ),
+      );
+      setAddingAt(null);
+      resetForm();
     }
+  }
+
+  function startAdd(containerId: string, index: number) {
+    setAddingAt({ containerId, index });
+    setEditingId(null);
+    resetForm();
+    setTimeout(() => actionRef.current?.focus(), 0);
   }
 
   function startEdit(instr: Instruction) {
     loadIntoForm(instr);
     setEditingId(instr.id);
-    setContext({ level: "top" });
-  }
-
-  function startSubEdit(
-    splitId: InstructionId,
-    list: "A" | "B",
-    instr: AtomicInstruction,
-  ) {
-    loadAtomicIntoForm(instr);
-    setEditingId(instr.id);
-    setContext({ level: "sub", splitId, list });
+    setAddingAt(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setContext({ level: "top" });
+  }
+
+  function cancelAdd() {
+    setAddingAt(null);
   }
 
   function remove(id: InstructionId) {
-    setInstructions(instructions.filter((i) => i.id !== id));
-    if (editingId === id) {
-      setEditingId(null);
-      setContext({ level: "top" });
-    }
-  }
-
-  function removeSub(
-    splitId: InstructionId,
-    list: "A" | "B",
-    subId: InstructionId,
-  ) {
-    setInstructions(
-      instructions.map((i) => {
-        if (i.type !== "split" || i.id !== splitId) return i;
-        const key = list === "A" ? "listA" : "listB";
-        return { ...i, [key]: i[key].filter((sub) => sub.id !== subId) };
-      }),
-    );
-    if (editingId === subId) {
-      setEditingId(null);
-      setContext({ level: "top" });
-    }
+    const [newTree] = removeFromTree(instructions, id);
+    setInstructions(newTree);
+    if (editingId === id) setEditingId(null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -669,10 +613,8 @@ export default function CommandPane({
       | undefined;
     const destContainer = overSortableContainer ?? String(over.id);
 
-    // Dropping on itself
     if (active.id === over.id) return;
 
-    // Same-container reorder (only when over is a sortable item, not a drop zone)
     if (srcContainer === destContainer && overSortableContainer) {
       const items = getContainerItems(instructions, srcContainer);
       if (!items) return;
@@ -686,21 +628,18 @@ export default function CommandPane({
       return;
     }
 
-    // Cross-container move (or drop on a DropZone)
-    const activeId = active.id as InstructionId;
-    const draggedInstr = findInstructionById(instructions, activeId);
+    const draggedId = active.id as InstructionId;
+    const draggedInstr = findInstructionById(instructions, draggedId);
     if (!draggedInstr) return;
 
     const destParsed = parseContainerId(destContainer);
 
-    // Splits only accept atomic instructions
     if (
       destParsed.type === "split" &&
       (draggedInstr.type === "group" || draggedInstr.type === "split")
     )
       return;
 
-    // Prevent cycles: can't drop a container into itself or its descendants
     if (
       destParsed.type === "group" &&
       instructionContainsId(draggedInstr, destParsed.groupId)
@@ -712,60 +651,27 @@ export default function CommandPane({
     )
       return;
 
-    const [treeWithout, removed] = removeFromTree(instructions, activeId);
+    const [treeWithout, removed] = removeFromTree(instructions, draggedId);
     if (!removed) return;
 
     let insertIdx: number;
     if (overSortableContainer) {
-      // Dropped on a specific item in the destination container
       const destItems = getContainerItems(treeWithout, destContainer);
       const overIdx = destItems
         ? destItems.findIndex((i) => i.id === over.id)
         : -1;
       insertIdx = overIdx !== -1 ? overIdx : (destItems?.length ?? 0);
     } else {
-      // Dropped on a DropZone — append at end
       insertIdx = getContainerItems(treeWithout, destContainer)?.length ?? 0;
     }
 
     setInstructions(
       insertIntoContainer(treeWithout, destContainer, removed, insertIdx),
     );
-    // Cancel any active edit since the item moved
-    if (editingId === activeId) {
+    if (editingId === draggedId) {
       setEditingId(null);
-      setContext({ level: "top" });
     }
-  }
-
-  function enterSubContext(splitId: InstructionId, list: "A" | "B") {
-    setContext({ level: "sub", splitId, list });
-    setEditingId(null);
-    setAction("take_hands");
-  }
-
-  function enterGroupContext(groupId: InstructionId) {
-    setContext({ level: "group", groupId });
-    setEditingId(null);
-    setAction("take_hands");
-  }
-
-  function startGroupChildEdit(groupId: InstructionId, instr: Instruction) {
-    loadIntoForm(instr);
-    setEditingId(instr.id);
-    setContext({ level: "group", groupId });
-  }
-
-  function removeGroupChild(groupId: InstructionId, childId: InstructionId) {
-    setInstructions(
-      updateGroup(instructions, groupId, (children) =>
-        children.filter((i) => i.id !== childId),
-      ),
-    );
-    if (editingId === childId) {
-      setEditingId(null);
-      setContext({ level: "top" });
-    }
+    setAddingAt(null);
   }
 
   function copyJson() {
@@ -783,7 +689,7 @@ export default function CommandPane({
     try {
       json = JSON.parse(text);
     } catch {
-      return; /* invalid JSON, ignore */
+      return;
     }
     const result = DanceSchema.safeParse(json);
     if (!result.success) {
@@ -794,316 +700,311 @@ export default function CommandPane({
     }
     const dance = result.data;
     setInstructions(dance.instructions);
-    // Advance nextNonce past all loaded IDs
     nextNonce = maxInstructionNonce(dance.instructions) + 1;
     setEditingId(null);
-    setContext({ level: "top" });
+    setAddingAt(null);
   }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  const isSubContext = context.level === "sub";
-  const isGroupContext = context.level === "group";
-  const currentSplit = isSubContext
-    ? (instructions.find(
-        (i) => i.type === "split" && i.id === context.splitId,
-      ) as Extract<Instruction, { type: "split" }> | undefined)
-    : undefined;
+  function renderInstructionForm(mode: "add" | "edit", atomicOnly: boolean) {
+    const actionOptions = atomicOnly
+      ? ACTION_OPTIONS.filter((o) => o !== "split" && o !== "group")
+      : (ACTION_OPTIONS as string[]);
 
-  function findGroup(
-    instrs: Instruction[],
-    id: InstructionId,
-  ): Extract<Instruction, { type: "group" }> | undefined {
-    for (const i of instrs) {
-      if (i.type === "group" && i.id === id) return i;
-      if (i.type === "group") {
-        const found = findGroup(i.instructions, id);
-        if (found) return found;
-      }
-    }
-    return undefined;
-  }
-  const currentGroup = isGroupContext
-    ? findGroup(instructions, context.groupId)
-    : undefined;
-
-  return (
-    <div className="command-pane">
-      <h2>Instructions</h2>
-
-      {isSubContext && currentSplit && (
-        <div className="builder-context">
-          Adding to {splitGroupLabel(currentSplit.by, context.list)}
-          <button
-            className="back-btn"
-            onClick={() => {
-              setContext({ level: "top" });
-              setEditingId(null);
-            }}
-          >
-            Back
-          </button>
-        </div>
-      )}
-      {isGroupContext && currentGroup && (
-        <div className="builder-context">
-          Adding to {currentGroup.label}
-          <button
-            className="back-btn"
-            onClick={() => {
-              setContext({ level: "top" });
-              setEditingId(null);
-            }}
-          >
-            Back
-          </button>
-        </div>
-      )}
-
-      <div className="instruction-builder">
+    return (
+      <div className="inline-form">
         <label>
           Action
           <SearchableDropdown
             ref={actionRef}
-            options={
-              isSubContext
-                ? ACTION_OPTIONS.filter((o) => o !== "split" && o !== "group")
-                : (ACTION_OPTIONS as string[])
-            }
-            value={action}
+            options={actionOptions}
+            value={action ?? ""}
             onChange={(v) => {
               const a = v as ActionType | "split" | "group";
               setAction(a);
               if (editingId === null) setBeats(defaultBeats(a));
             }}
-            getLabel={(v) => ACTION_LABELS[v as keyof typeof ACTION_LABELS]}
+            getLabel={(v) =>
+              ACTION_LABELS[v as keyof typeof ACTION_LABELS] ?? v
+            }
+            placeholder="Select action..."
           />
         </label>
 
-        {action === "split" && (
-          <label>
-            Split by
-            <SearchableDropdown
-              options={SPLIT_BY_OPTIONS}
-              value={splitBy}
-              onChange={(v) => setSplitBy(v as SplitBy)}
-              getLabel={(v) =>
-                SPLIT_BY_LABELS[v as keyof typeof SPLIT_BY_LABELS]
-              }
-            />
-          </label>
-        )}
-
-        {action === "group" && (
-          <label>
-            Label
-            <input
-              type="text"
-              value={groupLabel}
-              onChange={(e) => setGroupLabel(e.target.value)}
-              placeholder="e.g. Allemande figure"
-            />
-          </label>
-        )}
-
-        {action !== "split" &&
-          action !== "group" &&
-          (action === "take_hands" ||
-            action === "allemande" ||
-            action === "do_si_do" ||
-            action === "pull_by") && (
-            <label>
-              With
-              <SearchableDropdown
-                options={RELATIONSHIP_OPTIONS as string[]}
-                value={relationship}
-                onChange={(v) => setRelationship(v as Relationship)}
-                getLabel={(v) =>
-                  RELATIONSHIP_LABELS[v as keyof typeof RELATIONSHIP_LABELS]
-                }
-              />
-            </label>
-          )}
-
-        {action === "drop_hands" && (
-          <label>
-            Drop
-            <SearchableDropdown
-              options={DROP_TARGET_OPTIONS as string[]}
-              value={dropTarget}
-              onChange={(v) => setDropTarget(v as DropHandsTarget)}
-              getLabel={(v) =>
-                DROP_TARGET_LABELS[v as keyof typeof DROP_TARGET_LABELS]
-              }
-            />
-          </label>
-        )}
-
-        {(action === "take_hands" || action === "pull_by") && (
-          <label>
-            Hand
-            <SearchableDropdown
-              options={
-                action === "take_hands" ? TAKE_HANDS_HAND_OPTIONS : HAND_OPTIONS
-              }
-              value={hand}
-              onChange={(v) => setHand(v as "left" | "right" | "inside")}
-            />
-          </label>
-        )}
-
-        {action === "allemande" && (
+        {action !== null && (
           <>
-            <label>
-              Hand
-              <SearchableDropdown
-                options={HAND_OPTIONS}
-                value={handedness}
-                onChange={(v) => setHandedness(v as "left" | "right")}
-              />
-            </label>
-            <label>
-              Rotations
-              <input
-                type="text"
-                inputMode="decimal"
-                value={rotations}
-                onChange={(e) => setRotations(e.target.value)}
-              />
-            </label>
+            {action === "split" && (
+              <label>
+                Split by
+                <SearchableDropdown
+                  options={SPLIT_BY_OPTIONS}
+                  value={splitBy}
+                  onChange={(v) => setSplitBy(v as SplitBy)}
+                  getLabel={(v) =>
+                    SPLIT_BY_LABELS[v as keyof typeof SPLIT_BY_LABELS]
+                  }
+                />
+              </label>
+            )}
+
+            {action === "group" && (
+              <label>
+                Label
+                <input
+                  type="text"
+                  value={groupLabel}
+                  onChange={(e) => setGroupLabel(e.target.value)}
+                  placeholder="e.g. Allemande figure"
+                />
+              </label>
+            )}
+
+            {action !== "split" &&
+              action !== "group" &&
+              (action === "take_hands" ||
+                action === "allemande" ||
+                action === "do_si_do" ||
+                action === "pull_by") && (
+                <label>
+                  With
+                  <SearchableDropdown
+                    options={RELATIONSHIP_OPTIONS as string[]}
+                    value={relationship}
+                    onChange={(v) => setRelationship(v as Relationship)}
+                    getLabel={(v) =>
+                      RELATIONSHIP_LABELS[v as keyof typeof RELATIONSHIP_LABELS]
+                    }
+                  />
+                </label>
+              )}
+
+            {action === "drop_hands" && (
+              <label>
+                Drop
+                <SearchableDropdown
+                  options={DROP_TARGET_OPTIONS as string[]}
+                  value={dropTarget}
+                  onChange={(v) => setDropTarget(v as DropHandsTarget)}
+                  getLabel={(v) =>
+                    DROP_TARGET_LABELS[v as keyof typeof DROP_TARGET_LABELS]
+                  }
+                />
+              </label>
+            )}
+
+            {(action === "take_hands" || action === "pull_by") && (
+              <label>
+                Hand
+                <SearchableDropdown
+                  options={
+                    action === "take_hands"
+                      ? TAKE_HANDS_HAND_OPTIONS
+                      : HAND_OPTIONS
+                  }
+                  value={hand}
+                  onChange={(v) => setHand(v as "left" | "right" | "inside")}
+                />
+              </label>
+            )}
+
+            {action === "allemande" && (
+              <>
+                <label>
+                  Hand
+                  <SearchableDropdown
+                    options={HAND_OPTIONS}
+                    value={handedness}
+                    onChange={(v) => setHandedness(v as "left" | "right")}
+                  />
+                </label>
+                <label>
+                  Rotations
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={rotations}
+                    onChange={(e) => setRotations(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
+
+            {action === "do_si_do" && (
+              <label>
+                Rotations
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={rotations}
+                  onChange={(e) => setRotations(e.target.value)}
+                />
+              </label>
+            )}
+
+            {action === "circle" && (
+              <>
+                <label>
+                  Direction
+                  <SearchableDropdown
+                    options={CIRCLE_DIR_OPTIONS}
+                    value={handedness}
+                    onChange={(v) => setHandedness(v as "left" | "right")}
+                  />
+                </label>
+                <label>
+                  Rotations
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={rotations}
+                    onChange={(e) => setRotations(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
+
+            {action === "turn" && (
+              <>
+                <label>
+                  Target
+                  <SearchableDropdown
+                    options={DIR_OPTIONS}
+                    value={turnText}
+                    onChange={setTurnText}
+                    placeholder="e.g. across, partner"
+                  />
+                </label>
+                <label>
+                  Offset
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={turnOffset}
+                    onChange={(e) => setTurnOffset(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
+
+            {action === "step" && (
+              <>
+                <label>
+                  Direction
+                  <SearchableDropdown
+                    options={DIR_OPTIONS}
+                    value={stepText}
+                    onChange={setStepText}
+                    placeholder="e.g. across, partner, 45"
+                  />
+                </label>
+                <label>
+                  Distance
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={distance}
+                    onChange={(e) => setDistance(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
+
+            {action === "balance" && (
+              <>
+                <label>
+                  Direction
+                  <SearchableDropdown
+                    options={DIR_OPTIONS}
+                    value={balanceText}
+                    onChange={setBalanceText}
+                    placeholder="e.g. across, partner, 45"
+                  />
+                </label>
+                <label>
+                  Distance
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={distance}
+                    onChange={(e) => setDistance(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
+
+            {action !== "split" &&
+              action !== "take_hands" &&
+              action !== "drop_hands" && (
+                <label>
+                  Beats
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={beats}
+                    onChange={(e) => setBeats(e.target.value)}
+                  />
+                </label>
+              )}
+
+            <div className="builder-buttons">
+              <button className="add-btn" onClick={add}>
+                {mode === "edit" ? "Save" : "Add"}
+              </button>
+              <button
+                className="cancel-btn"
+                onClick={mode === "edit" ? cancelEdit : cancelAdd}
+              >
+                Cancel
+              </button>
+            </div>
           </>
         )}
 
-        {action === "do_si_do" && (
-          <label>
-            Rotations
-            <input
-              type="text"
-              inputMode="decimal"
-              value={rotations}
-              onChange={(e) => setRotations(e.target.value)}
-            />
-          </label>
-        )}
-
-        {action === "circle" && (
-          <>
-            <label>
-              Direction
-              <SearchableDropdown
-                options={CIRCLE_DIR_OPTIONS}
-                value={handedness}
-                onChange={(v) => setHandedness(v as "left" | "right")}
-              />
-            </label>
-            <label>
-              Rotations
-              <input
-                type="text"
-                inputMode="decimal"
-                value={rotations}
-                onChange={(e) => setRotations(e.target.value)}
-              />
-            </label>
-          </>
-        )}
-
-        {action === "turn" && (
-          <>
-            <label>
-              Target
-              <SearchableDropdown
-                options={DIR_OPTIONS}
-                value={turnText}
-                onChange={setTurnText}
-                placeholder="e.g. across, partner"
-              />
-            </label>
-            <label>
-              Offset
-              <input
-                type="text"
-                inputMode="decimal"
-                value={turnOffset}
-                onChange={(e) => setTurnOffset(e.target.value)}
-              />
-            </label>
-          </>
-        )}
-
-        {action === "step" && (
-          <>
-            <label>
-              Direction
-              <SearchableDropdown
-                options={DIR_OPTIONS}
-                value={stepText}
-                onChange={setStepText}
-                placeholder="e.g. across, partner, 45"
-              />
-            </label>
-            <label>
-              Distance
-              <input
-                type="text"
-                inputMode="decimal"
-                value={distance}
-                onChange={(e) => setDistance(e.target.value)}
-              />
-            </label>
-          </>
-        )}
-
-        {action === "balance" && (
-          <>
-            <label>
-              Direction
-              <SearchableDropdown
-                options={DIR_OPTIONS}
-                value={balanceText}
-                onChange={setBalanceText}
-                placeholder="e.g. across, partner, 45"
-              />
-            </label>
-            <label>
-              Distance
-              <input
-                type="text"
-                inputMode="decimal"
-                value={distance}
-                onChange={(e) => setDistance(e.target.value)}
-              />
-            </label>
-          </>
-        )}
-
-        {action !== "split" &&
-          action !== "take_hands" &&
-          action !== "drop_hands" && (
-            <label>
-              Beats
-              <input
-                type="text"
-                inputMode="decimal"
-                value={beats}
-                onChange={(e) => setBeats(e.target.value)}
-              />
-            </label>
-          )}
-
-        <div className="builder-buttons">
-          <button className="add-btn" onClick={add}>
-            {editingId !== null ? "Save" : "Add"}
-          </button>
-          {editingId !== null && (
-            <button className="cancel-btn" onClick={cancelEdit}>
+        {action === null && (
+          <div className="builder-buttons">
+            <button
+              className="cancel-btn"
+              onClick={mode === "edit" ? cancelEdit : cancelAdd}
+            >
               Cancel
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+    );
+  }
+
+  function renderPlusRow(containerId: string, index: number) {
+    return (
+      <div className="add-button-row">
+        <button
+          className="add-between-btn"
+          onClick={() => startAdd(containerId, index)}
+          title="Insert instruction"
+        >
+          +
+        </button>
+      </div>
+    );
+  }
+
+  function renderAddFormIfNeeded(containerId: string, index: number, atomicOnly: boolean) {
+    if (
+      addingAt &&
+      addingAt.containerId === containerId &&
+      addingAt.index === index
+    ) {
+      return renderInstructionForm("add", atomicOnly);
+    }
+    return null;
+  }
+
+  return (
+    <div className="command-pane">
+      <h2>Instructions</h2>
 
       <DndContext
         sensors={sensors}
@@ -1116,35 +1017,51 @@ export default function CommandPane({
             items={instructions.map((i) => i.id)}
             strategy={verticalListSortingStrategy}
           >
-            {instructions.map((instr) => (
+            {renderPlusRow("top", 0)}
+            {renderAddFormIfNeeded("top", 0, false)}
+            {instructions.map((instr, idx) => (
               <SortableItem key={instr.id} id={instr.id}>
                 {(dragHandleProps) => (
                   <>
-                    <div
-                      className={`instruction-item${editingId === instr.id && context.level === "top" ? " editing" : ""}${instr.id === activeId ? " active" : ""}`}
-                    >
-                      <span className="drag-handle" {...dragHandleProps}>
-                        {"\u2630"}
-                      </span>
-                      <span className="instruction-summary">
-                        {summarize(instr)}
-                      </span>
-                      <div className="instruction-actions">
-                        <button onClick={() => startEdit(instr)} title="Edit">
-                          {"\u270E"}
-                        </button>
-                        <button onClick={() => remove(instr.id)} title="Delete">
-                          {"\u00D7"}
-                        </button>
-                      </div>
-                    </div>
-                    {warnings.get(instr.id) && (
-                      <div className="instruction-warning">
-                        {warnings.get(instr.id)}
-                      </div>
+                    {editingId === instr.id ? (
+                      renderInstructionForm("edit", false)
+                    ) : (
+                      <>
+                        <div
+                          className={`instruction-item${instr.id === activeId ? " active" : ""}`}
+                        >
+                          <span className="drag-handle" {...dragHandleProps}>
+                            {"\u2630"}
+                          </span>
+                          <span className="instruction-summary">
+                            {summarize(instr)}
+                          </span>
+                          <div className="instruction-actions">
+                            <button
+                              onClick={() => startEdit(instr)}
+                              title="Edit"
+                            >
+                              {"\u270E"}
+                            </button>
+                            <button
+                              onClick={() => remove(instr.id)}
+                              title="Delete"
+                            >
+                              {"\u00D7"}
+                            </button>
+                          </div>
+                        </div>
+                        {warnings.get(instr.id) && (
+                          <div className="instruction-warning">
+                            {warnings.get(instr.id)}
+                          </div>
+                        )}
+                        {instr.type === "split" && renderSplitBody(instr)}
+                        {instr.type === "group" && renderGroupBody(instr)}
+                      </>
                     )}
-                    {instr.type === "split" && renderSplitBody(instr)}
-                    {instr.type === "group" && renderGroupBody(instr)}
+                    {renderPlusRow("top", idx + 1)}
+                    {renderAddFormIfNeeded("top", idx + 1, false)}
                   </>
                 )}
               </SortableItem>
@@ -1153,7 +1070,7 @@ export default function CommandPane({
           <DropZone containerId="top" />
           {instructions.length === 0 && (
             <div className="instruction-empty">
-              No instructions yet. Add one above.
+              No instructions yet. Click + to add one.
             </div>
           )}
         </div>
@@ -1185,53 +1102,57 @@ export default function CommandPane({
           items={group.instructions.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
         >
-          {group.instructions.map((child) => (
+          {renderPlusRow(containerId, 0)}
+          {renderAddFormIfNeeded(containerId, 0, false)}
+          {group.instructions.map((child, idx) => (
             <SortableItem key={child.id} id={child.id}>
               {(dragHandleProps) => (
                 <>
-                  <div
-                    className={`instruction-item group-child-item${editingId === child.id ? " editing" : ""}${child.id === activeId ? " active" : ""}`}
-                  >
-                    <span className="drag-handle" {...dragHandleProps}>
-                      {"\u2630"}
-                    </span>
-                    <span className="instruction-summary">
-                      {summarize(child)}
-                    </span>
-                    <div className="instruction-actions">
-                      <button
-                        onClick={() => startGroupChildEdit(group.id, child)}
-                        title="Edit"
+                  {editingId === child.id ? (
+                    renderInstructionForm("edit", false)
+                  ) : (
+                    <>
+                      <div
+                        className={`instruction-item group-child-item${child.id === activeId ? " active" : ""}`}
                       >
-                        {"\u270E"}
-                      </button>
-                      <button
-                        onClick={() => removeGroupChild(group.id, child.id)}
-                        title="Delete"
-                      >
-                        {"\u00D7"}
-                      </button>
-                    </div>
-                  </div>
-                  {warnings.get(child.id) && (
-                    <div className="instruction-warning">
-                      {warnings.get(child.id)}
-                    </div>
+                        <span className="drag-handle" {...dragHandleProps}>
+                          {"\u2630"}
+                        </span>
+                        <span className="instruction-summary">
+                          {summarize(child)}
+                        </span>
+                        <div className="instruction-actions">
+                          <button
+                            onClick={() => startEdit(child)}
+                            title="Edit"
+                          >
+                            {"\u270E"}
+                          </button>
+                          <button
+                            onClick={() => remove(child.id)}
+                            title="Delete"
+                          >
+                            {"\u00D7"}
+                          </button>
+                        </div>
+                      </div>
+                      {warnings.get(child.id) && (
+                        <div className="instruction-warning">
+                          {warnings.get(child.id)}
+                        </div>
+                      )}
+                      {child.type === "split" && renderSplitBody(child)}
+                      {child.type === "group" && renderGroupBody(child)}
+                    </>
                   )}
-                  {child.type === "split" && renderSplitBody(child)}
-                  {child.type === "group" && renderGroupBody(child)}
+                  {renderPlusRow(containerId, idx + 1)}
+                  {renderAddFormIfNeeded(containerId, idx + 1, false)}
                 </>
               )}
             </SortableItem>
           ))}
         </SortableContext>
         <DropZone containerId={containerId} />
-        <button
-          className="split-add-btn"
-          onClick={() => enterGroupContext(group.id)}
-        >
-          + Add to {group.label.toLowerCase()}
-        </button>
       </div>
     );
   }
@@ -1251,51 +1172,58 @@ export default function CommandPane({
                 items={subList.map((s) => s.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {subList.map((sub) => (
+                {renderPlusRow(containerId, 0)}
+                {renderAddFormIfNeeded(containerId, 0, true)}
+                {subList.map((sub, idx) => (
                   <SortableItem key={sub.id} id={sub.id}>
                     {(dragHandleProps) => (
                       <>
-                        <div
-                          className={`instruction-item split-sub-item${editingId === sub.id ? " editing" : ""}`}
-                        >
-                          <span className="drag-handle" {...dragHandleProps}>
-                            {"\u2630"}
-                          </span>
-                          <span className="instruction-summary">
-                            {summarizeAtomic(sub)}
-                          </span>
-                          <div className="instruction-actions">
-                            <button
-                              onClick={() => startSubEdit(split.id, list, sub)}
-                              title="Edit"
+                        {editingId === sub.id ? (
+                          renderInstructionForm("edit", true)
+                        ) : (
+                          <>
+                            <div
+                              className={`instruction-item split-sub-item`}
                             >
-                              {"\u270E"}
-                            </button>
-                            <button
-                              onClick={() => removeSub(split.id, list, sub.id)}
-                              title="Delete"
-                            >
-                              {"\u00D7"}
-                            </button>
-                          </div>
-                        </div>
-                        {warnings.get(sub.id) && (
-                          <div className="instruction-warning">
-                            {warnings.get(sub.id)}
-                          </div>
+                              <span
+                                className="drag-handle"
+                                {...dragHandleProps}
+                              >
+                                {"\u2630"}
+                              </span>
+                              <span className="instruction-summary">
+                                {summarizeAtomic(sub)}
+                              </span>
+                              <div className="instruction-actions">
+                                <button
+                                  onClick={() => startEdit(sub)}
+                                  title="Edit"
+                                >
+                                  {"\u270E"}
+                                </button>
+                                <button
+                                  onClick={() => remove(sub.id)}
+                                  title="Delete"
+                                >
+                                  {"\u00D7"}
+                                </button>
+                              </div>
+                            </div>
+                            {warnings.get(sub.id) && (
+                              <div className="instruction-warning">
+                                {warnings.get(sub.id)}
+                              </div>
+                            )}
+                          </>
                         )}
+                        {renderPlusRow(containerId, idx + 1)}
+                        {renderAddFormIfNeeded(containerId, idx + 1, true)}
                       </>
                     )}
                   </SortableItem>
                 ))}
               </SortableContext>
               <DropZone containerId={containerId} />
-              <button
-                className="split-add-btn"
-                onClick={() => enterSubContext(split.id, list)}
-              >
-                + Add to {label.toLowerCase()}
-              </button>
             </div>
           );
         })}
