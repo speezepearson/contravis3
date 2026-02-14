@@ -195,8 +195,6 @@ function defaultBeats(action: string): string {
   }
 }
 
-let nextNonce = 1;
-
 interface Props {
   instructions: Instruction[];
   setInstructions: (instructions: Instruction[]) => void;
@@ -360,6 +358,7 @@ export default function CommandPane({
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [copyFeedback, setCopyFeedback] = useState("");
   const actionRef = useRef<SearchableDropdownHandle>(null);
+  const nextNonce = useRef(maxInstructionNonce(instructions) + 1);
 
   function loadAtomicIntoForm(instr: AtomicInstruction) {
     setAction(instr.type);
@@ -561,7 +560,7 @@ export default function CommandPane({
       setInstructions(replaceInTree(instructions, editingId, replacement));
       setEditingId(null);
     } else if (addingAt !== null) {
-      const newInstr = buildInstruction(makeInstructionId(nextNonce++));
+      const newInstr = buildInstruction(makeInstructionId(nextNonce.current++));
       setInstructions(
         insertIntoContainer(
           instructions,
@@ -700,7 +699,7 @@ export default function CommandPane({
     }
     const dance = result.data;
     setInstructions(dance.instructions);
-    nextNonce = maxInstructionNonce(dance.instructions) + 1;
+    nextNonce.current = maxInstructionNonce(dance.instructions) + 1;
     setEditingId(null);
     setAddingAt(null);
   }
