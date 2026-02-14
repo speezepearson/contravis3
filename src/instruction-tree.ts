@@ -3,8 +3,9 @@ import type {
   Instruction,
   AtomicInstruction,
   InstructionId,
+  SplitInstruction,
 } from "./types";
-import { instructionIdNonce } from "./types";
+import { instructionIdNonce, splitLists } from "./types";
 
 // --- Fold / catamorphism ---
 
@@ -12,24 +13,19 @@ export function foldInstruction<T>(
   instr: Instruction,
   handlers: {
     atomic: (instr: AtomicInstruction) => T;
-    split: (
-      instr: Extract<Instruction, { type: "split" }>,
-      listA: T[],
-      listB: T[],
-    ) => T;
-    group: (
-      instr: Extract<Instruction, { type: "group" }>,
-      children: T[],
-    ) => T;
+    split: (instr: SplitInstruction, first: T[], second: T[]) => T;
+    group: (instr: Extract<Instruction, { type: "group" }>, children: T[]) => T;
   },
 ): T {
   switch (instr.type) {
-    case "split":
+    case "split": {
+      const [first, second] = splitLists(instr);
       return handlers.split(
         instr,
-        instr.listA.map((a) => handlers.atomic(a)),
-        instr.listB.map((a) => handlers.atomic(a)),
+        first.map((a) => handlers.atomic(a)),
+        second.map((a) => handlers.atomic(a)),
       );
+    }
     case "group":
       return handlers.group(
         instr,
@@ -75,8 +71,7 @@ export function maxInstructionNonce(instrs: Instruction[]): number {
         atomic: (a) => instructionIdNonce(a.id),
         split: (s, listA, listB) =>
           Math.max(instructionIdNonce(s.id), ...listA, ...listB),
-        group: (g, children) =>
-          Math.max(instructionIdNonce(g.id), ...children),
+        group: (g, children) => Math.max(instructionIdNonce(g.id), ...children),
       }),
     );
   }
@@ -94,7 +89,8 @@ export function findInstructionById(
       if (found) return found;
     }
     if (i.type === "split") {
-      for (const s of [...i.listA, ...i.listB]) {
+      const [first, second] = splitLists(i);
+      for (const s of [...first, ...second]) {
         if (s.id === id) return s;
       }
     }
@@ -109,19 +105,27 @@ export function parseContainerId(
 ):
   | { type: "top" }
   | { type: "group"; groupId: InstructionId }
-  | { type: "split"; splitId: InstructionId; list: "A" | "B" } {
+  | { type: "split"; splitId: InstructionId; list: "first" | "second" } {
   if (id === "top") return { type: "top" };
   const groupMatch = id.match(/^group-(insn_\d+)$/);
   if (groupMatch)
     return { type: "group", groupId: groupMatch[1] as InstructionId };
-  const splitMatch = id.match(/^split-(insn_\d+)-(A|B)$/);
+  const splitMatch = id.match(/^split-(insn_\d+)-(first|second)$/);
   if (splitMatch)
     return {
       type: "split",
       splitId: splitMatch[1] as InstructionId,
-      list: splitMatch[2] as "A" | "B",
+      list: splitMatch[2] as "first" | "second",
     };
   return { type: "top" };
+}
+
+function splitKey(
+  by: "role" | "position",
+  list: "first" | "second",
+): "larks" | "robins" | "ups" | "downs" {
+  if (by === "role") return list === "first" ? "larks" : "robins";
+  return list === "first" ? "ups" : "downs";
 }
 
 export function removeFromTree(
@@ -139,20 +143,23 @@ export function removeFromTree(
   const mapped = instrs.map((i) => {
     if (removed) return i;
     if (i.type === "split") {
-      const aIdx = i.listA.findIndex((s) => s.id === targetId);
+      const [first, second] = splitLists(i);
+      const firstKey = splitKey(i.by, "first");
+      const secondKey = splitKey(i.by, "second");
+      const aIdx = first.findIndex((s) => s.id === targetId);
       if (aIdx !== -1) {
-        removed = i.listA[aIdx];
+        removed = first[aIdx];
         return {
           ...i,
-          listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)],
+          [firstKey]: [...first.slice(0, aIdx), ...first.slice(aIdx + 1)],
         };
       }
-      const bIdx = i.listB.findIndex((s) => s.id === targetId);
+      const bIdx = second.findIndex((s) => s.id === targetId);
       if (bIdx !== -1) {
-        removed = i.listB[bIdx];
+        removed = second[bIdx];
         return {
           ...i,
-          listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)],
+          [secondKey]: [...second.slice(0, bIdx), ...second.slice(bIdx + 1)],
         };
       }
     }
@@ -195,8 +202,10 @@ export function insertIntoContainer(
       i.type === "split" &&
       i.id === parsed.splitId
     ) {
-      const key = parsed.list === "A" ? "listA" : "listB";
-      const copy = [...i[key]];
+      const key = splitKey(i.by, parsed.list);
+      const copy = [
+        ...((i as Record<string, unknown>)[key] as AtomicInstruction[]),
+      ];
       copy.splice(index, 0, item as AtomicInstruction);
       return { ...i, [key]: copy };
     }
@@ -239,8 +248,15 @@ export function reorderInContainer(
       i.type === "split" &&
       i.id === parsed.splitId
     ) {
-      const key = parsed.list === "A" ? "listA" : "listB";
-      return { ...i, [key]: arrayMove(i[key], oldIndex, newIndex) };
+      const key = splitKey(i.by, parsed.list);
+      return {
+        ...i,
+        [key]: arrayMove(
+          (i as Record<string, unknown>)[key] as AtomicInstruction[],
+          oldIndex,
+          newIndex,
+        ),
+      };
     }
     if (i.type === "group") {
       return {
@@ -275,7 +291,8 @@ export function getContainerItems(
       i.type === "split" &&
       i.id === parsed.splitId
     ) {
-      return parsed.list === "A" ? i.listA : i.listB;
+      const [first, second] = splitLists(i);
+      return parsed.list === "first" ? first : second;
     }
     if (i.type === "group") {
       const found = getContainerItems(i.instructions, containerId);

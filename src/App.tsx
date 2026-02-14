@@ -1,10 +1,7 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { Renderer, getFrameAtBeat } from "./renderer";
 import { generateAllKeyframes } from "./generate";
-import {
-  validateHandDistances,
-  collectKeyframeWarnings,
-} from "./validate";
+import { validateHandDistances, collectKeyframeWarnings } from "./validate";
 import { instructionDuration } from "./instruction-tree";
 import CommandPane from "./CommandPane";
 import type { Instruction, InstructionId } from "./types";

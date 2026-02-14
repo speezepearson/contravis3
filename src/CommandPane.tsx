@@ -24,8 +24,14 @@ import type {
   SplitBy,
   DropHandsTarget,
   InstructionId,
+  SplitInstruction,
 } from "./types";
-import { AtomicInstructionSchema, DanceSchema, makeInstructionId } from "./types";
+import {
+  AtomicInstructionSchema,
+  DanceSchema,
+  makeInstructionId,
+  splitLists,
+} from "./types";
 import { assertNever } from "./utils";
 import {
   instructionDuration,
@@ -167,9 +173,9 @@ function directionToText(dir: RelativeDirection): string {
   return dir.value;
 }
 
-function splitGroupLabel(by: SplitBy, list: "A" | "B"): string {
-  if (by === "role") return list === "A" ? "Larks" : "Robins";
-  return list === "A" ? "Ups" : "Downs";
+function splitGroupLabel(by: SplitBy, list: "first" | "second"): string {
+  if (by === "role") return list === "first" ? "Larks" : "Robins";
+  return list === "first" ? "Ups" : "Downs";
 }
 
 function sumBeats(instructions: AtomicInstruction[]): number {
@@ -282,7 +288,8 @@ function summarizeAtomic(instr: AtomicInstruction): string {
 
 function summarize(instr: Instruction): string {
   if (instr.type === "split") {
-    const totalBeats = Math.max(sumBeats(instr.listA), sumBeats(instr.listB));
+    const [first, second] = splitLists(instr);
+    const totalBeats = Math.max(sumBeats(first), sumBeats(second));
     return `split by ${instr.by} (${totalBeats}b)`;
   }
   if (instr.type === "group") {
@@ -502,8 +509,7 @@ export default function CommandPane({
     if (action === null) throw new Error("No action selected");
     if (action === "group") {
       const existing = findInstructionById(instructions, id);
-      const children =
-        existing?.type === "group" ? existing.instructions : [];
+      const children = existing?.type === "group" ? existing.instructions : [];
       return {
         id,
         type: "group",
@@ -513,9 +519,26 @@ export default function CommandPane({
     }
     if (action === "split") {
       const existing = findInstructionById(instructions, id);
-      const listA = existing?.type === "split" ? existing.listA : [];
-      const listB = existing?.type === "split" ? existing.listB : [];
-      return { id, type: "split", by: splitBy, listA, listB };
+      const [prevFirst, prevSecond] =
+        existing?.type === "split"
+          ? splitLists(existing)
+          : [[] as AtomicInstruction[], [] as AtomicInstruction[]];
+      if (splitBy === "role") {
+        return {
+          id,
+          type: "split",
+          by: "role",
+          larks: prevFirst,
+          robins: prevSecond,
+        };
+      }
+      return {
+        id,
+        type: "split",
+        by: "position",
+        ups: prevFirst,
+        downs: prevSecond,
+      };
     }
     return buildAtomicInstruction(id);
   }
@@ -534,15 +557,17 @@ export default function CommandPane({
         };
       }
       if (i.type === "split") {
-        return {
-          ...i,
-          listA: i.listA.map((s) =>
-            s.id === id ? (replacement as AtomicInstruction) : s,
-          ),
-          listB: i.listB.map((s) =>
-            s.id === id ? (replacement as AtomicInstruction) : s,
-          ),
-        };
+        const [first, second] = splitLists(i);
+        const newFirst = first.map((s) =>
+          s.id === id ? (replacement as AtomicInstruction) : s,
+        );
+        const newSecond = second.map((s) =>
+          s.id === id ? (replacement as AtomicInstruction) : s,
+        );
+        if (i.by === "role") {
+          return { ...i, larks: newFirst, robins: newSecond };
+        }
+        return { ...i, ups: newFirst, downs: newSecond };
       }
       return i;
     });
@@ -990,7 +1015,11 @@ export default function CommandPane({
     );
   }
 
-  function renderAddFormIfNeeded(containerId: string, index: number, atomicOnly: boolean) {
+  function renderAddFormIfNeeded(
+    containerId: string,
+    index: number,
+    atomicOnly: boolean,
+  ) {
     if (
       addingAt &&
       addingAt.containerId === containerId &&
@@ -1121,10 +1150,7 @@ export default function CommandPane({
                           {summarize(child)}
                         </span>
                         <div className="instruction-actions">
-                          <button
-                            onClick={() => startEdit(child)}
-                            title="Edit"
-                          >
+                          <button onClick={() => startEdit(child)} title="Edit">
                             {"\u270E"}
                           </button>
                           <button
@@ -1156,11 +1182,12 @@ export default function CommandPane({
     );
   }
 
-  function renderSplitBody(split: Extract<Instruction, { type: "split" }>) {
+  function renderSplitBody(split: SplitInstruction) {
+    const [first, second] = splitLists(split);
     return (
       <div className="split-body">
-        {(["A", "B"] as const).map((list) => {
-          const subList = list === "A" ? split.listA : split.listB;
+        {(["first", "second"] as const).map((list) => {
+          const subList = list === "first" ? first : second;
           const label = splitGroupLabel(split.by, list);
           const containerId = `split-${split.id}-${list}`;
           return (
@@ -1181,9 +1208,7 @@ export default function CommandPane({
                           renderInstructionForm("edit", true)
                         ) : (
                           <>
-                            <div
-                              className={`instruction-item split-sub-item`}
-                            >
+                            <div className={`instruction-item split-sub-item`}>
                               <span
                                 className="drag-handle"
                                 {...dragHandleProps}

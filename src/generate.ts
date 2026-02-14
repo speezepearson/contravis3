@@ -9,6 +9,7 @@ import type {
   ProtoDancerId,
   DancerId,
   InstructionId,
+  SplitInstruction,
 } from "./types";
 import {
   PROTO_DANCER_IDS,
@@ -16,6 +17,7 @@ import {
   parseDancerId,
   dancerPosition,
   AtomicInstructionSchema,
+  splitLists,
 } from "./types";
 import { assertNever } from "./utils";
 
@@ -927,14 +929,12 @@ function sampleAtBeat(timeline: Keyframe[], beat: number): Keyframe | null {
   return best;
 }
 
-function generateSplit(
-  prev: Keyframe,
-  instr: Extract<Instruction, { type: "split" }>,
-): Keyframe[] {
+function generateSplit(prev: Keyframe, instr: SplitInstruction): Keyframe[] {
   const [groupA, groupB] = SPLIT_GROUPS[instr.by];
+  const [first, second] = splitLists(instr);
 
-  const timelineA = processInstructions(prev, instr.listA, groupA);
-  const timelineB = processInstructions(prev, instr.listB, groupB);
+  const timelineA = processInstructions(prev, first, groupA);
+  const timelineB = processInstructions(prev, second, groupB);
 
   if (timelineA.length === 0 && timelineB.length === 0) {
     return [];

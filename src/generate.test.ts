@@ -56,17 +56,15 @@ describe("generateAllKeyframes", () => {
 
   describe("take_hands", () => {
     it("adds hand connections for neighbor pairs", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "take_hands",
-            relationship: "neighbor",
-            hand: "right",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "take_hands",
+          relationship: "neighbor",
+          hand: "right",
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       expect(kfs).toHaveLength(2);
       const last = kfs[kfs.length - 1];
@@ -79,17 +77,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("adds hand connections for partner pairs", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 2,
-            type: "take_hands",
-            relationship: "partner",
-            hand: "left",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 2,
+          type: "take_hands",
+          relationship: "partner",
+          hand: "left",
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       expect(last.beat).toBe(2);
@@ -104,17 +100,15 @@ describe("generateAllKeyframes", () => {
     it("on_right in initial formation: fails because not all dancers have someone on their right", () => {
       // In the initial formation, up_robin_0 (facing N) has no one close enough
       // to the east, so on_right resolution fails.
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "take_hands",
-            relationship: "on_right",
-            hand: "right",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "take_hands",
+          relationship: "on_right",
+          hand: "right",
+        },
+      ]);
       const { errors } = generateAllKeyframes(instructions);
       expect(errors.size).toBe(1);
       expect(errors.has("insn_1")).toBe(true);
@@ -122,17 +116,15 @@ describe("generateAllKeyframes", () => {
 
     it("in_front in initial formation resolves to neighbor pairs", () => {
       // In initial improper: ups face north toward downs, downs face south toward ups
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "take_hands",
-            relationship: "in_front",
-            hand: "left",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "take_hands",
+          relationship: "in_front",
+          hand: "left",
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       expectHandHold(last.hands, "up_lark_0", "left", "down_robin_0", "left");
@@ -298,17 +290,15 @@ describe("generateAllKeyframes", () => {
 
   describe("turn", () => {
     it("turns dancers to face up (0 degrees)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "up" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "up" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       for (const d of Object.values(last.dancers)) {
@@ -317,17 +307,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns dancers to face down (180 degrees)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "down" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "down" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       for (const d of Object.values(last.dancers)) {
@@ -336,17 +324,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns dancers to face across", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "across" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "across" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       expect(last.dancers["up_lark_0"].facing).toBe(90);
@@ -356,17 +342,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns dancers to face out", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "out" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "out" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       expect(last.dancers["up_lark_0"].facing).toBe(270);
@@ -376,17 +360,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns dancers to face progression direction", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "progression" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "progression" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       expect(last.dancers["up_lark_0"].facing).toBe(0);
@@ -396,17 +378,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns dancers to face forward (same as current facing)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "forward" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "forward" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // Ups face 0°, downs face 180° — forward preserves facing
@@ -415,17 +395,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns dancers to face back (opposite of current facing)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "back" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "back" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       expect(last.dancers["up_lark_0"].facing).toBeCloseTo(180, 5);
@@ -433,17 +411,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns dancers to face right (90° CW from current facing)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "right" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "right" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // Ups face 0°, right = 90°; downs face 180°, right = 270°
@@ -452,17 +428,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns dancers to face left (90° CCW from current facing)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "direction", value: "left" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "direction", value: "left" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // Ups face 0°, left = 270°; downs face 180°, left = 90°
@@ -471,17 +445,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("offset rotates clockwise by given degrees from target", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 90,
-            target: { kind: "direction", value: "forward" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 90,
+          target: { kind: "direction", value: "forward" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // Ups face 0° + 90° = 90°; downs face 180° + 90° = 270°
@@ -492,17 +464,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("negative offset means counter-clockwise", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: -90,
-            target: { kind: "direction", value: "forward" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: -90,
+          target: { kind: "direction", value: "forward" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // Ups face 0° - 90° = 270°; downs face 180° - 90° = 90°
@@ -511,17 +481,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("applies offset degrees clockwise on top of target direction", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 90,
-            target: { kind: "direction", value: "up" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 90,
+          target: { kind: "direction", value: "up" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // Up (0°) + 90° offset = 90° (east) for all dancers
@@ -531,17 +499,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("turns selected dancers toward a relationship target", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "turn",
-            offset: 0,
-            target: { kind: "relationship", value: "partner" },
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "turn",
+          offset: 0,
+          target: { kind: "relationship", value: "partner" },
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       expect(last.dancers["up_lark_0"].facing).toBeCloseTo(90, 5);
@@ -553,18 +519,16 @@ describe("generateAllKeyframes", () => {
 
   describe("allemande", () => {
     it("produces multiple keyframes for the arc", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "allemande",
-            relationship: "neighbor",
-            handedness: "right",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "allemande",
+          relationship: "neighbor",
+          handedness: "right",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       expect(kfs.length).toBeGreaterThan(2);
       expect(kfs[0].beat).toBe(0);
@@ -572,18 +536,16 @@ describe("generateAllKeyframes", () => {
     });
 
     it("dancers return to approximately their starting positions after 1 full rotation", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "allemande",
-            relationship: "neighbor",
-            handedness: "right",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "allemande",
+          relationship: "neighbor",
+          handedness: "right",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -598,18 +560,16 @@ describe("generateAllKeyframes", () => {
     });
 
     it("dancers swap positions after half rotation", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "allemande",
-            relationship: "neighbor",
-            handedness: "right",
-            rotations: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "allemande",
+          relationship: "neighbor",
+          handedness: "right",
+          rotations: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       expect(last.dancers["up_lark_0"].x).toBeCloseTo(-0.5, 1);
@@ -619,18 +579,16 @@ describe("generateAllKeyframes", () => {
     });
 
     it("allemande right: right shoulder faces partner (facing is 90° CCW from direction to partner)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "allemande",
-            relationship: "neighbor",
-            handedness: "right",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "allemande",
+          relationship: "neighbor",
+          handedness: "right",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       // Check a mid-animation frame
       const midIdx = Math.floor(kfs.length / 2);
@@ -647,18 +605,16 @@ describe("generateAllKeyframes", () => {
     });
 
     it("allemande left: left shoulder faces partner (facing is 90° CW from direction to partner)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "allemande",
-            relationship: "neighbor",
-            handedness: "left",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "allemande",
+          relationship: "neighbor",
+          handedness: "left",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const midIdx = Math.floor(kfs.length / 2);
       const mid = kfs[midIdx];
@@ -673,18 +629,16 @@ describe("generateAllKeyframes", () => {
     });
 
     it("allemande right adds right hand connections", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "allemande",
-            relationship: "neighbor",
-            handedness: "right",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "allemande",
+          relationship: "neighbor",
+          handedness: "right",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       // All allemande keyframes should have hand connections
       const mid = kfs[Math.floor(kfs.length / 2)];
@@ -693,18 +647,16 @@ describe("generateAllKeyframes", () => {
     });
 
     it("allemande left adds left hand connections", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "allemande",
-            relationship: "partner",
-            handedness: "left",
-            rotations: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "allemande",
+          relationship: "partner",
+          handedness: "left",
+          rotations: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const mid = kfs[Math.floor(kfs.length / 2)];
       expectHandHold(mid.hands, "up_lark_0", "left", "up_robin_0", "left");
@@ -714,18 +666,16 @@ describe("generateAllKeyframes", () => {
     it("allemande left orbits counter-clockwise", () => {
       // Allemande left with neighbors: up_lark_0 neighbors down_robin_0
       // CCW orbit: up_lark_0 (at -0.5,-0.5) should move east first (toward +x)
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "allemande",
-            relationship: "neighbor",
-            handedness: "left",
-            rotations: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "allemande",
+          relationship: "neighbor",
+          handedness: "left",
+          rotations: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       // After half rotation CCW, up_lark_0 should be roughly where down_robin_0 was
       const last = kfs[kfs.length - 1];
@@ -734,18 +684,16 @@ describe("generateAllKeyframes", () => {
     });
 
     it("maintains constant distance between hand-connected partners", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "allemande",
-            relationship: "partner",
-            handedness: "right",
-            rotations: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "allemande",
+          relationship: "partner",
+          handedness: "right",
+          rotations: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const protos: ProtoDancerId[] = [
         "up_lark_0",
@@ -776,17 +724,15 @@ describe("generateAllKeyframes", () => {
 
   describe("step", () => {
     it("moves dancers up by distance", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "up" },
-            distance: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "up" },
+          distance: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -797,17 +743,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("moves dancers down by distance", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "down" },
-            distance: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "down" },
+          distance: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -818,17 +762,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("moves dancers across (toward center of set)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "across" },
-            distance: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "across" },
+          distance: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -843,17 +785,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("moves dancers out (away from center)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "out" },
-            distance: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "out" },
+          distance: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -868,17 +808,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("moves dancers toward a relationship target", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "relationship", value: "partner" },
-            distance: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "relationship", value: "partner" },
+          distance: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -897,17 +835,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("moves dancers in their progression direction", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "progression" },
-            distance: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "progression" },
+          distance: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -930,17 +866,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("negative distance steps in the opposite direction", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "progression" },
-            distance: -1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "progression" },
+          distance: -1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -956,17 +890,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("moves dancers forward (relative to their facing)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "forward" },
-            distance: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "forward" },
+          distance: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -982,17 +914,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("moves dancers right (90° CW from facing)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "right" },
-            distance: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "right" },
+          distance: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -1008,17 +938,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("produces multiple keyframes with easing", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "step",
-            direction: { kind: "direction", value: "up" },
-            distance: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "step",
+          direction: { kind: "direction", value: "up" },
+          distance: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       expect(kfs.length).toBeGreaterThan(2);
       expect(kfs[kfs.length - 1].beat).toBeCloseTo(4, 5);
@@ -1079,7 +1007,7 @@ describe("generateAllKeyframes", () => {
           id: "insn_1",
           type: "split",
           by: "role",
-          listA: [
+          larks: [
             {
               id: "insn_10",
               beats: 4,
@@ -1088,7 +1016,7 @@ describe("generateAllKeyframes", () => {
               distance: 1,
             },
           ],
-          listB: [
+          robins: [
             {
               id: "insn_11",
               beats: 4,
@@ -1128,7 +1056,7 @@ describe("generateAllKeyframes", () => {
           id: "insn_1",
           type: "split",
           by: "position",
-          listA: [
+          ups: [
             {
               id: "insn_10",
               beats: 0,
@@ -1137,7 +1065,7 @@ describe("generateAllKeyframes", () => {
               target: { kind: "direction", value: "down" },
             },
           ],
-          listB: [
+          downs: [
             {
               id: "insn_11",
               beats: 0,
@@ -1158,14 +1086,14 @@ describe("generateAllKeyframes", () => {
       expect(last.dancers["down_robin_0"].facing).toBe(0);
     });
 
-    it("empty listA: group A dancers hold still", () => {
+    it("empty larks list: larks hold still", () => {
       const instructions: Instruction[] = z.array(InstructionSchema).parse([
         {
           id: "insn_1",
           type: "split",
           by: "role",
-          listA: [],
-          listB: [
+          larks: [],
+          robins: [
             {
               id: "insn_11",
               beats: 4,
@@ -1189,13 +1117,13 @@ describe("generateAllKeyframes", () => {
       );
     });
 
-    it("empty listB: group B dancers hold still", () => {
+    it("empty downs list: downs hold still", () => {
       const instructions: Instruction[] = z.array(InstructionSchema).parse([
         {
           id: "insn_1",
           type: "split",
           by: "position",
-          listA: [
+          ups: [
             {
               id: "insn_10",
               beats: 4,
@@ -1204,7 +1132,7 @@ describe("generateAllKeyframes", () => {
               distance: 0.5,
             },
           ],
-          listB: [],
+          downs: [],
         },
       ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
@@ -1228,8 +1156,8 @@ describe("generateAllKeyframes", () => {
           id: "insn_1",
           type: "split",
           by: "role",
-          listA: [],
-          listB: [],
+          larks: [],
+          robins: [],
         },
       ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
@@ -1243,7 +1171,7 @@ describe("generateAllKeyframes", () => {
           id: "insn_1",
           type: "split",
           by: "role",
-          listA: [
+          larks: [
             {
               id: "insn_10",
               beats: 4,
@@ -1259,7 +1187,7 @@ describe("generateAllKeyframes", () => {
               distance: 1,
             },
           ],
-          listB: [
+          robins: [
             {
               id: "insn_12",
               beats: 8,
@@ -1280,7 +1208,7 @@ describe("generateAllKeyframes", () => {
           id: "insn_1",
           type: "split",
           by: "role",
-          listA: [
+          larks: [
             {
               id: "insn_10",
               beats: 0,
@@ -1289,7 +1217,7 @@ describe("generateAllKeyframes", () => {
               hand: "right",
             },
           ],
-          listB: [
+          robins: [
             {
               id: "insn_11",
               beats: 0,
@@ -1314,7 +1242,7 @@ describe("generateAllKeyframes", () => {
           id: "insn_1",
           type: "split",
           by: "role",
-          listA: [
+          larks: [
             {
               id: "insn_10",
               beats: 4,
@@ -1323,7 +1251,7 @@ describe("generateAllKeyframes", () => {
               distance: 1,
             },
           ],
-          listB: [
+          robins: [
             {
               id: "insn_11",
               beats: 4,
@@ -1370,7 +1298,7 @@ describe("generateAllKeyframes", () => {
           id: "insn_1",
           type: "split",
           by: "position",
-          listA: [
+          ups: [
             {
               id: "insn_10",
               beats: 8,
@@ -1380,7 +1308,7 @@ describe("generateAllKeyframes", () => {
               rotations: 1,
             },
           ],
-          listB: [
+          downs: [
             {
               id: "insn_11",
               beats: 8,
@@ -1419,17 +1347,15 @@ describe("generateAllKeyframes", () => {
 
   describe("balance", () => {
     it("dancers end at their starting position after a balance", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "balance",
-            direction: { kind: "direction", value: "across" },
-            distance: 0.2,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "balance",
+          direction: { kind: "direction", value: "across" },
+          distance: 0.2,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -1441,17 +1367,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("dancers are displaced at the midpoint of a balance", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "balance",
-            direction: { kind: "direction", value: "up" },
-            distance: 0.2,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "balance",
+          direction: { kind: "direction", value: "up" },
+          distance: 0.2,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       // Find keyframe closest to beat 2 (midpoint)
@@ -1466,17 +1390,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("balance produces multiple keyframes", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "balance",
-            direction: { kind: "direction", value: "right" },
-            distance: 0.2,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "balance",
+          direction: { kind: "direction", value: "right" },
+          distance: 0.2,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       expect(kfs.length).toBeGreaterThan(2);
       expect(kfs[kfs.length - 1].beat).toBeCloseTo(4, 5);
@@ -1506,17 +1428,15 @@ describe("generateAllKeyframes", () => {
 
   describe("do_si_do", () => {
     it("dancers return to starting positions after 1 full rotation", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "do_si_do",
-            relationship: "neighbor",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "do_si_do",
+          relationship: "neighbor",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -1531,17 +1451,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("dancers maintain their original facing throughout", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "do_si_do",
-            relationship: "neighbor",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "do_si_do",
+          relationship: "neighbor",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       // Check mid-animation: facing should stay at initial values
@@ -1557,34 +1475,30 @@ describe("generateAllKeyframes", () => {
     });
 
     it("no hand connections during do-si-do", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "do_si_do",
-            relationship: "neighbor",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "do_si_do",
+          relationship: "neighbor",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const mid = kfs[Math.floor(kfs.length / 2)];
       expect(mid.hands).toEqual(EMPTY_HANDS);
     });
 
     it("dancers swap positions after half rotation", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 4,
-            type: "do_si_do",
-            relationship: "neighbor",
-            rotations: 0.5,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 4,
+          type: "do_si_do",
+          relationship: "neighbor",
+          rotations: 0.5,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // up_lark_0 (-0.5,-0.5) neighbors down_robin_0 (-0.5,0.5) — half orbit swaps them
@@ -1597,17 +1511,15 @@ describe("generateAllKeyframes", () => {
 
   describe("circle", () => {
     it("dancers return to starting positions after full circle", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "circle",
-            direction: "left",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "circle",
+          direction: "left",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -1618,17 +1530,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("circle left moves counter-clockwise", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "circle",
-            direction: "left",
-            rotations: 0.25,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "circle",
+          direction: "left",
+          rotations: 0.25,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // Quarter CCW: up_lark_0 (-0.5,-0.5) → (0.5, -0.5) = up_robin_0's position
@@ -1637,17 +1547,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("circle right moves clockwise", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "circle",
-            direction: "right",
-            rotations: 0.25,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "circle",
+          direction: "right",
+          rotations: 0.25,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const last = kfs[kfs.length - 1];
       // Quarter CW: up_lark_0 (-0.5,-0.5) → (-0.5, 0.5) = down_robin_0's position
@@ -1656,17 +1564,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("dancers face center throughout", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "circle",
-            direction: "left",
-            rotations: 0.25,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "circle",
+          direction: "left",
+          rotations: 0.25,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const mid = kfs[Math.floor(kfs.length / 2)];
       // Each dancer should face toward center (0,0)
@@ -1685,17 +1591,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("has hand connections forming a ring", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "circle",
-            direction: "left",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "circle",
+          direction: "left",
+          rotations: 1,
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const mid = kfs[Math.floor(kfs.length / 2)];
       // Each dancer should have both hands occupied (ring of 4)
@@ -1713,17 +1617,15 @@ describe("generateAllKeyframes", () => {
 
   describe("pull_by", () => {
     it("dancers swap positions at the end", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 2,
-            type: "pull_by",
-            relationship: "neighbor",
-            hand: "right",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 2,
+          type: "pull_by",
+          relationship: "neighbor",
+          hand: "right",
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
@@ -1747,17 +1649,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("dancers face each other throughout", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 2,
-            type: "pull_by",
-            relationship: "neighbor",
-            hand: "right",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 2,
+          type: "pull_by",
+          relationship: "neighbor",
+          hand: "right",
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       // up_lark_0 faces toward down_robin_0 (north = 0°), down_robin_0 faces toward up_lark_0 (south = 180°)
       const mid = kfs[Math.floor(kfs.length / 2)];
@@ -1766,17 +1666,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("has hand connections in the first half, drops them in the second half", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 2,
-            type: "pull_by",
-            relationship: "neighbor",
-            hand: "right",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 2,
+          type: "pull_by",
+          relationship: "neighbor",
+          hand: "right",
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       // First half: hands present
       const earlyIdx = 2; // early in the animation
@@ -1794,17 +1692,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("dancers are laterally displaced at the midpoint (0.5m apart)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 2,
-            type: "pull_by",
-            relationship: "neighbor",
-            hand: "right",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 2,
+          type: "pull_by",
+          relationship: "neighbor",
+          hand: "right",
+        },
+      ]);
       const kfs = generateAllKeyframes(instructions).keyframes;
       // Find the frame closest to the midpoint (beat 1)
       const mid = kfs.reduce((best, kf) =>
@@ -1832,17 +1728,15 @@ describe("generateAllKeyframes", () => {
             hand: "right",
           },
         ]);
-      const leftInstructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 2,
-            type: "pull_by",
-            relationship: "neighbor",
-            hand: "left",
-          },
-        ]);
+      const leftInstructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 2,
+          type: "pull_by",
+          relationship: "neighbor",
+          hand: "left",
+        },
+      ]);
       const rightKfs = generateAllKeyframes(rightInstructions).keyframes;
       const leftKfs = generateAllKeyframes(leftInstructions).keyframes;
       const rightMid = rightKfs.reduce((best, kf) =>
@@ -1930,7 +1824,7 @@ describe("generateAllKeyframes", () => {
               id: "insn_10",
               type: "split",
               by: "role",
-              listA: [
+              larks: [
                 {
                   id: "insn_100",
                   beats: 4,
@@ -1939,7 +1833,7 @@ describe("generateAllKeyframes", () => {
                   distance: 1,
                 },
               ],
-              listB: [
+              robins: [
                 {
                   id: "insn_101",
                   beats: 4,
@@ -1981,17 +1875,15 @@ describe("generateAllKeyframes", () => {
 
   describe("validateHandDistances", () => {
     it("no warning when neighbors take hands (distance ~1.0m)", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "take_hands",
-            relationship: "neighbor",
-            hand: "left",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "take_hands",
+          relationship: "neighbor",
+          hand: "left",
+        },
+      ]);
       const keyframes = generateAllKeyframes(instructions).keyframes;
       const warnings = validateHandDistances(instructions, keyframes);
       expect(warnings.size).toBe(0);
@@ -2021,17 +1913,15 @@ describe("generateAllKeyframes", () => {
     });
 
     it("no warning when stepping without hands", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 2,
-            type: "step",
-            direction: { kind: "direction", value: "back" },
-            distance: 0.4,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 2,
+          type: "step",
+          direction: { kind: "direction", value: "back" },
+          distance: 0.4,
+        },
+      ]);
       const keyframes = generateAllKeyframes(instructions).keyframes;
       const warnings = validateHandDistances(instructions, keyframes);
       expect(warnings.size).toBe(0);
@@ -2040,52 +1930,46 @@ describe("generateAllKeyframes", () => {
 
   describe("validateHandSymmetry", () => {
     it("properly formed take_hands produces no errors", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 0,
-            type: "take_hands",
-            relationship: "neighbor",
-            hand: "right",
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 0,
+          type: "take_hands",
+          relationship: "neighbor",
+          hand: "right",
+        },
+      ]);
       const keyframes = generateAllKeyframes(instructions).keyframes;
       const errors = validateHandSymmetry(keyframes);
       expect(errors).toEqual([]);
     });
 
     it("properly formed allemande produces no errors", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "allemande",
-            relationship: "neighbor",
-            handedness: "right",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "allemande",
+          relationship: "neighbor",
+          handedness: "right",
+          rotations: 1,
+        },
+      ]);
       const keyframes = generateAllKeyframes(instructions).keyframes;
       const errors = validateHandSymmetry(keyframes);
       expect(errors).toEqual([]);
     });
 
     it("properly formed circle produces no errors", () => {
-      const instructions: Instruction[] = z
-        .array(InstructionSchema)
-        .parse([
-          {
-            id: "insn_1",
-            beats: 8,
-            type: "circle",
-            direction: "left",
-            rotations: 1,
-          },
-        ]);
+      const instructions: Instruction[] = z.array(InstructionSchema).parse([
+        {
+          id: "insn_1",
+          beats: 8,
+          type: "circle",
+          direction: "left",
+          rotations: 1,
+        },
+      ]);
       const keyframes = generateAllKeyframes(instructions).keyframes;
       const errors = validateHandSymmetry(keyframes);
       expect(errors).toEqual([]);

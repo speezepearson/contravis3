@@ -215,38 +215,54 @@ export type AtomicInstruction = z.infer<typeof AtomicInstructionSchema>;
 export const SplitBySchema = z.enum(["role", "position"]);
 export type SplitBy = z.infer<typeof SplitBySchema>;
 
-// --- Instruction (recursive, so the type can't be purely inferred) ---
+// --- Split instruction (discriminated union on `by`) ---
 
-export type Instruction =
-  | AtomicInstruction
-  | {
-      id: InstructionId;
-      type: "split";
-      by: SplitBy;
-      listA: AtomicInstruction[];
-      listB: AtomicInstruction[];
-    }
-  | {
-      id: InstructionId;
-      type: "group";
-      label: string;
-      instructions: Instruction[];
-    };
-
-const SplitInstructionSchema = z.object({
+const SplitByRoleSchema = z.object({
   id: InstructionIdSchema,
   type: z.literal("split"),
-  by: SplitBySchema,
-  listA: z.array(AtomicInstructionSchema),
-  listB: z.array(AtomicInstructionSchema),
+  by: z.literal("role"),
+  larks: z.array(AtomicInstructionSchema),
+  robins: z.array(AtomicInstructionSchema),
 });
 
-const GroupInstructionSchema: z.ZodType<{
+const SplitByPositionSchema = z.object({
+  id: InstructionIdSchema,
+  type: z.literal("split"),
+  by: z.literal("position"),
+  ups: z.array(AtomicInstructionSchema),
+  downs: z.array(AtomicInstructionSchema),
+});
+
+const SplitInstructionSchema = z.discriminatedUnion("by", [
+  SplitByRoleSchema,
+  SplitByPositionSchema,
+]);
+
+export type SplitInstruction = z.infer<typeof SplitInstructionSchema>;
+export type SplitByRoleInstruction = z.infer<typeof SplitByRoleSchema>;
+export type SplitByPositionInstruction = z.infer<typeof SplitByPositionSchema>;
+
+export function splitLists(
+  instr: SplitInstruction,
+): [AtomicInstruction[], AtomicInstruction[]] {
+  if (instr.by === "role") return [instr.larks, instr.robins];
+  return [instr.ups, instr.downs];
+}
+
+// --- Instruction (recursive, so the type can't be purely inferred) ---
+
+type GroupInstruction = {
   id: InstructionId;
   type: "group";
   label: string;
   instructions: Instruction[];
-}> = z.object({
+};
+export type Instruction =
+  | AtomicInstruction
+  | SplitInstruction
+  | GroupInstruction;
+
+const GroupInstructionSchema: z.ZodType<GroupInstruction> = z.object({
   id: InstructionIdSchema,
   type: z.literal("group"),
   label: z.string(),

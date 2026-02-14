@@ -1,9 +1,4 @@
-import type {
-  Instruction,
-  Keyframe,
-  DancerId,
-  InstructionId,
-} from "./types";
+import type { Instruction, Keyframe, DancerId, InstructionId } from "./types";
 import {
   PROTO_DANCER_IDS,
   makeDancerId,
