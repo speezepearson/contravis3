@@ -342,7 +342,8 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   const totalAngleRad = instr.rotations * 2 * Math.PI; // always CW (pass right shoulders)
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; radius: number; originalFacing: number }[] = [];
+  const SEMI_MINOR = 0.25; // perpendicular axis half-width (0.5m total)
+  const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; semiMajor: number; originalFacing: number }[] = [];
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const target = resolveRelationship(instr.relationship, id, prev.dancers);
@@ -353,7 +354,7 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     orbitData.push({
       protoId: id, cx, cy,
       startAngle: Math.atan2(da.x - cx, da.y - cy),
-      radius: Math.hypot(da.x - cx, da.y - cy),
+      semiMajor: Math.hypot(da.x - cx, da.y - cy),
       originalFacing: da.facing,
     });
   }
@@ -363,12 +364,17 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
     const tEased = easeInOut(t);
-    const angleOffset = tEased * totalAngleRad;
+    const phase = tEased * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
-      const angle = od.startAngle + angleOffset;
-      dancers[od.protoId].x = od.cx + od.radius * Math.sin(angle);
-      dancers[od.protoId].y = od.cy + od.radius * Math.cos(angle);
+      // Elliptical orbit: major axis along the dancers' starting line, minor axis perpendicular.
+      // Decompose into axis-aligned components using the starting angle.
+      const cosPhase = Math.cos(phase);
+      const sinPhase = Math.sin(phase);
+      const sinStart = Math.sin(od.startAngle);
+      const cosStart = Math.cos(od.startAngle);
+      dancers[od.protoId].x = od.cx + od.semiMajor * cosPhase * sinStart + SEMI_MINOR * sinPhase * cosStart;
+      dancers[od.protoId].y = od.cy + od.semiMajor * cosPhase * cosStart - SEMI_MINOR * sinPhase * sinStart;
       dancers[od.protoId].facing = od.originalFacing; // maintain original facing
     }
     result.push({ beat, dancers, hands: prev.hands });
