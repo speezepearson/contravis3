@@ -168,6 +168,30 @@ function easeInOut(t: number): number {
   return (1 - Math.cos(t * Math.PI)) / 2;
 }
 
+/** Position on an ellipse whose major axis runs from `a` to `b`.
+ *  phi=0 → a, phi=π → b, phi=2π → a again. */
+function ellipsePosition(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  semiMinor: number,
+  phi: number,
+): { x: number; y: number } {
+  const cx = (a.x + b.x) / 2;
+  const cy = (a.y + b.y) / 2;
+  const dx = a.x - cx;
+  const dy = a.y - cy;
+  const semiMajor = Math.hypot(dx, dy);
+  if (semiMajor < 1e-9) return { x: cx, y: cy };
+  const sinStart = dx / semiMajor;
+  const cosStart = dy / semiMajor;
+  const cosPhi = Math.cos(phi);
+  const sinPhi = Math.sin(phi);
+  return {
+    x: cx + semiMajor * cosPhi * sinStart + semiMinor * sinPhi * cosStart,
+    y: cy + semiMajor * cosPhi * cosStart - semiMinor * sinPhi * sinStart,
+  };
+}
+
 /** Resolve a RelativeDirection to an absolute heading in radians for a specific dancer.
  *  Uses atan2(dx,dy) convention: 0 = +y (north/up on screen). */
 function resolveHeading(dir: RelativeDirection, d: DancerState, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): number {
@@ -404,18 +428,22 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
   const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
-
-  const SEMI_MINOR = 0.25; // perpendicular axis half-width (0.5m total)
-  const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; semiMajor: number; originalFacing: number }[] = [];
+  const orbitData: {
+    protoId: ProtoDancerId;
+    startPos: { x: number; y: number };
+    partnerPos: { x: number; y: number };
+    semiMinor: number;
+    originalFacing: number;
+  }[] = [];
   for (const [id, target] of pairs) {
     const da = prev.dancers[id];
     const partnerPos = dancerPosition(target, prev.dancers);
-    const cx = (da.x + partnerPos.x) / 2;
-    const cy = (da.y + partnerPos.y) / 2;
+    const dist = Math.hypot(da.x - partnerPos.x, da.y - partnerPos.y);
     orbitData.push({
-      protoId: id, cx, cy,
-      startAngle: Math.atan2(da.x - cx, da.y - cy),
-      semiMajor: Math.hypot(da.x - cx, da.y - cy),
+      protoId: id,
+      startPos: { x: da.x, y: da.y },
+      partnerPos: { x: partnerPos.x, y: partnerPos.y },
+      semiMinor: dist / 4,
       originalFacing: da.facing,
     });
   }
@@ -428,15 +456,10 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     const phase = tEased * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
-      // Elliptical orbit: major axis along the dancers' starting line, minor axis perpendicular.
-      // Decompose into axis-aligned components using the starting angle.
-      const cosPhase = Math.cos(phase);
-      const sinPhase = Math.sin(phase);
-      const sinStart = Math.sin(od.startAngle);
-      const cosStart = Math.cos(od.startAngle);
-      dancers[od.protoId].x = od.cx + od.semiMajor * cosPhase * sinStart + SEMI_MINOR * sinPhase * cosStart;
-      dancers[od.protoId].y = od.cy + od.semiMajor * cosPhase * cosStart - SEMI_MINOR * sinPhase * sinStart;
-      dancers[od.protoId].facing = od.originalFacing; // maintain original facing
+      const pos = ellipsePosition(od.startPos, od.partnerPos, od.semiMinor, phase);
+      dancers[od.protoId].x = pos.x;
+      dancers[od.protoId].y = pos.y;
+      dancers[od.protoId].facing = od.originalFacing;
     }
     result.push({ beat, dancers, hands: prev.hands });
   }
@@ -543,29 +566,22 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 
   // Build swap pairs with ellipse parameters and hand connections
   const swapData: {
-    protoId: ProtoDancerId; originalFacing: number;
-    cx: number; cy: number; semiMajor: number;
-    majorX: number; majorY: number; perpX: number; perpY: number;
+    protoId: ProtoDancerId;
+    startPos: { x: number; y: number };
+    targetPos: { x: number; y: number };
+    originalFacing: number;
   }[] = [];
   const pullHands: HandConnection[] = [];
   const seen = new Set<string>();
+  const lateralSign = instr.hand === 'right' ? 1 : -1;
   for (const [id, target] of pairs) {
     const da = prev.dancers[id];
     const targetPos = dancerPosition(target, prev.dancers);
-    // Ellipse: major axis from start to target, minor axis = half of major
-    const dx = targetPos.x - da.x;
-    const dy = targetPos.y - da.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const majorX = dist > 0 ? dx / dist : 1;
-    const majorY = dist > 0 ? dy / dist : 0;
-    // Perpendicular: CW for right hand, CCW for left hand
-    const sign = instr.hand === 'right' ? -1 : 1;
-    const perpX = sign * majorY;
-    const perpY = sign * -majorX;
     swapData.push({
-      protoId: id, originalFacing: da.facing,
-      cx: (da.x + targetPos.x) / 2, cy: (da.y + targetPos.y) / 2,
-      semiMajor: dist / 2, majorX, majorY, perpX, perpY,
+      protoId: id,
+      startPos: { x: da.x, y: da.y },
+      targetPos: { x: targetPos.x, y: targetPos.y },
+      originalFacing: da.facing,
     });
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
@@ -580,15 +596,12 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   for (let i = 1; i <= nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const tEased = easeInOut(t);
     const dancers = copyDancers(prev.dancers);
     for (const sd of swapData) {
-      // Sweep from θ=π (start) to θ=0 (target) along an ellipse
-      const theta = Math.PI * (1 - tEased);
-      const semiMinor = sd.semiMajor / 2;
-      dancers[sd.protoId].x = sd.cx + sd.semiMajor * Math.cos(theta) * sd.majorX + semiMinor * Math.sin(theta) * sd.perpX;
-      dancers[sd.protoId].y = sd.cy + sd.semiMajor * Math.cos(theta) * sd.majorY + semiMinor * Math.sin(theta) * sd.perpY;
-      dancers[sd.protoId].facing = sd.originalFacing; // maintain facing
+      const pos = ellipsePosition(sd.startPos, sd.targetPos, lateralSign * 0.25, Math.PI * easeInOut(t));
+      dancers[sd.protoId].x = pos.x;
+      dancers[sd.protoId].y = pos.y;
+      dancers[sd.protoId].facing = sd.originalFacing;
     }
     result.push({ beat, dancers, hands });
   }
@@ -755,10 +768,8 @@ function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { 
   type GnatPair = {
     lark: ProtoDancerId;
     robin: ProtoDancerId;
-    cx: number; cy: number;
-    majorX: number; majorY: number;  // unit vector from center toward lark start
-    minorX: number; minorY: number;  // unit vector perpendicular (toward lark's right)
-    semiMajor: number;
+    larkStart: { x: number; y: number };
+    robinStart: { x: number; y: number };
     semiMinor: number;
     larkStartFacing: number;  // radians, facing toward robin
     robinStartFacing: number; // radians, facing toward lark
@@ -780,25 +791,17 @@ function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { 
 
     const larkState = prev.dancers[lark];
     const robinState = prev.dancers[robin];
-    const cx = (larkState.x + robinState.x) / 2;
-    const cy = (larkState.y + robinState.y) / 2;
-    const dx = larkState.x - cx;
-    const dy = larkState.y - cy;
-    const dist = Math.hypot(dx, dy);
-    const majorX = dx / dist;
-    const majorY = dy / dist;
-    // Minor axis: 90° CW from major axis (toward lark's right when facing robin)
-    const minorX = majorY;
-    const minorY = -majorX;
+    const dist = Math.hypot(larkState.x - robinState.x, larkState.y - robinState.y);
 
     // Lark faces robin, robin faces lark
     const larkStartFacing = Math.atan2(robinState.x - larkState.x, robinState.y - larkState.y);
     const robinStartFacing = Math.atan2(larkState.x - robinState.x, larkState.y - robinState.y);
 
     pairs.push({
-      lark, robin, cx, cy, majorX, majorY, minorX, minorY,
-      semiMajor: dist,
-      semiMinor: dist / 2,
+      lark, robin,
+      larkStart: { x: larkState.x, y: larkState.y },
+      robinStart: { x: robinState.x, y: robinState.y },
+      semiMinor: dist / 4,
       larkStartFacing, robinStartFacing,
     });
   }
@@ -818,12 +821,12 @@ function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { 
 
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
-      // Lark traces top half of ellipse (θ from 0 to π)
-      dancers[p.lark].x = p.cx + p.semiMajor * Math.cos(theta) * p.majorX + p.semiMinor * Math.sin(theta) * p.minorX;
-      dancers[p.lark].y = p.cy + p.semiMajor * Math.cos(theta) * p.majorY + p.semiMinor * Math.sin(theta) * p.minorY;
-      // Robin traces bottom half (opposite side)
-      dancers[p.robin].x = p.cx - p.semiMajor * Math.cos(theta) * p.majorX - p.semiMinor * Math.sin(theta) * p.minorX;
-      dancers[p.robin].y = p.cy - p.semiMajor * Math.cos(theta) * p.majorY - p.semiMinor * Math.sin(theta) * p.minorY;
+      const larkPos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
+      const robinPos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
+      dancers[p.lark].x = larkPos.x;
+      dancers[p.lark].y = larkPos.y;
+      dancers[p.robin].x = robinPos.x;
+      dancers[p.robin].y = robinPos.y;
 
       // Lark turns CW 180°, robin turns CCW 180°
       const larkFacing = p.larkStartFacing + Math.PI * tEased;
@@ -992,11 +995,8 @@ function generateMadRobin(
   const checked = new Set<ProtoDancerId>();
   const orbitData: {
     protoId: ProtoDancerId;
-    cx: number;
-    cy: number;
-    semiMajor: number;
-    sinStart: number;
-    cosStart: number;
+    startPos: { x: number; y: number };
+    partnerPos: { x: number; y: number };
     acrossFacing: number;
   }[] = [];
 
@@ -1016,18 +1016,11 @@ function generateMadRobin(
 
     const da = prev.dancers[id];
     const targetPos = dancerPosition(targetDancerId, prev.dancers);
-    const cx = (da.x + targetPos.x) / 2;
-    const cy = (da.y + targetPos.y) / 2;
-    const startAngle = Math.atan2(da.x - cx, da.y - cy);
-    const semiMajor = Math.hypot(da.x - cx, da.y - cy);
 
     orbitData.push({
       protoId: id,
-      cx,
-      cy,
-      semiMajor,
-      sinStart: Math.sin(startAngle),
-      cosStart: Math.cos(startAngle),
+      startPos: { x: da.x, y: da.y },
+      partnerPos: { x: targetPos.x, y: targetPos.y },
       acrossFacing: da.x < 0 ? 90 : 270,
     });
   }
@@ -1036,20 +1029,12 @@ function generateMadRobin(
   for (let i = 1; i <= nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const tEased = easeInOut(t);
-    const phi = tEased * totalAngleRad;
+    const phi = easeInOut(t) * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
-      const cosPhi = Math.cos(phi);
-      const sinPhi = Math.sin(phi);
-      dancers[od.protoId].x =
-        od.cx +
-        od.semiMajor * cosPhi * od.sinStart +
-        0.25 * sinPhi * od.cosStart;
-      dancers[od.protoId].y =
-        od.cy +
-        od.semiMajor * cosPhi * od.cosStart -
-        0.25 * sinPhi * od.sinStart;
+      const pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, phi);
+      dancers[od.protoId].x = pos.x;
+      dancers[od.protoId].y = pos.y;
       dancers[od.protoId].facing = od.acrossFacing;
     }
     result.push({ beat, dancers, hands: prev.hands });
