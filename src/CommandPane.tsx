@@ -5,18 +5,20 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema } from './types';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId } from './types';
+import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId, Role } from './types';
 import type { GenerateError } from './generate';
 import { z } from 'zod';
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'split', 'group'];
+const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'split', 'group'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
-  turn: 'turn', step: 'step', balance: 'balance', split: 'split', group: 'group',
+  turn: 'turn', step: 'step', balance: 'balance',
+  box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
+  split: 'split', group: 'group',
 };
 
 const SPLIT_BY_OPTIONS = ['role', 'position'];
@@ -74,6 +76,8 @@ function defaultBeats(action: string): string {
     case 'pull_by':   return '2';
     case 'step':      return '2';
     case 'balance':   return '4';
+    case 'box_the_gnat': return '4';
+    case 'give_and_take_into_swing': return '16';
     default:          return '0';
   }
 }
@@ -289,6 +293,17 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
       const ef = instr.endFacing.kind === 'direction' ? instr.endFacing.value : instr.endFacing.value;
       return `${label} swing \u2192 ${ef} (${instr.beats}b)`;
+    }
+    case 'box_the_gnat': {
+      const r = instr.relationship;
+      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      return `${label} box the gnat (${instr.beats}b)`;
+    }
+    case 'give_and_take_into_swing': {
+      const r = instr.relationship;
+      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      const ef = instr.endFacing.kind === 'direction' ? instr.endFacing.value : instr.endFacing.value;
+      return `${instr.role}s give & take ${label} into swing \u2192 ${ef} (${instr.beats}b)`;
     }
   }
 }
@@ -606,6 +621,61 @@ function SwingFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps 
   </>);
 }
 
+const ROLE_OPTIONS: Role[] = ['lark', 'robin'];
+
+function BoxTheGnatFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'box_the_gnat' }> }) {
+  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('box_the_gnat'));
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'box_the_gnat', beats: Number(beats) || 0, relationship }));
+  }
+
+  return (<>
+    <label>
+      With
+      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function GiveAndTakeIntoSwingFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }> }) {
+  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
+  const [role, setRole] = useState<Role>(initial?.role ?? 'lark');
+  const [endFacingText, setEndFacingText] = useState(initial ? directionToText(initial.endFacing) : 'across');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('give_and_take_into_swing'));
+
+  function save() {
+    const endFacing = parseDirection(endFacingText) ?? { kind: 'direction' as const, value: 'across' as const };
+    onSave(InstructionSchema.parse({ id, type: 'give_and_take_into_swing', beats: Number(beats) || 0, relationship, role, endFacing }));
+  }
+
+  return (<>
+    <label>
+      With
+      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    </label>
+    <label>
+      Who draws
+      <SearchableDropdown options={ROLE_OPTIONS} value={role} onChange={v => setRole(RoleSchema.parse(v))} getLabel={v => v} />
+    </label>
+    <label>
+      End facing
+      <SearchableDropdown options={DIR_OPTIONS} value={endFacingText} onChange={setEndFacingText} placeholder="e.g. across, up" />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
 function SplitFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'split' }> }) {
   const [splitBy, setSplitBy] = useState<SplitBy>(initial?.by ?? 'role');
 
@@ -685,6 +755,8 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
       {action === 'step' && <StepFields {...common} initial={initial?.type === 'step' ? initial : undefined} />}
       {action === 'balance' && <BalanceFields {...common} initial={initial?.type === 'balance' ? initial : undefined} />}
       {action === 'swing' && <SwingFields {...common} initial={initial?.type === 'swing' ? initial : undefined} />}
+      {action === 'box_the_gnat' && <BoxTheGnatFields {...common} initial={initial?.type === 'box_the_gnat' ? initial : undefined} />}
+      {action === 'give_and_take_into_swing' && <GiveAndTakeIntoSwingFields {...common} initial={initial?.type === 'give_and_take_into_swing' ? initial : undefined} />}
       {action === 'split' && <SplitFields {...common} initial={initial?.type === 'split' ? initial : undefined} />}
       {action === 'group' && <GroupFields {...common} initial={initial?.type === 'group' ? initial : undefined} />}
     </div>
