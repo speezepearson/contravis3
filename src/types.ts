@@ -87,6 +87,15 @@ export const InstructionSchema: z.ZodType<Instruction> = z.lazy(() => z.union([
   z.object({ id: z.number(), type: z.literal('group'), label: z.string(), instructions: z.array(InstructionSchema) }),
 ])) as unknown as z.ZodType<Instruction>;
 
+export const InitFormationSchema = z.enum(['improper', 'beckett']);
+export type InitFormation = z.infer<typeof InitFormationSchema>;
+
+export const DanceSchema = z.object({
+  initFormation: InitFormationSchema,
+  instructions: z.array(InstructionSchema),
+});
+export type Dance = z.infer<typeof DanceSchema>;
+
 export const DancerStateSchema = z.object({
   x: z.number(),
   y: z.number(),

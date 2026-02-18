@@ -5,8 +5,8 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, ActionTypeSchema, AtomicInstructionSchema } from './types';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType } from './types';
+import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation } from './types';
 import { z } from 'zod';
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
@@ -202,6 +202,8 @@ function getContainerItems(instrs: Instruction[], containerId: string): Instruct
 interface Props {
   instructions: Instruction[];
   setInstructions: (instructions: Instruction[]) => void;
+  initFormation: InitFormation;
+  setInitFormation: (formation: InitFormation) => void;
   activeId: number | null;
   warnings: Map<number, string>;
 }
@@ -306,7 +308,7 @@ function DropZone({ containerId }: { containerId: string }) {
   return <div ref={setNodeRef} className={`drop-zone${isOver ? ' drop-zone-active' : ''}`} />;
 }
 
-export default function CommandPane({ instructions, setInstructions, activeId, warnings }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, activeId, warnings }: Props) {
   const [context, setContext] = useState<BuilderContext>({ level: 'top' });
   const [action, setAction] = useState<ActionType | 'split' | 'group'>('take_hands');
   const [relationship, setRelationship] = useState<Relationship>('neighbor');
@@ -612,7 +614,8 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   }
 
   function copyJson() {
-    navigator.clipboard.writeText(JSON.stringify(instructions, null, 2));
+    const dance = { initFormation, instructions };
+    navigator.clipboard.writeText(JSON.stringify(dance, null, 2));
     setCopyFeedback('Copied!');
     setTimeout(() => setCopyFeedback(''), 1500);
   }
@@ -620,10 +623,11 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   function tryLoadJson(text: string) {
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { return; }
-    const result = z.array(InstructionSchema).safeParse(raw);
+    const result = DanceSchema.safeParse(raw);
     if (!result.success) return;
     const parsed = result.data;
-    setInstructions(parsed);
+    setInitFormation(parsed.initFormation);
+    setInstructions(parsed.instructions);
     // Advance nextId past all loaded IDs
     function maxId(instrs: Instruction[]): number {
       let m = 0;
@@ -637,7 +641,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
       }
       return m;
     }
-    nextId = maxId(parsed) + 1;
+    nextId = maxId(parsed.instructions) + 1;
     setEditingId(null);
     setContext({ level: 'top' });
   }
@@ -666,6 +670,14 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   return (
     <div className="command-pane">
       <h2>Instructions</h2>
+
+      <div className="formation-selector">
+        <label>Formation: </label>
+        <select value={initFormation} onChange={e => setInitFormation(InitFormationSchema.parse(e.target.value))}>
+          <option value="improper">Improper</option>
+          <option value="beckett">Beckett</option>
+        </select>
+      </div>
 
       {isSubContext && currentSplit && (
         <div className="builder-context">

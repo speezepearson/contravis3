@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, validateHandDistances } from './generate';
-import type { Instruction, Keyframe } from './types';
-import { parseDancerId, InstructionSchema, ProtoDancerIdSchema } from './types';
+import type { Instruction, Keyframe, Dance } from './types';
+import { parseDancerId, InstructionSchema, DanceSchema, ProtoDancerIdSchema } from './types';
 import { z } from 'zod';
 
 /** Parse an array of raw instruction objects into branded Instructions. */
@@ -1117,5 +1117,90 @@ describe('generateAllKeyframes', () => {
       const warnings = validateHandDistances(instructions, keyframes);
       expect(warnings.size).toBe(0);
     });
+  });
+});
+
+describe('DanceSchema', () => {
+  it('parses a valid dance with improper formation', () => {
+    const raw = {
+      initFormation: 'improper',
+      instructions: [
+        { id: 1, beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+      ],
+    };
+    const dance = DanceSchema.parse(raw);
+    expect(dance.initFormation).toBe('improper');
+    expect(dance.instructions).toHaveLength(1);
+  });
+
+  it('parses a valid dance with beckett formation', () => {
+    const raw = {
+      initFormation: 'beckett',
+      instructions: [],
+    };
+    const dance = DanceSchema.parse(raw);
+    expect(dance.initFormation).toBe('beckett');
+    expect(dance.instructions).toHaveLength(0);
+  });
+
+  it('rejects invalid initFormation', () => {
+    const raw = {
+      initFormation: 'circle',
+      instructions: [],
+    };
+    expect(() => DanceSchema.parse(raw)).toThrow();
+  });
+
+  it('rejects missing initFormation', () => {
+    const raw = {
+      instructions: [],
+    };
+    expect(() => DanceSchema.parse(raw)).toThrow();
+  });
+
+  it('rejects invalid instructions within a dance', () => {
+    const raw = {
+      initFormation: 'improper',
+      instructions: [{ id: 1, beats: 8, type: 'nonexistent' }],
+    };
+    expect(() => DanceSchema.parse(raw)).toThrow();
+  });
+});
+
+describe('generateAllKeyframes with initFormation', () => {
+  it('uses improper formation by default (no initFormation)', () => {
+    const kfs = generateAllKeyframes([]);
+    expect(kfs).toHaveLength(1);
+    // Improper: ups face north (0), downs face south (180)
+    expect(kfs[0].dancers.up_lark_0.facing).toBe(0);
+    expect(kfs[0].dancers.down_lark_0.facing).toBe(180);
+  });
+
+  it('uses improper formation when initFormation is "improper"', () => {
+    const kfs = generateAllKeyframes([], 'improper');
+    expect(kfs).toHaveLength(1);
+    expect(kfs[0].dancers.up_lark_0).toEqual({ x: -0.5, y: -0.5, facing: 0 });
+    expect(kfs[0].dancers.down_lark_0).toEqual({ x: 0.5, y: 0.5, facing: 180 });
+  });
+
+  it('uses beckett formation when initFormation is "beckett"', () => {
+    const kfs = generateAllKeyframes([], 'beckett');
+    expect(kfs).toHaveLength(1);
+    // Beckett: everyone faces across (east-west) instead of up-down
+    // Ups face east (90), downs face west (270)
+    expect(kfs[0].dancers.up_lark_0.facing).toBe(90);
+    expect(kfs[0].dancers.up_robin_0.facing).toBe(90);
+    expect(kfs[0].dancers.down_lark_0.facing).toBe(270);
+    expect(kfs[0].dancers.down_robin_0.facing).toBe(270);
+  });
+
+  it('beckett formation has correct positions', () => {
+    const kfs = generateAllKeyframes([], 'beckett');
+    // In Beckett, larks and robins swap sides compared to improper
+    // Larks on one side, robins on the other, all facing across
+    expect(kfs[0].dancers.up_lark_0).toEqual({ x: -0.5, y: -0.5, facing: 90 });
+    expect(kfs[0].dancers.up_robin_0).toEqual({ x: -0.5, y: 0.5, facing: 90 });
+    expect(kfs[0].dancers.down_lark_0).toEqual({ x: 0.5, y: -0.5, facing: 270 });
+    expect(kfs[0].dancers.down_robin_0).toEqual({ x: 0.5, y: 0.5, facing: 270 });
   });
 });

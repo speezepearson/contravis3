@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
 import { generateAllKeyframes, validateHandDistances } from './generate';
 import CommandPane from './CommandPane';
-import type { Instruction } from './types';
+import type { Instruction, InitFormation } from './types';
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 700;
@@ -46,12 +46,13 @@ export default function App() {
   const [beat, setBeat] = useState(0);
   const [annotation, setAnnotation] = useState('');
   const [instructions, setInstructions] = useState<Instruction[]>([]);
+  const [initFormation, setInitFormation] = useState<InitFormation>('improper');
   const [smoothness, setSmoothness] = useState(100);
 
   const bpmRef = useRef(120);
   const smoothnessRef = useRef(1);
 
-  const keyframes = useMemo(() => generateAllKeyframes(instructions), [instructions]);
+  const keyframes = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
 
   const minBeat = keyframes.length > 0 ? keyframes[0].beat : 0;
@@ -230,7 +231,7 @@ export default function App() {
         </div>
         {annotation && <div className="annotation">{annotation}</div>}
       </div>
-      <CommandPane instructions={instructions} setInstructions={setInstructions} activeId={activeInstructionId(instructions, beat)} warnings={warnings} />
+      <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} activeId={activeInstructionId(instructions, beat)} warnings={warnings} />
     </div>
   );
 }

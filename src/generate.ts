@@ -1,4 +1,4 @@
-import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId } from './types';
+import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId, InitFormation } from './types';
 import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
 
 const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
@@ -17,7 +17,19 @@ const SPLIT_GROUPS: Record<'role' | 'position', [Set<ProtoDancerId>, Set<ProtoDa
   position: [new Set(['up_lark_0', 'up_robin_0']), new Set(['down_lark_0', 'down_robin_0'])],
 };
 
-function initialKeyframe(): Keyframe {
+function initialKeyframe(initFormation: InitFormation = 'improper'): Keyframe {
+  if (initFormation === 'beckett') {
+    return {
+      beat: 0,
+      dancers: {
+        up_lark_0:    { x: -0.5, y: -0.5, facing: 90 },
+        up_robin_0:   { x: -0.5, y:  0.5, facing: 90 },
+        down_lark_0:  { x:  0.5, y: -0.5, facing: 270 },
+        down_robin_0: { x:  0.5, y:  0.5, facing: 270 },
+      },
+      hands: [],
+    };
+  }
   return {
     beat: 0,
     dancers: {
@@ -743,8 +755,8 @@ function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyfram
   }
 }
 
-export function generateAllKeyframes(instructions: Instruction[]): Keyframe[] {
-  const result: Keyframe[] = [initialKeyframe()];
+export function generateAllKeyframes(instructions: Instruction[], initFormation?: InitFormation): Keyframe[] {
+  const result: Keyframe[] = [initialKeyframe(initFormation)];
 
   for (const instr of instructions) {
     const prev = result[result.length - 1];
