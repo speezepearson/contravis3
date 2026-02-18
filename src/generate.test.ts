@@ -57,6 +57,46 @@ describe('generateAllKeyframes', () => {
       expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'up_robin_0', hb: 'left' });
       expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'left', b: 'down_robin_0', hb: 'left' });
     });
+
+    it('inside hand with partner: each dancer uses the hand closer to their partner', () => {
+      // Improper: up_lark (-0.5,-0.5 facing 0°) partner up_robin (0.5,-0.5 facing 0°)
+      // up_robin is to up_lark's right → up_lark uses right
+      // up_lark is to up_robin's left → up_robin uses left
+      const instructions = instr([
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'partner', hand: 'inside' },
+      ]);
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(2);
+      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'up_robin_0', hb: 'left' });
+      expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'right', b: 'down_robin_0', hb: 'left' });
+    });
+
+    it('inside hand throws when target is directly in front', () => {
+      // Improper: neighbors are directly in front of each other
+      const instructions = instr([
+        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+      ]);
+      expect(() => generateAllKeyframes(instructions)).toThrow(/neither to the left nor to the right/);
+    });
+
+    it('inside hand with neighbor after turning to face partner', () => {
+      // Turn everyone to face partner, then take inside hands with neighbor.
+      // After facing partner: up_lark faces east (90°), up_robin faces west (270°),
+      // down_lark faces west (270°), down_robin faces east (90°).
+      // up_lark's neighbor is down_robin (at -0.5, 0.5) — north of up_lark.
+      // Facing east (90°), north = left → up_lark uses left.
+      // down_robin (at -0.5, 0.5) faces east (90°), up_lark is south → right.
+      const instructions = instr([
+        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'partner' } },
+        { id: 2, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+      ]);
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(2);
+      expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'down_robin_0', hb: 'right' });
+      expect(last.hands).toContainEqual({ a: 'up_robin_0', ha: 'right', b: 'down_lark_0', hb: 'left' });
+    });
   });
 
   describe('dynamic relationships (on_right, on_left, in_front)', () => {

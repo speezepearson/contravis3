@@ -114,19 +114,47 @@ function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoDancerId
 
 // --- Per-instruction generators ---
 
+/** Determine a dancer's inside hand (the hand closer to the target).
+ *  Throws if the target is directly in front of or behind the dancer. */
+function resolveInsideHand(dancer: DancerState, target: DancerState): 'left' | 'right' {
+  const heading = Math.atan2(target.x - dancer.x, target.y - dancer.y) * 180 / Math.PI;
+  const rel = ((heading - dancer.facing + 540) % 360) - 180;
+  if (Math.abs(rel) < 1e-9 || Math.abs(Math.abs(rel) - 180) < 1e-9) {
+    throw new Error('Cannot determine inside hand: target is neither to the left nor to the right');
+  }
+  return rel > 0 ? 'right' : 'left';
+}
+
 function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const newHands: HandConnection[] = [...prev.hands];
   const seen = new Set<string>();
-  const hands: ('left' | 'right')[] = instr.hand === 'both' ? ['left', 'right'] : [instr.hand];
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
-    const target = resolveRelationship(instr.relationship, id, prev.dancers);
-    const aId = makeDancerId(id, 0);
-    const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      for (const h of hands) {
-        newHands.push({ a: aId, ha: h, b: target, hb: h });
+  if (instr.hand === 'inside') {
+    for (const id of PROTO_DANCER_IDS) {
+      if (!scope.has(id)) continue;
+      const target = resolveRelationship(instr.relationship, id, prev.dancers);
+      const aId = makeDancerId(id, 0);
+      const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        const aState = prev.dancers[id];
+        const bState = dancerPosition(target, prev.dancers);
+        const ha = resolveInsideHand(aState, bState);
+        const hb = resolveInsideHand(bState, aState);
+        newHands.push({ a: aId, ha, b: target, hb });
+      }
+    }
+  } else {
+    const hands: ('left' | 'right')[] = instr.hand === 'both' ? ['left', 'right'] : [instr.hand];
+    for (const id of PROTO_DANCER_IDS) {
+      if (!scope.has(id)) continue;
+      const target = resolveRelationship(instr.relationship, id, prev.dancers);
+      const aId = makeDancerId(id, 0);
+      const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        for (const h of hands) {
+          newHands.push({ a: aId, ha: h, b: target, hb: h });
+        }
       }
     }
   }

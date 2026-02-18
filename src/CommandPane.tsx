@@ -37,7 +37,7 @@ const DROP_TARGET_LABELS: Record<string, string> = {
 };
 
 const HAND_OPTIONS = ['right', 'left'];
-const TAKE_HAND_OPTIONS = ['right', 'left', 'both'];
+const TAKE_HAND_OPTIONS = ['right', 'left', 'both', 'inside'];
 const CIRCLE_DIR_OPTIONS = ['left', 'right'];
 
 function parseDirection(text: string): RelativeDirection | null {

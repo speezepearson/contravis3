@@ -39,7 +39,7 @@ export const DropHandsTargetSchema = z.union([RelationshipSchema, z.enum(['left'
 export type DropHandsTarget = z.infer<typeof DropHandsTargetSchema>;
 
 export const HandSchema = z.enum(['left', 'right']);
-export const TakeHandSchema = z.enum(['left', 'right', 'both']);
+export const TakeHandSchema = z.enum(['left', 'right', 'both', 'inside']);
 export type TakeHand = z.infer<typeof TakeHandSchema>;
 
 // Direction relative to a dancer: a named direction or a relationship
