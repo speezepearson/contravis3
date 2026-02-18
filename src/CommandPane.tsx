@@ -205,14 +205,16 @@ function replaceInTree(instrs: Instruction[], id: number, replacement: Instructi
   return instrs.map(i => {
     if (i.id === id) return replacement;
     if (i.type === 'split') {
-      return {
+      if (!i.listA.some(s => s.id === id) && !i.listB.some(s => s.id === id)) return i;
+      return InstructionSchema.parse({
         ...i,
         listA: i.listA.map(sub => sub.id === id ? AtomicInstructionSchema.parse(replacement) : sub),
         listB: i.listB.map(sub => sub.id === id ? AtomicInstructionSchema.parse(replacement) : sub),
-      };
+      });
     }
     if (i.type === 'group') {
-      return { ...i, instructions: replaceInTree(i.instructions, id, replacement) };
+      if (!i.instructions.some(c => instructionContainsId(c, id))) return i;
+      return InstructionSchema.parse({ ...i, instructions: replaceInTree(i.instructions, id, replacement) });
     }
     return i;
   });
