@@ -865,26 +865,26 @@ describe('generateAllKeyframes', () => {
       }
     });
 
-    it('circle left moves counter-clockwise', () => {
+    it('circle left moves clockwise', () => {
       const instructions = instr([
         { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
-      ]);
-      const kfs = generateAllKeyframes(instructions);
-      const last = kfs[kfs.length - 1];
-      // Quarter CCW: up_lark (-0.5,-0.5) → (0.5, -0.5) = up_robin's position
-      expect(last.dancers['up_lark_0'].x).toBeCloseTo(0.5, 1);
-      expect(last.dancers['up_lark_0'].y).toBeCloseTo(-0.5, 1);
-    });
-
-    it('circle right moves clockwise', () => {
-      const instructions = instr([
-        { id: 1, beats: 8, type: 'circle', direction: 'right', rotations: 0.25 },
       ]);
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
       // Quarter CW: up_lark (-0.5,-0.5) → (-0.5, 0.5) = down_robin's position
       expect(last.dancers['up_lark_0'].x).toBeCloseTo(-0.5, 1);
       expect(last.dancers['up_lark_0'].y).toBeCloseTo(0.5, 1);
+    });
+
+    it('circle right moves counter-clockwise', () => {
+      const instructions = instr([
+        { id: 1, beats: 8, type: 'circle', direction: 'right', rotations: 0.25 },
+      ]);
+      const kfs = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      // Quarter CCW: up_lark (-0.5,-0.5) → (0.5, -0.5) = up_robin's position
+      expect(last.dancers['up_lark_0'].x).toBeCloseTo(0.5, 1);
+      expect(last.dancers['up_lark_0'].y).toBeCloseTo(-0.5, 1);
     });
 
     it('dancers face center throughout', () => {

@@ -353,10 +353,31 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   return result;
 }
 
+/** Determine a dancer's inside hand toward a neighbor in a ring where dancers face center.
+ *  Uses the cross product of facing direction and direction to target.
+ *  Falls back on angular ordering when they are directly in front/behind. */
+function insideHandInRing(dancer: DancerState, target: DancerState, dancerAngle: number, targetAngle: number): 'left' | 'right' {
+  const facingRad = dancer.facing * Math.PI / 180;
+  const fx = Math.sin(facingRad);
+  const fy = Math.cos(facingRad);
+  const dx = target.x - dancer.x;
+  const dy = target.y - dancer.y;
+  const cross = fx * dy - fy * dx;
+  if (Math.abs(cross) > 1e-9) {
+    return cross < 0 ? 'right' : 'left';
+  }
+  // Degenerate case: neighbor directly ahead/behind. Use ring angular ordering:
+  // "next" in ascending angle (CCW from above) is to our right when facing center.
+  let angleDiff = targetAngle - dancerAngle;
+  if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+  if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+  return angleDiff > 0 ? 'right' : 'left';
+}
+
 function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   // All scoped dancers orbit around their common center
-  // Left = CCW (negative angle), Right = CW (positive angle)
-  const sign = instr.direction === 'right' ? 1 : -1;
+  // Left = CW (positive angle), Right = CCW (negative angle)
+  const sign = instr.direction === 'left' ? 1 : -1;
   const totalAngleRad = sign * instr.rotations * 2 * Math.PI;
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
@@ -382,16 +403,26 @@ function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     });
   }
 
-  // Build ring hand connections: sort dancers by their starting angle, connect adjacent pairs
+  // Build ring hand connections: sort dancers by their starting angle, connect adjacent pairs.
+  // Each dancer uses their inside hand (the one closest to the neighbor).
+  // Since dancers face center, we determine left/right using the cross product of
+  // the facing vector and the vector to the neighbor. When the neighbor is directly
+  // ahead/behind (cross product ≈ 0), we fall back on the ring's angular ordering.
   const sorted = [...orbitData].sort((a, b) => a.startAngle - b.startAngle);
   const ringHands: HandConnection[] = [];
   for (let i = 0; i < sorted.length; i++) {
     const curr = sorted[i];
     const next = sorted[(i + 1) % sorted.length];
+    const cd = prev.dancers[curr.protoId];
+    const nd = prev.dancers[next.protoId];
     const a = makeDancerId(curr.protoId, 0);
     const b = makeDancerId(next.protoId, 0);
+    // Determine which hand curr uses toward next (inside hand)
+    const ha = insideHandInRing(cd, nd, curr.startAngle, next.startAngle);
+    const hb = insideHandInRing(nd, cd, next.startAngle, curr.startAngle);
     const [lo, hi] = a < b ? [a, b] : [b, a];
-    ringHands.push({ a: lo, ha: 'left', b: hi, hb: 'right' });
+    const [loH, hiH] = a < b ? [ha, hb] : [hb, ha];
+    ringHands.push({ a: lo, ha: loH, b: hi, hb: hiH });
   }
   const hands = [...prev.hands, ...ringHands];
 
