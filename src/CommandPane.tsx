@@ -5,7 +5,9 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
+import { InstructionSchema } from './types';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget } from './types';
+import { z } from 'zod';
 
 type ActionType = AtomicInstruction['type'];
 
@@ -102,7 +104,7 @@ function findInstructionById(instrs: Instruction[], id: number): Instruction | n
     }
     if (i.type === 'split') {
       for (const s of [...i.listA, ...i.listB]) {
-        if (s.id === id) return s;
+        if (s.id === id) return s as Instruction;
       }
     }
   }
@@ -112,7 +114,7 @@ function findInstructionById(instrs: Instruction[], id: number): Instruction | n
 function instructionContainsId(instr: Instruction, id: number): boolean {
   if (instr.id === id) return true;
   if (instr.type === 'group') return instr.instructions.some(c => instructionContainsId(c, id));
-  if (instr.type === 'split') return [...instr.listA, ...instr.listB].some(c => instructionContainsId(c, id));
+  if (instr.type === 'split') return [...instr.listA, ...instr.listB].some(c => c.id === id);
   return false;
 }
 
@@ -126,13 +128,13 @@ function removeFromTree(instrs: Instruction[], targetId: number): [Instruction[]
     if (removed) return i;
     if (i.type === 'split') {
       const aIdx = i.listA.findIndex(s => s.id === targetId);
-      if (aIdx !== -1) { removed = i.listA[aIdx]; return { ...i, listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)] }; }
+      if (aIdx !== -1) { removed = i.listA[aIdx] as Instruction; return { ...i, listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)] } as Instruction; }
       const bIdx = i.listB.findIndex(s => s.id === targetId);
-      if (bIdx !== -1) { removed = i.listB[bIdx]; return { ...i, listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)] }; }
+      if (bIdx !== -1) { removed = i.listB[bIdx] as Instruction; return { ...i, listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)] } as Instruction; }
     }
     if (i.type === 'group') {
       const [newChildren, r] = removeFromTree(i.instructions, targetId);
-      if (r) { removed = r; return { ...i, instructions: newChildren }; }
+      if (r) { removed = r; return { ...i, instructions: newChildren } as Instruction; }
     }
     return i;
   });
@@ -189,7 +191,7 @@ function getContainerItems(instrs: Instruction[], containerId: string): Instruct
   for (const i of instrs) {
     if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) return i.instructions;
     if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
-      return parsed.list === 'A' ? i.listA : i.listB;
+      return (parsed.list === 'A' ? i.listA : i.listB) as Instruction[];
     }
     if (i.type === 'group') {
       const found = getContainerItems(i.instructions, containerId);
@@ -244,24 +246,18 @@ function summarizeAtomic(instr: AtomicInstruction): string {
     }
     case 'turn': {
       const t = instr.target;
-      const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'cw' ? `${t.value}\u00B0`
-        : t.value;
+      const desc = t.kind === 'direction' ? t.value : t.value;
       const offsetStr = instr.offset ? ` +${instr.offset}\u00B0` : '';
       return `turn ${desc}${offsetStr} (${instr.beats}b)`;
     }
     case 'step': {
       const t = instr.direction;
-      const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'cw' ? `${t.value}\u00B0`
-        : t.value;
+      const desc = t.kind === 'direction' ? t.value : t.value;
       return `step ${desc} ${instr.distance} (${instr.beats}b)`;
     }
     case 'balance': {
       const t = instr.direction;
-      const desc = t.kind === 'direction' ? t.value
-        : t.kind === 'cw' ? `${t.value}\u00B0`
-        : t.value;
+      const desc = t.kind === 'direction' ? t.value : t.value;
       return `balance ${desc} ${instr.distance} (${instr.beats}b)`;
     }
     case 'swing': {
@@ -415,13 +411,15 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   }
 
   function buildInstruction(id: number): Instruction {
+    let raw;
     if (action === 'group') {
-      return { id, type: 'group', label: groupLabel || 'Untitled', instructions: [] };
+      raw = { id, type: 'group', label: groupLabel || 'Untitled', instructions: [] };
+    } else if (action === 'split') {
+      raw = { id, type: 'split', by: splitBy, listA: [], listB: [] };
+    } else {
+      raw = buildAtomicInstruction(id);
     }
-    if (action === 'split') {
-      return { id, type: 'split', by: splitBy, listA: [], listB: [] };
-    }
-    return buildAtomicInstruction(id);
+    return InstructionSchema.parse(raw);
   }
 
   /** Recursively update a group's instructions by its id. */
@@ -622,27 +620,28 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
   }
 
   function tryLoadJson(text: string) {
-    try {
-      const parsed = JSON.parse(text) as Instruction[];
-      if (!Array.isArray(parsed)) return;
-      setInstructions(parsed);
-      // Advance nextId past all loaded IDs
-      function maxId(instrs: Instruction[]): number {
-        let m = 0;
-        for (const i of instrs) {
-          m = Math.max(m, i.id);
-          if (i.type === 'split') {
-            for (const sub of [...i.listA, ...i.listB]) m = Math.max(m, sub.id);
-          } else if (i.type === 'group') {
-            m = Math.max(m, maxId(i.instructions));
-          }
+    let raw: unknown;
+    try { raw = JSON.parse(text); } catch { return; }
+    const result = z.array(InstructionSchema).safeParse(raw);
+    if (!result.success) return;
+    const parsed = result.data;
+    setInstructions(parsed);
+    // Advance nextId past all loaded IDs
+    function maxId(instrs: Instruction[]): number {
+      let m = 0;
+      for (const i of instrs) {
+        m = Math.max(m, i.id);
+        if (i.type === 'split') {
+          for (const sub of [...i.listA, ...i.listB]) m = Math.max(m, sub.id);
+        } else if (i.type === 'group') {
+          m = Math.max(m, maxId(i.instructions));
         }
-        return m;
       }
-      nextId = maxId(parsed) + 1;
-      setEditingId(null);
-      setContext({ level: 'top' });
-    } catch { /* invalid JSON, ignore */ }
+      return m;
+    }
+    nextId = maxId(parsed) + 1;
+    setEditingId(null);
+    setContext({ level: 'top' });
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));

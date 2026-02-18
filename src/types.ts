@@ -1,5 +1,11 @@
-export type Role = 'lark' | 'robin';
-export type ProtoDancerId = 'up_lark' | 'up_robin' | 'down_lark' | 'down_robin';
+import { z } from 'zod';
+
+export const RoleSchema = z.enum(['lark', 'robin']);
+export type Role = z.infer<typeof RoleSchema>;
+
+export const ProtoDancerIdSchema = z.enum(['up_lark', 'up_robin', 'down_lark', 'down_robin']);
+export type ProtoDancerId = z.infer<typeof ProtoDancerIdSchema>;
+
 export type DancerId = `${ProtoDancerId}_${number}`;
 
 export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
@@ -18,56 +24,81 @@ export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, Danc
 }
 
 // Who they interact with (only for actions that involve a partner)
-export type Relationship = 'partner' | 'neighbor' | 'opposite' | 'on_right' | 'on_left' | 'in_front';
+export const RelationshipSchema = z.enum(['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front']);
+export type Relationship = z.infer<typeof RelationshipSchema>;
 
 // What to drop: a relationship (drops hand connections between those pairs),
 // a specific hand ('left'|'right'), or 'both' (all hand connections).
-export type DropHandsTarget = Relationship | 'left' | 'right' | 'both';
+export const DropHandsTargetSchema = z.union([RelationshipSchema, z.enum(['left', 'right', 'both'])]);
+export type DropHandsTarget = z.infer<typeof DropHandsTargetSchema>;
+
+const HandSchema = z.enum(['left', 'right']);
 
 // Direction relative to a dancer: a named direction or a relationship
-export type RelativeDirection =
-  | { kind: 'direction'; value: 'up' | 'down' | 'across' | 'out' | 'progression' | 'forward' | 'back' | 'right' | 'left' }
-  | { kind: 'relationship'; value: Relationship };
+export const RelativeDirectionSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('direction'), value: z.enum(['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left']) }),
+  z.object({ kind: z.literal('relationship'), value: RelationshipSchema }),
+]);
+export type RelativeDirection = z.infer<typeof RelativeDirectionSchema>;
 
-export type AtomicInstruction = {
-  id: number;
-  beats: number;
-} & (
-  | { type: 'take_hands'; relationship: Relationship; hand: 'left' | 'right' }
-  | { type: 'drop_hands'; target: DropHandsTarget }
-  | { type: 'allemande'; relationship: Relationship; handedness: 'left' | 'right'; rotations: number }
-  | { type: 'do_si_do'; relationship: Relationship; rotations: number }
-  | { type: 'circle'; direction: 'left' | 'right'; rotations: number }
-  | { type: 'pull_by'; relationship: Relationship; hand: 'left' | 'right' }
-  | { type: 'turn'; target: RelativeDirection; offset: number }
-  | { type: 'step'; direction: RelativeDirection; distance: number }
-  | { type: 'balance'; direction: RelativeDirection; distance: number }
-  | { type: 'swing'; relationship: Relationship; endFacing: RelativeDirection }
-);
+const baseFields = { id: z.number(), beats: z.number() };
 
-export type SplitBy = 'role' | 'position';
+export const AtomicInstructionSchema = z.discriminatedUnion('type', [
+  z.object({ ...baseFields, type: z.literal('take_hands'), relationship: RelationshipSchema, hand: HandSchema }),
+  z.object({ ...baseFields, type: z.literal('drop_hands'), target: DropHandsTargetSchema }),
+  z.object({ ...baseFields, type: z.literal('allemande'), relationship: RelationshipSchema, handedness: HandSchema, rotations: z.number() }),
+  z.object({ ...baseFields, type: z.literal('do_si_do'), relationship: RelationshipSchema, rotations: z.number() }),
+  z.object({ ...baseFields, type: z.literal('circle'), direction: HandSchema, rotations: z.number() }),
+  z.object({ ...baseFields, type: z.literal('pull_by'), relationship: RelationshipSchema, hand: HandSchema }),
+  z.object({ ...baseFields, type: z.literal('turn'), target: RelativeDirectionSchema, offset: z.number() }),
+  z.object({ ...baseFields, type: z.literal('step'), direction: RelativeDirectionSchema, distance: z.number() }),
+  z.object({ ...baseFields, type: z.literal('balance'), direction: RelativeDirectionSchema, distance: z.number() }),
+  z.object({ ...baseFields, type: z.literal('swing'), relationship: RelationshipSchema, endFacing: RelativeDirectionSchema }),
+]);
+export type AtomicInstruction = z.infer<typeof AtomicInstructionSchema>;
 
-export type Instruction =
+export const SplitBySchema = z.enum(['role', 'position']);
+export type SplitBy = z.infer<typeof SplitBySchema>;
+
+// Instruction is recursive (group contains Instruction[]), so we define the
+// type manually with the brand baked in and annotate the schema accordingly.
+export type Instruction = (
   | AtomicInstruction
   | { id: number; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] }
-  | { id: number; type: 'group'; label: string; instructions: Instruction[] };
+  | { id: number; type: 'group'; label: string; instructions: Instruction[] }
+) & z.BRAND<'Instruction'>;
 
-export interface DancerState {
-  x: number;
-  y: number;
-  facing: number; // degrees: 0=north, 90=east, 180=south, 270=west
-}
+// The `as unknown as` double-cast bridges the gap between the unbranded
+// schema output and our branded Instruction type.  At runtime z.lazy
+// validates the full recursive structure; the cast only affects the
+// compile-time type so that parse() returns branded Instructions.
+export const InstructionSchema: z.ZodType<Instruction> = z.lazy(() => z.union([
+  AtomicInstructionSchema,
+  z.object({ id: z.number(), type: z.literal('split'), by: SplitBySchema, listA: z.array(AtomicInstructionSchema), listB: z.array(AtomicInstructionSchema) }),
+  z.object({ id: z.number(), type: z.literal('group'), label: z.string(), instructions: z.array(InstructionSchema) }),
+])) as unknown as z.ZodType<Instruction>;
 
-export interface HandConnection {
-  a: DancerId;
-  ha: 'left' | 'right';
-  b: DancerId;
-  hb: 'left' | 'right';
-}
+export const DancerStateSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  facing: z.number(), // degrees: 0=north, 90=east, 180=south, 270=west
+});
+export type DancerState = z.infer<typeof DancerStateSchema>;
 
-export interface Keyframe {
-  beat: number;
-  dancers: Record<ProtoDancerId, DancerState>;
-  hands: HandConnection[];
-  annotation?: string;
-}
+const DancerIdSchema = z.string().regex(/^(up_lark|up_robin|down_lark|down_robin)_\d+$/) as z.ZodType<DancerId>;
+
+export const HandConnectionSchema = z.object({
+  a: DancerIdSchema,
+  ha: HandSchema,
+  b: DancerIdSchema,
+  hb: HandSchema,
+});
+export type HandConnection = z.infer<typeof HandConnectionSchema>;
+
+export const KeyframeSchema = z.object({
+  beat: z.number(),
+  dancers: z.record(ProtoDancerIdSchema, DancerStateSchema) as z.ZodType<Record<ProtoDancerId, DancerState>>,
+  hands: z.array(HandConnectionSchema),
+  annotation: z.string().optional(),
+});
+export type Keyframe = z.infer<typeof KeyframeSchema>;
