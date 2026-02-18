@@ -692,6 +692,8 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'step':        return generateStep(prev, instr, scope);
     case 'balance':     return generateBalance(prev, instr, scope);
     case 'swing':       return generateSwing(prev, instr, scope);
+    case 'box_the_gnat':            throw new Error('box_the_gnat generation not yet implemented');
+    case 'give_and_take_into_swing': throw new Error('give_and_take_into_swing generation not yet implemented');
   }
 }
 

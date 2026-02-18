@@ -1,0 +1,242 @@
+{
+  "initFormation": "improper",
+  "instructions": [
+    {
+      "id": "a1000000-0000-4000-a000-000000000000",
+      "type": "group",
+      "label": "A1: neighbors balance & box the gnat; do si do 1¼ → short wavy lines",
+      "instructions": [
+        {
+          "id": "a1000000-0000-4000-a000-000000000001",
+          "beats": 0,
+          "type": "take_hands",
+          "relationship": "neighbor",
+          "hand": "right"
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000002",
+          "beats": 4,
+          "type": "balance",
+          "direction": { "kind": "relationship", "value": "neighbor" },
+          "distance": 0.2
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000003",
+          "beats": 4,
+          "type": "box_the_gnat",
+          "relationship": "neighbor"
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000004",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "neighbor"
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000005",
+          "beats": 8,
+          "type": "do_si_do",
+          "relationship": "neighbor",
+          "rotations": 1.25
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000006",
+          "beats": 0,
+          "type": "turn",
+          "target": { "kind": "relationship", "value": "neighbor" },
+          "offset": 0
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000007",
+          "beats": 0,
+          "type": "take_hands",
+          "relationship": "neighbor",
+          "hand": "right"
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000008",
+          "type": "split",
+          "by": "role",
+          "listA": [
+            {
+              "id": "a1000000-0000-4000-a000-000000000009",
+              "beats": 0,
+              "type": "take_hands",
+              "relationship": "opposite",
+              "hand": "left"
+            }
+          ],
+          "listB": []
+        }
+      ]
+    },
+    {
+      "id": "a2000000-0000-4000-a000-000000000000",
+      "type": "group",
+      "label": "A2: balance waves; neighbors allemande R ½; robins allemande L ½; partners swing",
+      "instructions": [
+        {
+          "id": "a2000000-0000-4000-a000-000000000001",
+          "beats": 4,
+          "type": "balance",
+          "direction": { "kind": "direction", "value": "right" },
+          "distance": 0.2
+        },
+        {
+          "id": "a2000000-0000-4000-a000-000000000002",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "both"
+        },
+        {
+          "id": "a2000000-0000-4000-a000-000000000003",
+          "beats": 2,
+          "type": "allemande",
+          "relationship": "neighbor",
+          "handedness": "right",
+          "rotations": 0.5
+        },
+        {
+          "id": "a2000000-0000-4000-a000-000000000004",
+          "type": "split",
+          "by": "role",
+          "listA": [],
+          "listB": [
+            {
+              "id": "a2000000-0000-4000-a000-000000000005",
+              "beats": 2,
+              "type": "allemande",
+              "relationship": "opposite",
+              "handedness": "left",
+              "rotations": 0.5
+            }
+          ]
+        },
+        {
+          "id": "a2000000-0000-4000-a000-000000000006",
+          "beats": 8,
+          "type": "swing",
+          "relationship": "partner",
+          "endFacing": { "kind": "direction", "value": "across" }
+        }
+      ]
+    },
+    {
+      "id": "b1000000-0000-4000-a000-000000000000",
+      "type": "group",
+      "label": "B1: larks give & take neighbors; neighbors swing",
+      "instructions": [
+        {
+          "id": "b1000000-0000-4000-a000-000000000001",
+          "beats": 16,
+          "type": "give_and_take_into_swing",
+          "relationship": "neighbor",
+          "role": "lark",
+          "endFacing": { "kind": "direction", "value": "across" }
+        }
+      ]
+    },
+    {
+      "id": "b2000000-0000-4000-a000-000000000000",
+      "type": "group",
+      "label": "B2: square through four",
+      "instructions": [
+        {
+          "id": "b2000000-0000-4000-a000-000000000001",
+          "beats": 0,
+          "type": "take_hands",
+          "relationship": "partner",
+          "hand": "right"
+        },
+        {
+          "id": "b2000000-0000-4000-a000-000000000002",
+          "beats": 4,
+          "type": "balance",
+          "direction": { "kind": "relationship", "value": "partner" },
+          "distance": 0.2
+        },
+        {
+          "id": "b2000000-0000-4000-a000-000000000003",
+          "beats": 2,
+          "type": "pull_by",
+          "relationship": "partner",
+          "hand": "right"
+        },
+        {
+          "id": "b2000000-0000-4000-a000-000000000004",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "right"
+        },
+        {
+          "id": "b2000000-0000-4000-a000-000000000005",
+          "beats": 0,
+          "type": "turn",
+          "target": { "kind": "relationship", "value": "neighbor" },
+          "offset": 0
+        },
+        {
+          "id": "b2000000-0000-4000-a000-000000000006",
+          "beats": 2,
+          "type": "pull_by",
+          "relationship": "neighbor",
+          "hand": "left"
+        },
+        {
+          "id": "b2000000-0000-4000-a000-000000000007",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "left"
+        },
+        {
+          "id": "b2000000-0000-4000-a000-000000000008",
+          "beats": 0,
+          "type": "turn",
+          "target": { "kind": "relationship", "value": "partner" },
+          "offset": 0
+        },
+        {
+          "id": "b2000000-0000-4000-a000-000000000009",
+          "beats": 0,
+          "type": "take_hands",
+          "relationship": "partner",
+          "hand": "right"
+        },
+        {
+          "id": "b2000000-0000-4000-a000-00000000000a",
+          "beats": 4,
+          "type": "balance",
+          "direction": { "kind": "relationship", "value": "partner" },
+          "distance": 0.2
+        },
+        {
+          "id": "b2000000-0000-4000-a000-00000000000b",
+          "beats": 2,
+          "type": "pull_by",
+          "relationship": "partner",
+          "hand": "right"
+        },
+        {
+          "id": "b2000000-0000-4000-a000-00000000000c",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "right"
+        },
+        {
+          "id": "b2000000-0000-4000-a000-00000000000d",
+          "beats": 0,
+          "type": "turn",
+          "target": { "kind": "relationship", "value": "neighbor" },
+          "offset": 0
+        },
+        {
+          "id": "b2000000-0000-4000-a000-00000000000e",
+          "beats": 2,
+          "type": "pull_by",
+          "relationship": "neighbor",
+          "hand": "left"
+        }
+      ]
+    }
+  ]
+}
