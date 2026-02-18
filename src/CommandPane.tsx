@@ -11,10 +11,10 @@ type ActionType = AtomicInstruction['type'];
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'turn', 'step', 'balance', 'split', 'group'];
+const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'split', 'group'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
-  do_si_do: 'do-si-do', circle: 'circle', pull_by: 'pull by',
+  do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
   turn: 'turn', step: 'step', balance: 'balance', split: 'split', group: 'group',
 };
 
@@ -67,6 +67,7 @@ function defaultBeats(action: string): string {
   switch (action) {
     case 'allemande': return '8';
     case 'do_si_do':  return '8';
+    case 'swing':     return '8';
     case 'circle':    return '8';
     case 'pull_by':   return '2';
     case 'step':      return '2';
@@ -263,6 +264,12 @@ function summarizeAtomic(instr: AtomicInstruction): string {
         : t.value;
       return `balance ${desc} ${instr.distance} (${instr.beats}b)`;
     }
+    case 'swing': {
+      const r = instr.relationship;
+      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      const ef = instr.endFacing.kind === 'direction' ? instr.endFacing.value : instr.endFacing.value;
+      return `${label} swing \u2192 ${ef} (${instr.beats}b)`;
+    }
   }
 }
 
@@ -355,6 +362,9 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     } else if (instr.type === 'balance') {
       setBalanceText(directionToText(instr.direction));
       setDistance(String(instr.distance));
+    } else if (instr.type === 'swing') {
+      setRelationship(instr.relationship);
+      setTurnText(directionToText(instr.endFacing));
     }
   }
 
@@ -396,6 +406,10 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
       case 'balance': {
         const dir = parseDirection(balanceText) ?? { kind: 'direction' as const, value: 'across' as const };
         return { ...base, type: 'balance', direction: dir, distance: Number(distance) || 0 };
+      }
+      case 'swing': {
+        const endFacing = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'across' as const };
+        return { ...base, type: 'swing', relationship, endFacing };
       }
     }
   }
@@ -678,7 +692,10 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
             onChange={v => {
               const a = v as ActionType | 'split' | 'group';
               setAction(a);
-              if (editingId === null) setBeats(defaultBeats(a));
+              if (editingId === null) {
+                setBeats(defaultBeats(a));
+                if (a === 'swing') setTurnText('across');
+              }
             }}
             getLabel={v => ACTION_LABELS[v] ?? v}
           />
@@ -708,7 +725,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           </label>
         )}
 
-        {action !== 'split' && action !== 'group' && (action === 'take_hands' || action === 'allemande' || action === 'do_si_do' || action === 'pull_by') && (
+        {action !== 'split' && action !== 'group' && (action === 'take_hands' || action === 'allemande' || action === 'do_si_do' || action === 'pull_by' || action === 'swing') && (
           <label>
             With
             <SearchableDropdown
@@ -866,6 +883,18 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               />
             </label>
           </>
+        )}
+
+        {action === 'swing' && (
+          <label>
+            End facing
+            <SearchableDropdown
+              options={DIR_OPTIONS}
+              value={turnText}
+              onChange={setTurnText}
+              placeholder="e.g. across, up"
+            />
+          </label>
         )}
 
         {action !== 'split' && action !== 'take_hands' && action !== 'drop_hands' && (

@@ -42,6 +42,7 @@ export type AtomicInstruction = {
   | { type: 'turn'; target: RelativeDirection; offset: number }
   | { type: 'step'; direction: RelativeDirection; distance: number }
   | { type: 'balance'; direction: RelativeDirection; distance: number }
+  | { type: 'swing'; relationship: Relationship; endFacing: RelativeDirection }
 );
 
 export type SplitBy = 'role' | 'position';

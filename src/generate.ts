@@ -414,6 +414,163 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   return result;
 }
 
+function isLark(id: ProtoDancerId): boolean {
+  return id === 'up_lark' || id === 'down_lark';
+}
+
+function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+  const FRONT = 0.15;
+  const RIGHT = 0.1;
+  // Phase offset: angle from CoM to lark (in heading convention) when lark faces 0°
+  const PHASE_OFFSET = Math.PI + Math.atan2(RIGHT, FRONT);
+
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  // Collect pairs
+  type SwingPair = {
+    lark: ProtoDancerId;
+    robin: ProtoDancerId;
+    cx: number;
+    cy: number;
+    f0: number; // lark's initial facing in radians
+    omega: number; // angular velocity in radians per beat
+    endFacingRad: number;
+    phase2Start: number; // beat offset when lark has 90° left
+    phase2Duration: number; // duration of phase 2 in beats
+  };
+
+  const pairs: SwingPair[] = [];
+  const processed = new Set<ProtoDancerId>();
+
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    if (processed.has(id)) continue;
+
+    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
+    const { proto: targetProto, offset } = parseDancerId(targetId);
+
+    if (offset !== 0) {
+      throw new Error(`Swing: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
+    }
+    if (!scope.has(targetProto)) {
+      throw new Error(`Swing: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
+    }
+
+    // Check reciprocity
+    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
+    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
+    if (reverseProto !== id || reverseOffset !== 0) {
+      throw new Error(`Swing: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
+    }
+
+    // Check opposite roles
+    if (isLark(id) === isLark(targetProto)) {
+      throw new Error(`Swing: ${id} and ${targetProto} have the same role`);
+    }
+
+    const lark = isLark(id) ? id : targetProto;
+    const robin = isLark(id) ? targetProto : id;
+
+    processed.add(lark);
+    processed.add(robin);
+
+    // Compute CoM
+    const larkState = prev.dancers[lark];
+    const robinState = prev.dancers[robin];
+    const cx = (larkState.x + robinState.x) / 2;
+    const cy = (larkState.y + robinState.y) / 2;
+
+    // Compute initial facing of lark from angle of CoM→lark
+    const larkDx = larkState.x - cx;
+    const larkDy = larkState.y - cy;
+    const thetaLark = Math.atan2(larkDx, larkDy);
+    const f0 = thetaLark - PHASE_OFFSET;
+
+    // Resolve end facing for the lark
+    const endFacingDeg = resolveFacing(instr.endFacing, larkState, lark, prev.dancers);
+    const endFacingRad = endFacingDeg * Math.PI / 180;
+
+    // Compute total rotation: closest to baseRotation that ends at endFacing
+    const baseRotation = (Math.PI / 2) * instr.beats; // ~90° per beat
+    const needed = endFacingRad - f0;
+    const n = Math.round((baseRotation - needed) / (2 * Math.PI));
+    const totalRotation = needed + n * 2 * Math.PI;
+    const omega = totalRotation / instr.beats;
+
+    // Phase 2 starts when the lark has 90° (π/2) of rotation left
+    const phase2Duration = (Math.PI / 2) / omega;
+    const phase2Start = instr.beats - phase2Duration;
+
+    pairs.push({ lark, robin, cx, cy, f0, omega, endFacingRad, phase2Start, phase2Duration });
+  }
+
+  const result: Keyframe[] = [];
+
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const elapsed = t * instr.beats;
+
+    const dancers = copyDancers(prev.dancers);
+
+    for (const pair of pairs) {
+      const { lark, robin, cx, cy, f0, omega, endFacingRad, phase2Start, phase2Duration } = pair;
+
+      const larkFacingRad = f0 + omega * elapsed;
+      const larkFacingDeg = ((larkFacingRad * 180 / Math.PI) % 360 + 360) % 360;
+
+      if (elapsed <= phase2Start) {
+        // Phase 1: regular swing orbit
+        dancers[lark].x = cx - FRONT * Math.sin(larkFacingRad) - RIGHT * Math.cos(larkFacingRad);
+        dancers[lark].y = cy - FRONT * Math.cos(larkFacingRad) + RIGHT * Math.sin(larkFacingRad);
+        dancers[lark].facing = larkFacingDeg;
+
+        // Robin faces opposite
+        const robinFacingRad = larkFacingRad + Math.PI;
+        const robinFacingDeg = ((robinFacingRad * 180 / Math.PI) % 360 + 360) % 360;
+        dancers[robin].x = cx + FRONT * Math.sin(larkFacingRad) + RIGHT * Math.cos(larkFacingRad);
+        dancers[robin].y = cy + FRONT * Math.cos(larkFacingRad) - RIGHT * Math.sin(larkFacingRad);
+        dancers[robin].facing = robinFacingDeg;
+      } else {
+        // Phase 2: lark has 90° of rotation left
+        const tLocal = (elapsed - phase2Start) / phase2Duration; // 0 to 1
+
+        // Lark position: interpolate from phase1 end to final position
+        const fP1End = f0 + omega * phase2Start;
+        const larkP1EndX = cx - FRONT * Math.sin(fP1End) - RIGHT * Math.cos(fP1End);
+        const larkP1EndY = cy - FRONT * Math.cos(fP1End) + RIGHT * Math.sin(fP1End);
+
+        // Final position: CoM is 0.5m to lark's right
+        const larkFinalX = cx - 0.5 * Math.cos(endFacingRad);
+        const larkFinalY = cy + 0.5 * Math.sin(endFacingRad);
+
+        dancers[lark].x = larkP1EndX + (larkFinalX - larkP1EndX) * tLocal;
+        dancers[lark].y = larkP1EndY + (larkFinalY - larkP1EndY) * tLocal;
+        dancers[lark].facing = larkFacingDeg;
+
+        // Robin facing: extra 180° CW over phase 2
+        // At tLocal=0: lark+180°, at tLocal=1: lark+360°=lark
+        const robinFacingRad = larkFacingRad + Math.PI * (1 + tLocal);
+        const robinFacingDeg = ((robinFacingRad * 180 / Math.PI) % 360 + 360) % 360;
+        dancers[robin].facing = robinFacingDeg;
+
+        // Robin position: in lark's reference frame
+        // Starts at (0.3 front, 0.2 right), ends at (0.0 front, 1.0 right)
+        const robinFront = 0.3 * (1 - tLocal);
+        const robinRight = 0.2 + 0.8 * tLocal;
+
+        // Convert from lark's reference frame to global
+        dancers[robin].x = dancers[lark].x + robinFront * Math.sin(larkFacingRad) + robinRight * Math.cos(larkFacingRad);
+        dancers[robin].y = dancers[lark].y + robinFront * Math.cos(larkFacingRad) - robinRight * Math.sin(larkFacingRad);
+      }
+    }
+
+    result.push({ beat, dancers, hands: prev.hands });
+  }
+
+  return result;
+}
+
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
@@ -427,6 +584,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'turn':        return generateTurn(prev, instr, scope);
     case 'step':        return generateStep(prev, instr, scope);
     case 'balance':     return generateBalance(prev, instr, scope);
+    case 'swing':       return generateSwing(prev, instr, scope);
   }
 }
 
