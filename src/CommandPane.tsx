@@ -238,6 +238,7 @@ interface Props {
   activeId: InstructionId | null;
   warnings: Map<InstructionId, string>;
   generateError: GenerateError | null;
+  progressionWarning: string | null;
 }
 
 function summarizeAtomic(instr: AtomicInstruction): string {
@@ -765,7 +766,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning }: Props) {
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -959,6 +960,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
           <DropZone containerId="top" />
           {instructions.length === 0 && (
             <div className="instruction-empty">No instructions yet. Click + to add one.</div>
+          )}
+          {progressionWarning && (
+            <div className="instruction-warning">{progressionWarning}</div>
           )}
         </div>
 

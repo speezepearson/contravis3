@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes, validateHandDistances } from './generate';
+import { generateAllKeyframes, validateHandDistances, validateProgression } from './generate';
 import type { Instruction, Keyframe } from './types';
 import { parseDancerId, InstructionSchema, DanceSchema, ProtoDancerIdSchema } from './types';
 import { z } from 'zod';
@@ -1523,6 +1523,35 @@ describe('generateAllKeyframes with initFormation', () => {
       // Pair 2 ends on lark's side (x > 0): across = 270°
       expect(last.dancers['down_lark_0'].facing).toBeCloseTo(270, 0);
       expect(last.dancers['down_robin_0'].facing).toBeCloseTo(270, 0);
+    });
+  });
+
+  describe('validateProgression', () => {
+    it('returns null when dancers end at expected progression positions', () => {
+      // Move each dancer 2m in their progression direction (progression=1)
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 2.0 },
+      ]);
+      const { keyframes } = generateAllKeyframes(instructions);
+      expect(validateProgression(keyframes, 'improper', 1)).toBeNull();
+    });
+
+    it('warns when dancers do not end at expected positions', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 0.5 },
+      ]);
+      const { keyframes } = generateAllKeyframes(instructions);
+      const warning = validateProgression(keyframes, 'improper', 1);
+      expect(warning).not.toBeNull();
+      expect(warning).toMatch(/don't end at expected progression/);
+    });
+
+    it('returns null for progression=0 when dancers stay in place', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.0 },
+      ]);
+      const { keyframes } = generateAllKeyframes(instructions);
+      expect(validateProgression(keyframes, 'improper', 0)).toBeNull();
     });
   });
 });

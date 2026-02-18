@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
-import { generateAllKeyframes, validateHandDistances } from './generate';
+import { generateAllKeyframes, validateHandDistances, validateProgression } from './generate';
 import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { Instruction, InitFormation, InstructionId } from './types';
@@ -21,11 +21,25 @@ function activeInstructionId(instructions: Instruction[], beat: number): Instruc
   let activeId: InstructionId | null = null;
   for (const instr of instructions) {
     if (currentBeat > beat + 1e-9) break;
-    activeId = instr.id;
     if (instr.type === 'group') {
-      // Recurse into group children to find the active leaf
       const childId = activeInstructionId(instr.instructions, beat - currentBeat);
       if (childId !== null) activeId = childId;
+    } else if (instr.type === 'split') {
+      const rel = beat - currentBeat;
+      let b = 0;
+      for (const sub of instr.listA) {
+        if (b > rel + 1e-9) break;
+        activeId = sub.id;
+        b += sub.beats;
+      }
+      b = 0;
+      for (const sub of instr.listB) {
+        if (b > rel + 1e-9) break;
+        activeId = sub.id;
+        b += sub.beats;
+      }
+    } else {
+      activeId = instr.id;
     }
     currentBeat += instructionDuration(instr);
   }
@@ -58,6 +72,7 @@ export default function App() {
 
   const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
+  const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
 
   const minBeat = 0;
   const maxBeat = DANCE_LENGTH;
@@ -304,7 +319,7 @@ export default function App() {
       {/* Desktop sidebar */}
       <div className="sidebar-column">
         <div className="sidebar-instructions">
-          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} />
+          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} />
         </div>
         <div className="sidebar-controls">
           {controlsBlock}
@@ -321,7 +336,7 @@ export default function App() {
 
       {/* Mobile instruction drawer */}
       <div className={`instruction-drawer ${drawerOpen ? 'open' : ''}`}>
-        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} />
+        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} />
       </div>
     </div>
   );

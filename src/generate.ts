@@ -1122,6 +1122,31 @@ export function validateHandDistances(
   return warnings;
 }
 
+export function validateProgression(
+  keyframes: Keyframe[],
+  initFormation: InitFormation,
+  progression: number,
+): string | null {
+  if (keyframes.length === 0) return null;
+  const init = initialKeyframe(initFormation);
+  const final = keyframes[keyframes.length - 1];
+  const expectedDy = 2 * progression;
+  const problems: string[] = [];
+  for (const id of PROTO_DANCER_IDS) {
+    const sign = UPS.has(id) ? 1 : -1;
+    const expectedX = init.dancers[id].x;
+    const expectedY = init.dancers[id].y + sign * expectedDy;
+    const dx = final.dancers[id].x - expectedX;
+    const dy = final.dancers[id].y - expectedY;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0.01) {
+      problems.push(`${id} is ${dist.toFixed(2)}m off`);
+    }
+  }
+  if (problems.length === 0) return null;
+  return `Dancers don't end at expected progression positions: ${problems.join('; ')}`;
+}
+
 function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyframe[] {
   if (instr.type === 'split') {
     return generateSplit(prev, instr);
