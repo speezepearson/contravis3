@@ -3,18 +3,22 @@ import { z } from 'zod';
 export const RoleSchema = z.enum(['lark', 'robin']);
 export type Role = z.infer<typeof RoleSchema>;
 
+export const ProgressionDirSchema = z.enum(['up', 'down']);
+export type ProgressionDir = z.infer<typeof ProgressionDirSchema>;
+
 export const ProtoDancerIdSchema = z.enum(['up_lark', 'up_robin', 'down_lark', 'down_robin']);
 export type ProtoDancerId = z.infer<typeof ProtoDancerIdSchema>;
 
-export type DancerId = `${ProtoDancerId}_${number}`;
+export const DancerIdSchema = z.templateLiteral([ProgressionDirSchema, '_', RoleSchema, '_', z.number().int()]);
+export type DancerId = z.infer<typeof DancerIdSchema>;
 
 export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
   const i = id.lastIndexOf('_');
-  return { proto: id.slice(0, i) as ProtoDancerId, offset: parseInt(id.slice(i + 1)) };
+  return { proto: ProtoDancerIdSchema.parse(id.slice(0, i)), offset: parseInt(id.slice(i + 1)) };
 }
 
 export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
-  return `${proto}_${offset}` as DancerId;
+  return DancerIdSchema.parse(`${proto}_${offset}`);
 }
 
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
@@ -32,7 +36,7 @@ export type Relationship = z.infer<typeof RelationshipSchema>;
 export const DropHandsTargetSchema = z.union([RelationshipSchema, z.enum(['left', 'right', 'both'])]);
 export type DropHandsTarget = z.infer<typeof DropHandsTargetSchema>;
 
-const HandSchema = z.enum(['left', 'right']);
+export const HandSchema = z.enum(['left', 'right']);
 
 // Direction relative to a dancer: a named direction or a relationship
 export const RelativeDirectionSchema = z.discriminatedUnion('kind', [
@@ -56,6 +60,9 @@ export const AtomicInstructionSchema = z.discriminatedUnion('type', [
   z.object({ ...baseFields, type: z.literal('swing'), relationship: RelationshipSchema, endFacing: RelativeDirectionSchema }),
 ]);
 export type AtomicInstruction = z.infer<typeof AtomicInstructionSchema>;
+
+export const ActionTypeSchema = z.enum(['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'turn', 'step', 'balance', 'swing']);
+export type ActionType = z.infer<typeof ActionTypeSchema>;
 
 export const SplitBySchema = z.enum(['role', 'position']);
 export type SplitBy = z.infer<typeof SplitBySchema>;
@@ -85,8 +92,6 @@ export const DancerStateSchema = z.object({
 });
 export type DancerState = z.infer<typeof DancerStateSchema>;
 
-const DancerIdSchema = z.string().regex(/^(up_lark|up_robin|down_lark|down_robin)_\d+$/) as z.ZodType<DancerId>;
-
 export const HandConnectionSchema = z.object({
   a: DancerIdSchema,
   ha: HandSchema,
@@ -102,3 +107,12 @@ export const KeyframeSchema = z.object({
   annotation: z.string().optional(),
 });
 export type Keyframe = z.infer<typeof KeyframeSchema>;
+
+export function buildDancerRecord(f: (id: ProtoDancerId) => DancerState): Record<ProtoDancerId, DancerState> {
+  return {
+    up_lark: f('up_lark'),
+    up_robin: f('up_robin'),
+    down_lark: f('down_lark'),
+    down_robin: f('down_robin'),
+  };
+}

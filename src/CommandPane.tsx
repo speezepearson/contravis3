@@ -5,11 +5,9 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema } from './types';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget } from './types';
+import { InstructionSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, ActionTypeSchema, AtomicInstructionSchema } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType } from './types';
 import { z } from 'zod';
-
-type ActionType = AtomicInstruction['type'];
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
@@ -44,10 +42,10 @@ const CIRCLE_DIR_OPTIONS = ['left', 'right'];
 function parseDirection(text: string): RelativeDirection | null {
   const trimmed = text.trim().toLowerCase();
   if (!trimmed) return null;
-  const directions = new Set(['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left']);
-  const relationships = new Set(['partner', 'neighbor', 'opposite']);
-  if (directions.has(trimmed)) return { kind: 'direction', value: trimmed as RelativeDirection & { kind: 'direction' } extends { value: infer V } ? V : never };
-  if (relationships.has(trimmed)) return { kind: 'relationship', value: trimmed as Relationship };
+  const asDir = RelativeDirectionSchema.safeParse({ kind: 'direction', value: trimmed });
+  if (asDir.success) return asDir.data;
+  const asRel = RelativeDirectionSchema.safeParse({ kind: 'relationship', value: trimmed });
+  if (asRel.success) return asRel.data;
   return null;
 }
 
@@ -91,7 +89,7 @@ function parseContainerId(id: string):
   const groupMatch = id.match(/^group-(\d+)$/);
   if (groupMatch) return { type: 'group', groupId: Number(groupMatch[1]) };
   const splitMatch = id.match(/^split-(\d+)-(A|B)$/);
-  if (splitMatch) return { type: 'split', splitId: Number(splitMatch[1]), list: splitMatch[2] as 'A' | 'B' };
+  if (splitMatch) return { type: 'split', splitId: Number(splitMatch[1]), list: z.enum(['A', 'B']).parse(splitMatch[2]) };
   return { type: 'top' };
 }
 
@@ -104,7 +102,7 @@ function findInstructionById(instrs: Instruction[], id: number): Instruction | n
     }
     if (i.type === 'split') {
       for (const s of [...i.listA, ...i.listB]) {
-        if (s.id === id) return s as Instruction;
+        if (s.id === id) return InstructionSchema.parse(s);
       }
     }
   }
@@ -128,13 +126,13 @@ function removeFromTree(instrs: Instruction[], targetId: number): [Instruction[]
     if (removed) return i;
     if (i.type === 'split') {
       const aIdx = i.listA.findIndex(s => s.id === targetId);
-      if (aIdx !== -1) { removed = i.listA[aIdx] as Instruction; return { ...i, listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)] } as Instruction; }
+      if (aIdx !== -1) { removed = InstructionSchema.parse(i.listA[aIdx]); return InstructionSchema.parse({ ...i, listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)] }); }
       const bIdx = i.listB.findIndex(s => s.id === targetId);
-      if (bIdx !== -1) { removed = i.listB[bIdx] as Instruction; return { ...i, listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)] } as Instruction; }
+      if (bIdx !== -1) { removed = InstructionSchema.parse(i.listB[bIdx]); return InstructionSchema.parse({ ...i, listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)] }); }
     }
     if (i.type === 'group') {
       const [newChildren, r] = removeFromTree(i.instructions, targetId);
-      if (r) { removed = r; return { ...i, instructions: newChildren } as Instruction; }
+      if (r) { removed = r; return InstructionSchema.parse({ ...i, instructions: newChildren }); }
     }
     return i;
   });
@@ -157,7 +155,7 @@ function insertIntoContainer(instrs: Instruction[], containerId: string, item: I
     if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
       const key = parsed.list === 'A' ? 'listA' : 'listB';
       const copy = [...i[key]];
-      copy.splice(index, 0, item as AtomicInstruction);
+      copy.splice(index, 0, AtomicInstructionSchema.parse(item));
       return { ...i, [key]: copy };
     }
     if (i.type === 'group') {
@@ -191,7 +189,7 @@ function getContainerItems(instrs: Instruction[], containerId: string): Instruct
   for (const i of instrs) {
     if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) return i.instructions;
     if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
-      return (parsed.list === 'A' ? i.listA : i.listB) as Instruction[];
+      return z.array(InstructionSchema).parse(parsed.list === 'A' ? i.listA : i.listB);
     }
     if (i.type === 'group') {
       const found = getContainerItems(i.instructions, containerId);
@@ -378,7 +376,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
 
   function buildAtomicInstruction(id: number): AtomicInstruction {
     const base = { id, beats: Number(beats) || 0 };
-    switch (action as ActionType) {
+    switch (ActionTypeSchema.parse(action)) {
       case 'take_hands':
         return { id, beats: 0, type: 'take_hands', relationship, hand };
       case 'drop_hands':
@@ -530,8 +528,8 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     const { active, over } = event;
     if (!over) return;
 
-    const srcContainer = (active.data.current?.sortable?.containerId as string) ?? 'top';
-    const overSortableContainer = over.data.current?.sortable?.containerId as string | undefined;
+    const srcContainer = z.string().catch('top').parse(active.data.current?.sortable?.containerId);
+    const overSortableContainer = z.string().optional().parse(over.data.current?.sortable?.containerId);
     const destContainer = overSortableContainer ?? String(over.id);
 
     // Dropping on itself
@@ -550,7 +548,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
     }
 
     // Cross-container move (or drop on a DropZone)
-    const activeId = active.id as number;
+    const activeId = z.number().parse(active.id);
     const draggedInstr = findInstructionById(instructions, activeId);
     if (!draggedInstr) return;
 
@@ -648,9 +646,10 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
 
   const isSubContext = context.level === 'sub';
   const isGroupContext = context.level === 'group';
-  const currentSplit = isSubContext
-    ? instructions.find(i => i.type === 'split' && i.id === context.splitId) as Extract<Instruction, { type: 'split' }> | undefined
+  const currentSplitRaw = isSubContext
+    ? instructions.find(i => i.type === 'split' && i.id === context.splitId)
     : undefined;
+  const currentSplit = currentSplitRaw?.type === 'split' ? currentSplitRaw : undefined;
 
   function findGroup(instrs: Instruction[], id: number): Extract<Instruction, { type: 'group' }> | undefined {
     for (const i of instrs) {
@@ -686,10 +685,10 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           Action
           <SearchableDropdown
             ref={actionRef}
-            options={isSubContext ? ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group') : ACTION_OPTIONS as string[]}
+            options={isSubContext ? ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group') : ACTION_OPTIONS}
             value={action}
             onChange={v => {
-              const a = v as ActionType | 'split' | 'group';
+              const a = z.union([ActionTypeSchema, z.literal('split'), z.literal('group')]).parse(v);
               setAction(a);
               if (editingId === null) {
                 setBeats(defaultBeats(a));
@@ -706,7 +705,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
             <SearchableDropdown
               options={SPLIT_BY_OPTIONS}
               value={splitBy}
-              onChange={v => setSplitBy(v as SplitBy)}
+              onChange={v => setSplitBy(SplitBySchema.parse(v))}
               getLabel={v => SPLIT_BY_LABELS[v] ?? v}
             />
           </label>
@@ -728,9 +727,9 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           <label>
             With
             <SearchableDropdown
-              options={RELATIONSHIP_OPTIONS as string[]}
+              options={RELATIONSHIP_OPTIONS}
               value={relationship}
-              onChange={v => setRelationship(v as Relationship)}
+              onChange={v => setRelationship(RelationshipSchema.parse(v))}
               getLabel={v => RELATIONSHIP_LABELS[v] ?? v}
             />
           </label>
@@ -740,9 +739,9 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
           <label>
             Drop
             <SearchableDropdown
-              options={DROP_TARGET_OPTIONS as string[]}
+              options={DROP_TARGET_OPTIONS}
               value={dropTarget}
-              onChange={v => setDropTarget(v as DropHandsTarget)}
+              onChange={v => setDropTarget(DropHandsTargetSchema.parse(v))}
               getLabel={v => DROP_TARGET_LABELS[v] ?? v}
             />
           </label>
@@ -754,7 +753,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
             <SearchableDropdown
               options={HAND_OPTIONS}
               value={hand}
-              onChange={v => setHand(v as 'left' | 'right')}
+              onChange={v => setHand(HandSchema.parse(v))}
             />
           </label>
         )}
@@ -766,7 +765,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               <SearchableDropdown
                 options={HAND_OPTIONS}
                 value={handedness}
-                onChange={v => setHandedness(v as 'left' | 'right')}
+                onChange={v => setHandedness(HandSchema.parse(v))}
               />
             </label>
             <label>
@@ -800,7 +799,7 @@ export default function CommandPane({ instructions, setInstructions, activeId, w
               <SearchableDropdown
                 options={CIRCLE_DIR_OPTIONS}
                 value={handedness}
-                onChange={v => setHandedness(v as 'left' | 'right')}
+                onChange={v => setHandedness(HandSchema.parse(v))}
               />
             </label>
             <label>

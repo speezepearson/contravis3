@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, validateHandDistances } from './generate';
 import type { Instruction, Keyframe } from './types';
-import { parseDancerId, InstructionSchema } from './types';
+import { parseDancerId, InstructionSchema, ProtoDancerIdSchema } from './types';
 import { z } from 'zod';
 
 /** Parse an array of raw instruction objects into branded Instructions. */
@@ -435,7 +435,7 @@ describe('generateAllKeyframes', () => {
       const kfs = generateAllKeyframes(instructions);
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
-      for (const id of Object.keys(init.dancers) as (keyof typeof init.dancers)[]) {
+      for (const id of ProtoDancerIdSchema.options) {
         expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
         expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y + 1, 5);
       }
@@ -448,7 +448,7 @@ describe('generateAllKeyframes', () => {
       const kfs = generateAllKeyframes(instructions);
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
-      for (const id of Object.keys(init.dancers) as (keyof typeof init.dancers)[]) {
+      for (const id of ProtoDancerIdSchema.options) {
         expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
         expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y - 0.5, 5);
       }
@@ -725,7 +725,7 @@ describe('generateAllKeyframes', () => {
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
       // Balance: step 0.2 across, then step -0.2 across → net zero
-      for (const id of Object.keys(init.dancers) as (keyof typeof init.dancers)[]) {
+      for (const id of ProtoDancerIdSchema.options) {
         expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
         expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y, 5);
       }
@@ -819,7 +819,7 @@ describe('generateAllKeyframes', () => {
       const kfs = generateAllKeyframes(instructions);
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
-      for (const id of Object.keys(init.dancers) as (keyof typeof init.dancers)[]) {
+      for (const id of ProtoDancerIdSchema.options) {
         expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 1);
         expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y, 1);
       }

@@ -151,7 +151,7 @@ export default function App() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Don't capture shortcuts when typing in inputs
-      const tag = (e.target as HTMLElement)?.tagName;
+      const tag = e.target instanceof HTMLElement ? e.target.tagName : undefined;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
       if (e.code === 'ArrowRight') { e.preventDefault(); stepFwd(); }
