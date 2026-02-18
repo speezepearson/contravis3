@@ -100,17 +100,27 @@ describe('generateAllKeyframes', () => {
   });
 
   describe('dynamic relationships (on_right, on_left, in_front)', () => {
-    it('on_right in initial formation: each dancer connects to nearest dancer on their right', () => {
-      // Per-dancer resolution: up_lark (facing N, right=E) → up_robin,
-      // down_lark (facing S, right=W) → down_robin are exact matches.
-      // up_robin and down_robin have no one exactly to their right, so they
-      // connect to the closest match, forming a 4-connection ring.
+    it('on_right in initial formation throws when a dancer has no valid candidate', () => {
+      // up_lark (facing N) → up_robin is directly to the right, but
+      // up_robin (facing N) has nobody within range in the on_right direction.
       const instructions = instr([
         { id: 1, beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' },
       ]);
+      expect(() => generateAllKeyframes(instructions)).toThrow(/no valid candidate for 'on_right'/);
+    });
+
+    it('on_right scoped to larks finds partner (improper formation)', () => {
+      // In improper formation, up_lark faces N → on_right (70° CW) finds up_robin (to the east).
+      // down_lark faces S → on_right (70° CW) finds down_robin (to the west).
+      // Scoped to larks only, so robins (who have nobody on their right) are not evaluated.
+      const instructions = instr([{
+        id: 1, type: 'split', by: 'role',
+        listA: [{ id: 10, beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' }],
+        listB: [],
+      }]);
       const kfs = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      expect(last.hands).toHaveLength(4);
+      expect(last.hands).toHaveLength(2);
       expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'up_robin_0', hb: 'right' });
       expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
     });

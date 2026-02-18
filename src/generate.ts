@@ -1,12 +1,13 @@
 import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId, InitFormation } from './types';
 import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
+import { assertNever } from './utils';
 
 const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
 const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 
 const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
 
-const STATIC_RELATIONSHIPS: Partial<Record<Relationship, Record<ProtoDancerId, ProtoDancerId>>> = {
+const STATIC_RELATIONSHIPS: Record<'partner' | 'neighbor' | 'opposite', Record<ProtoDancerId, ProtoDancerId>> = {
   partner:  { up_lark_0: 'up_robin_0', up_robin_0: 'up_lark_0', down_lark_0: 'down_robin_0', down_robin_0: 'down_lark_0' },
   neighbor: { up_lark_0: 'down_robin_0', up_robin_0: 'down_lark_0', down_lark_0: 'up_robin_0', down_robin_0: 'up_lark_0' },
   opposite: { up_lark_0: 'down_lark_0', up_robin_0: 'down_robin_0', down_lark_0: 'up_lark_0', down_robin_0: 'up_robin_0' },
@@ -52,32 +53,54 @@ function copyDancers(dancers: Record<ProtoDancerId, DancerState>): Record<ProtoD
 /** Resolve a relationship from a specific dancer's perspective.
  *  Returns the DancerId of the target, which may be in an adjacent hands-four. */
 function resolveRelationship(relationship: Relationship, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): DancerId {
-  const staticMap = STATIC_RELATIONSHIPS[relationship];
-  if (staticMap) {
-    return makeDancerId(staticMap[id], 0);
-  }
-  // Dynamic: on_right (90°), on_left (-90°), in_front (0°)
-  const targetAngle = relationship === 'on_right' ? 90 : relationship === 'on_left' ? -90 : 0;
-  const d = dancers[id];
-  let bestScore = Infinity;
-  let bestAbsOffset = Infinity;
-  let bestTarget: DancerId = makeDancerId(id, 0); // fallback
-  for (const otherId of PROTO_DANCER_IDS) {
-    if (otherId === id) continue;
-    for (const offset of [-1, 0, 1]) {
-      const targetId = makeDancerId(otherId, offset);
-      const targetPos = dancerPosition(targetId, dancers);
-      const heading = Math.atan2(targetPos.x - d.x, targetPos.y - d.y) * 180 / Math.PI;
-      const rel = ((heading - d.facing + 540) % 360) - 180;
-      const score = Math.abs(rel - targetAngle);
-      if (score < bestScore || (score === bestScore && Math.abs(offset) < bestAbsOffset)) {
-        bestScore = score;
-        bestAbsOffset = Math.abs(offset);
-        bestTarget = targetId;
+  switch (relationship) {
+    case 'partner': case 'neighbor': case 'opposite':
+      return makeDancerId(STATIC_RELATIONSHIPS[relationship][id], 0);
+    case 'on_right': case 'on_left': case 'in_front': {
+      // Bias towards people in front of the dancer vs behind,
+      // since those loom larger in their attention.
+      const angleOffset = relationship === 'on_right' ? 70 : relationship === 'on_left' ? -70 : relationship === 'in_front' ? 0 : assertNever(relationship);
+      const d = dancers[id];
+      const headingRad = (d.facing + angleOffset) * Math.PI / 180;
+      const ux = Math.sin(headingRad);
+      const uy = Math.cos(headingRad);
+
+      let bestScore = Infinity;
+      let bestTarget: DancerId | null = null;
+
+      for (const otherId of PROTO_DANCER_IDS) {
+        if (otherId === id) continue;
+        // Find the 5 offsets whose dancers are closest to this dancer
+        const dyBase = dancers[otherId].y - d.y;
+        const oBest = Math.round(-dyBase / 2);
+        for (let o = oBest - 2; o <= oBest + 2; o++) {
+          const targetId = makeDancerId(otherId, o);
+          const targetPos = dancerPosition(targetId, dancers);
+          const dx = targetPos.x - d.x;
+          const dy = targetPos.y - d.y;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          if (r > 1.2 || r < 1e-9) continue;
+
+          const cosTheta = (ux * dx + uy * dy) / r;
+          if (cosTheta < 0) continue;
+          const cos2Theta = 2 * cosTheta * cosTheta - 1;
+          if (cos2Theta < 0.01) continue;
+
+          const score = r / cos2Theta;
+          if (score < bestScore) {
+            bestScore = score;
+            bestTarget = targetId;
+          }
+        }
       }
+
+      if (bestTarget === null) {
+        throw new Error(`resolveRelationship: no valid candidate for '${relationship}' from ${id}`);
+      }
+      return bestTarget;
     }
+    default: return assertNever(relationship);
   }
-  return bestTarget;
 }
 
 function easeInOut(t: number): number {
