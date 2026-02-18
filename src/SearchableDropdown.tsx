@@ -51,7 +51,8 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
   // Scroll highlighted item into view
   useEffect(() => {
     if (highlightIndex >= 0 && listRef.current) {
-      const item = listRef.current.children[highlightIndex] as HTMLElement | undefined;
+      const child = listRef.current.children[highlightIndex];
+      const item = child instanceof HTMLElement ? child : undefined;
       if (item?.scrollIntoView) item.scrollIntoView({ block: 'nearest' });
     }
   }, [highlightIndex]);
@@ -72,7 +73,7 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
 
   function handleBlur(e: React.FocusEvent) {
     // Don't close if focus moved to something inside the container
-    if (containerRef.current?.contains(e.relatedTarget as Node)) return;
+    if (e.relatedTarget instanceof Node && containerRef.current?.contains(e.relatedTarget)) return;
     setOpen(false);
     setHighlightIndex(-1);
     if (getLabel) {

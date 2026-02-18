@@ -1,5 +1,5 @@
 import type { DancerState, Keyframe, ProtoDancerId } from './types';
-import { dancerPosition } from './types';
+import { dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
 
 const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
@@ -97,19 +97,23 @@ export class Renderer {
     const firstCopy = Math.floor((viewYMin - 1) / 2) * 2;
     const lastCopy = Math.ceil((viewYMax + 1) / 2) * 2;
     for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
-      for (const [id, d] of Object.entries(frame.dancers) as [ProtoDancerId, DancerState][]) {
+      for (const id of ProtoDancerIdSchema.options) {
+        const d = frame.dancers[id];
         this.drawDancer(id, d.x, d.y + offset, d.facing, offset === 0 ? 1.0 : 0.35);
       }
     }
 
     // Update and draw trails
-    for (const [id, d] of Object.entries(frame.dancers) as [ProtoDancerId, DancerState][]) {
+    for (const id of ProtoDancerIdSchema.options) {
+      const d = frame.dancers[id];
       if (!this.trails[id]) this.trails[id] = [];
       this.trails[id]!.push({ x: d.x, y: d.y });
       if (this.trails[id]!.length > this.trailLength) this.trails[id]!.shift();
     }
 
-    for (const [id, trail] of Object.entries(this.trails) as [ProtoDancerId, { x: number; y: number }[]][]) {
+    for (const id of ProtoDancerIdSchema.options) {
+      const trail = this.trails[id];
+      if (!trail) continue;
       const color = COLORS[id];
       ctx.strokeStyle = color.fill;
       ctx.lineWidth = 1;
@@ -235,16 +239,15 @@ function rawFrameAtBeat(keyframes: Keyframe[], beat: number): Keyframe | null {
   const f1 = keyframes[hi];
   const t = (beat - f0.beat) / (f1.beat - f0.beat);
 
-  const dancers = {} as Record<ProtoDancerId, DancerState>;
-  for (const id of Object.keys(f0.dancers) as ProtoDancerId[]) {
+  const dancers = buildDancerRecord(id => {
     const d0 = f0.dancers[id];
     const d1 = f1.dancers[id];
-    dancers[id] = {
+    return {
       x: d0.x + (d1.x - d0.x) * t,
       y: d0.y + (d1.y - d0.y) * t,
       facing: lerpAngle(d0.facing, d1.facing, t),
     };
-  }
+  });
 
   return {
     beat,
@@ -281,10 +284,7 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
   }
 
   // Average x, y per dancer; angle-aware average for facing
-  const ids = Object.keys(samples[0].dancers) as ProtoDancerId[];
-  const dancers = {} as Record<ProtoDancerId, DancerState>;
-
-  for (const id of ids) {
+  const dancers = buildDancerRecord(id => {
     let sumX = 0, sumY = 0;
     // Unwrap facing angles via chaining: each sample unwraps relative to the
     // previous one, so even fast rotations (>180° across the full window) work.
@@ -300,12 +300,12 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
     }
 
     const n = SMOOTH_SAMPLES;
-    dancers[id] = {
+    return {
       x: sumX / n,
       y: sumY / n,
       facing: ((sumFacing / n % 360) + 360) % 360,
     };
-  }
+  });
 
   // Use the center sample for hands/annotation
   const center = samples[Math.floor(SMOOTH_SAMPLES / 2)];
