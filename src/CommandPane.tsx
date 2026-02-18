@@ -326,6 +326,312 @@ function DropZone({ containerId }: { containerId: string }) {
   return <div ref={setNodeRef} className={`drop-zone${isOver ? ' drop-zone-active' : ''}`} />;
 }
 
+// --- SaveCancelButtons ---
+
+function SaveCancelButtons({ isEditing, onSave, onCancel }: { isEditing: boolean; onSave: () => void; onCancel: () => void }) {
+  return (
+    <div className="builder-buttons">
+      <button className="add-btn" onClick={onSave}>{isEditing ? 'Save' : 'Add'}</button>
+      <button className="cancel-btn" onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
+
+// --- Per-action sub-form components ---
+
+interface SubFormProps {
+  id: number;
+  isEditing: boolean;
+  onSave: (instr: Instruction) => void;
+  onCancel: () => void;
+}
+
+function TakeHandsFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'take_hands' }> }) {
+  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
+  const [hand, setHand] = useState<TakeHand>(initial?.hand ?? 'right');
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, beats: 0, type: 'take_hands', relationship, hand }));
+  }
+
+  return (<>
+    <label>
+      With
+      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    </label>
+    <label>
+      Hand
+      <SearchableDropdown options={TAKE_HAND_OPTIONS} value={hand} onChange={v => setHand(TakeHandSchema.parse(v))} getLabel={v => v} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function DropHandsFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'drop_hands' }> }) {
+  const [dropTarget, setDropTarget] = useState<DropHandsTarget>(initial?.target ?? 'neighbor');
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, beats: 0, type: 'drop_hands', target: dropTarget }));
+  }
+
+  return (<>
+    <label>
+      Drop
+      <SearchableDropdown options={DROP_TARGET_OPTIONS} value={dropTarget} onChange={v => setDropTarget(DropHandsTargetSchema.parse(v))} getLabel={v => DROP_TARGET_LABELS[v] ?? v} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function AllemandeFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'allemande' }> }) {
+  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
+  const [handedness, setHandedness] = useState<'left' | 'right'>(initial?.handedness ?? 'right');
+  const [rotations, setRotations] = useState(initial ? String(initial.rotations) : '1');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('allemande'));
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'allemande', beats: Number(beats) || 0, relationship, handedness, rotations: Number(rotations) || 1 }));
+  }
+
+  return (<>
+    <label>
+      With
+      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    </label>
+    <label>
+      Hand
+      <SearchableDropdown options={HAND_OPTIONS} value={handedness} onChange={v => setHandedness(HandSchema.parse(v))} getLabel={v => v} />
+    </label>
+    <label>
+      Rotations
+      <input type="text" inputMode="decimal" value={rotations} onChange={e => setRotations(e.target.value)} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function DoSiDoFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'do_si_do' }> }) {
+  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
+  const [rotations, setRotations] = useState(initial ? String(initial.rotations) : '1');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('do_si_do'));
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'do_si_do', beats: Number(beats) || 0, relationship, rotations: Number(rotations) || 1 }));
+  }
+
+  return (<>
+    <label>
+      With
+      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    </label>
+    <label>
+      Rotations
+      <input type="text" inputMode="decimal" value={rotations} onChange={e => setRotations(e.target.value)} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function CircleFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'circle' }> }) {
+  const [direction, setDirection] = useState<'left' | 'right'>(initial?.direction ?? 'left');
+  const [rotations, setRotations] = useState(initial ? String(initial.rotations) : '1');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('circle'));
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'circle', beats: Number(beats) || 0, direction, rotations: Number(rotations) || 1 }));
+  }
+
+  return (<>
+    <label>
+      Direction
+      <SearchableDropdown options={CIRCLE_DIR_OPTIONS} value={direction} onChange={v => setDirection(HandSchema.parse(v))} getLabel={v => v} />
+    </label>
+    <label>
+      Rotations
+      <input type="text" inputMode="decimal" value={rotations} onChange={e => setRotations(e.target.value)} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function PullByFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'pull_by' }> }) {
+  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
+  const [hand, setHand] = useState<'left' | 'right'>(initial?.hand ?? 'right');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('pull_by'));
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'pull_by', beats: Number(beats) || 0, relationship, hand }));
+  }
+
+  return (<>
+    <label>
+      With
+      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    </label>
+    <label>
+      Hand
+      <SearchableDropdown options={HAND_OPTIONS} value={hand} onChange={v => setHand(HandSchema.parse(v))} getLabel={v => v} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function TurnFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'turn' }> }) {
+  const [targetText, setTargetText] = useState(initial ? directionToText(initial.target) : '');
+  const [offset, setOffset] = useState(initial ? String(initial.offset) : '0');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('turn'));
+
+  function save() {
+    const target = parseDirection(targetText) ?? { kind: 'direction' as const, value: 'up' as const };
+    onSave(InstructionSchema.parse({ id, type: 'turn', beats: Number(beats) || 0, target, offset: Number(offset) || 0 }));
+  }
+
+  return (<>
+    <label>
+      Target
+      <SearchableDropdown options={DIR_OPTIONS} value={targetText} onChange={setTargetText} placeholder="e.g. across, partner" />
+    </label>
+    <label>
+      Offset
+      <input type="text" inputMode="decimal" value={offset} onChange={e => setOffset(e.target.value)} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function StepFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'step' }> }) {
+  const [dirText, setDirText] = useState(initial ? directionToText(initial.direction) : '');
+  const [distance, setDistance] = useState(initial ? String(initial.distance) : '0.5');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('step'));
+
+  function save() {
+    const dir = parseDirection(dirText) ?? { kind: 'direction' as const, value: 'up' as const };
+    onSave(InstructionSchema.parse({ id, type: 'step', beats: Number(beats) || 0, direction: dir, distance: Number(distance) || 0 }));
+  }
+
+  return (<>
+    <label>
+      Direction
+      <SearchableDropdown options={DIR_OPTIONS} value={dirText} onChange={setDirText} placeholder="e.g. across, partner, 45" />
+    </label>
+    <label>
+      Distance
+      <input type="text" inputMode="decimal" value={distance} onChange={e => setDistance(e.target.value)} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function BalanceFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'balance' }> }) {
+  const [dirText, setDirText] = useState(initial ? directionToText(initial.direction) : '');
+  const [distance, setDistance] = useState(initial ? String(initial.distance) : '0.5');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('balance'));
+
+  function save() {
+    const dir = parseDirection(dirText) ?? { kind: 'direction' as const, value: 'across' as const };
+    onSave(InstructionSchema.parse({ id, type: 'balance', beats: Number(beats) || 0, direction: dir, distance: Number(distance) || 0 }));
+  }
+
+  return (<>
+    <label>
+      Direction
+      <SearchableDropdown options={DIR_OPTIONS} value={dirText} onChange={setDirText} placeholder="e.g. across, partner, 45" />
+    </label>
+    <label>
+      Distance
+      <input type="text" inputMode="decimal" value={distance} onChange={e => setDistance(e.target.value)} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function SwingFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'swing' }> }) {
+  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
+  const [endFacingText, setEndFacingText] = useState(initial ? directionToText(initial.endFacing) : 'across');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('swing'));
+
+  function save() {
+    const endFacing = parseDirection(endFacingText) ?? { kind: 'direction' as const, value: 'across' as const };
+    onSave(InstructionSchema.parse({ id, type: 'swing', beats: Number(beats) || 0, relationship, endFacing }));
+  }
+
+  return (<>
+    <label>
+      With
+      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    </label>
+    <label>
+      End facing
+      <SearchableDropdown options={DIR_OPTIONS} value={endFacingText} onChange={setEndFacingText} placeholder="e.g. across, up" />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function SplitFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'split' }> }) {
+  const [splitBy, setSplitBy] = useState<SplitBy>(initial?.by ?? 'role');
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'split', by: splitBy, listA: initial?.listA ?? [], listB: initial?.listB ?? [] }));
+  }
+
+  return (<>
+    <label>
+      Split by
+      <SearchableDropdown options={SPLIT_BY_OPTIONS} value={splitBy} onChange={v => setSplitBy(SplitBySchema.parse(v))} getLabel={v => SPLIT_BY_LABELS[v] ?? v} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
+function GroupFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'group' }> }) {
+  const [label, setLabel] = useState(initial?.label ?? '');
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'group', label: label || 'Untitled', instructions: initial?.instructions ?? [] }));
+  }
+
+  return (<>
+    <label>
+      Label
+      <input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Allemande figure" />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
 // --- InlineForm: self-contained instruction editor ---
 
 function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
@@ -334,116 +640,18 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
   onCancel: () => void;
   allowContainers?: boolean;
 }) {
-  const initAtomic: AtomicInstruction | null =
-    initial && initial.type !== 'split' && initial.type !== 'group' ? initial : null;
-
   const [action, setAction] = useState<ActionType | 'split' | 'group'>(() => {
     if (!initial) return 'take_hands';
     if (initial.type === 'split') return 'split';
     if (initial.type === 'group') return 'group';
     return initial.type;
   });
-  const [relationship, setRelationship] = useState<Relationship>(() => {
-    if (initAtomic?.type === 'take_hands' || initAtomic?.type === 'allemande' ||
-        initAtomic?.type === 'do_si_do' || initAtomic?.type === 'pull_by' || initAtomic?.type === 'swing')
-      return initAtomic.relationship;
-    return 'neighbor';
-  });
-  const [dropTarget, setDropTarget] = useState<DropHandsTarget>(
-    initAtomic?.type === 'drop_hands' ? initAtomic.target : 'neighbor'
-  );
-  const [hand, setHand] = useState<TakeHand>(() => {
-    if (initAtomic?.type === 'take_hands' || initAtomic?.type === 'pull_by') return initAtomic.hand;
-    return 'right';
-  });
-  const [handedness, setHandedness] = useState<'left' | 'right'>(() => {
-    if (initAtomic?.type === 'allemande') return initAtomic.handedness;
-    if (initAtomic?.type === 'circle') return initAtomic.direction;
-    return 'right';
-  });
-  const [rotations, setRotations] = useState(() => {
-    if (initAtomic?.type === 'allemande' || initAtomic?.type === 'do_si_do' || initAtomic?.type === 'circle')
-      return String(initAtomic.rotations);
-    return '1';
-  });
-  const [turnText, setTurnText] = useState(() => {
-    if (initAtomic?.type === 'turn') return directionToText(initAtomic.target);
-    if (initAtomic?.type === 'swing') return directionToText(initAtomic.endFacing);
-    return '';
-  });
-  const [turnOffset, setTurnOffset] = useState(
-    initAtomic?.type === 'turn' ? String(initAtomic.offset) : '0'
-  );
-  const [stepText, setStepText] = useState(
-    initAtomic?.type === 'step' ? directionToText(initAtomic.direction) : ''
-  );
-  const [balanceText, setBalanceText] = useState(
-    initAtomic?.type === 'balance' ? directionToText(initAtomic.direction) : ''
-  );
-  const [distance, setDistance] = useState(() => {
-    if (initAtomic?.type === 'step' || initAtomic?.type === 'balance') return String(initAtomic.distance);
-    return '0.5';
-  });
-  const [beats, setBeats] = useState(initAtomic ? String(initAtomic.beats) : '0');
-  const [splitBy, setSplitBy] = useState<SplitBy>(
-    initial?.type === 'split' ? initial.by : 'role'
-  );
-  const [groupLabel, setGroupLabel] = useState(
-    initial?.type === 'group' ? initial.label : ''
-  );
 
   const actionRef = useRef<SearchableDropdownHandle>(null);
   useEffect(() => { actionRef.current?.focus(); }, []);
-
-  function buildAtomicInstruction(id: number): AtomicInstruction {
-    const base = { id, beats: Number(beats) || 0 };
-    switch (ActionTypeSchema.parse(action)) {
-      case 'take_hands':
-        return { id, beats: 0, type: 'take_hands', relationship, hand };
-      case 'drop_hands':
-        return { id, beats: 0, type: 'drop_hands', target: dropTarget };
-      case 'allemande':
-        return { ...base, type: 'allemande', relationship, handedness, rotations: Number(rotations) || 1 };
-      case 'do_si_do':
-        return { ...base, type: 'do_si_do', relationship, rotations: Number(rotations) || 1 };
-      case 'circle':
-        return { ...base, type: 'circle', direction: handedness, rotations: Number(rotations) || 1 };
-      case 'pull_by':
-        return { ...base, type: 'pull_by', relationship, hand: HandSchema.parse(hand) };
-      case 'turn': {
-        const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
-        return { ...base, type: 'turn', target, offset: Number(turnOffset) || 0 };
-      }
-      case 'step': {
-        const dir = parseDirection(stepText) ?? { kind: 'direction' as const, value: 'up' as const };
-        return { ...base, type: 'step', direction: dir, distance: Number(distance) || 0 };
-      }
-      case 'balance': {
-        const dir = parseDirection(balanceText) ?? { kind: 'direction' as const, value: 'across' as const };
-        return { ...base, type: 'balance', direction: dir, distance: Number(distance) || 0 };
-      }
-      case 'swing': {
-        const endFacing = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'across' as const };
-        return { ...base, type: 'swing', relationship, endFacing };
-      }
-    }
-  }
-
-  function save() {
-    const id = initial ? initial.id : nextId++;
-    let raw;
-    if (action === 'group') {
-      const existingChildren = initial?.type === 'group' ? initial.instructions : [];
-      raw = { id, type: 'group', label: groupLabel || 'Untitled', instructions: existingChildren };
-    } else if (action === 'split') {
-      const existingListA = initial?.type === 'split' ? initial.listA : [];
-      const existingListB = initial?.type === 'split' ? initial.listB : [];
-      raw = { id, type: 'split', by: splitBy, listA: existingListA, listB: existingListB };
-    } else {
-      raw = buildAtomicInstruction(id);
-    }
-    onSave(InstructionSchema.parse(raw));
-  }
+  const idRef = useRef(initial ? initial.id : nextId++);
+  const isEditing = !!initial;
+  const common = { id: idRef.current, isEditing, onSave, onCancel };
 
   const actionOptions = allowContainers
     ? ACTION_OPTIONS
@@ -457,246 +665,22 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
           ref={actionRef}
           options={actionOptions}
           value={action}
-          onChange={v => {
-            const a = z.union([ActionTypeSchema, z.literal('split'), z.literal('group')]).parse(v);
-            setAction(a);
-            if (!initial) {
-              setBeats(defaultBeats(a));
-              if (a === 'swing') setTurnText('across');
-            }
-            if (a === 'pull_by' && hand === 'both') setHand('right');
-          }}
+          onChange={v => setAction(z.union([ActionTypeSchema, z.literal('split'), z.literal('group')]).parse(v))}
           getLabel={v => ACTION_LABELS[v] ?? v}
         />
       </label>
-
-      {action === 'split' && (
-        <label>
-          Split by
-          <SearchableDropdown
-            options={SPLIT_BY_OPTIONS}
-            value={splitBy}
-            onChange={v => setSplitBy(SplitBySchema.parse(v))}
-            getLabel={v => SPLIT_BY_LABELS[v] ?? v}
-          />
-        </label>
-      )}
-
-      {action === 'group' && (
-        <label>
-          Label
-          <input
-            type="text"
-            value={groupLabel}
-            onChange={e => setGroupLabel(e.target.value)}
-            placeholder="e.g. Allemande figure"
-          />
-        </label>
-      )}
-
-      {action !== 'split' && action !== 'group' && (action === 'take_hands' || action === 'allemande' || action === 'do_si_do' || action === 'pull_by' || action === 'swing') && (
-        <label>
-          With
-          <SearchableDropdown
-            options={RELATIONSHIP_OPTIONS}
-            value={relationship}
-            onChange={v => setRelationship(RelationshipSchema.parse(v))}
-            getLabel={v => RELATIONSHIP_LABELS[v] ?? v}
-          />
-        </label>
-      )}
-
-      {action === 'drop_hands' && (
-        <label>
-          Drop
-          <SearchableDropdown
-            options={DROP_TARGET_OPTIONS}
-            value={dropTarget}
-            onChange={v => setDropTarget(DropHandsTargetSchema.parse(v))}
-            getLabel={v => DROP_TARGET_LABELS[v] ?? v}
-          />
-        </label>
-      )}
-
-      {action === 'take_hands' && (
-        <label>
-          Hand
-          <SearchableDropdown
-            options={TAKE_HAND_OPTIONS}
-            value={hand}
-            onChange={v => setHand(TakeHandSchema.parse(v))}
-            getLabel={v => v}
-          />
-        </label>
-      )}
-
-      {action === 'pull_by' && (
-        <label>
-          Hand
-          <SearchableDropdown
-            options={HAND_OPTIONS}
-            value={hand}
-            onChange={v => setHand(HandSchema.parse(v))}
-            getLabel={v => v}
-          />
-        </label>
-      )}
-
-      {action === 'allemande' && (
-        <>
-          <label>
-            Hand
-            <SearchableDropdown
-              options={HAND_OPTIONS}
-              value={handedness}
-              onChange={v => setHandedness(HandSchema.parse(v))}
-              getLabel={v => v}
-            />
-          </label>
-          <label>
-            Rotations
-            <input
-              type="text"
-              inputMode="decimal"
-              value={rotations}
-              onChange={e => setRotations(e.target.value)}
-            />
-          </label>
-        </>
-      )}
-
-      {action === 'do_si_do' && (
-        <label>
-          Rotations
-          <input
-            type="text"
-            inputMode="decimal"
-            value={rotations}
-            onChange={e => setRotations(e.target.value)}
-          />
-        </label>
-      )}
-
-      {action === 'circle' && (
-        <>
-          <label>
-            Direction
-            <SearchableDropdown
-              options={CIRCLE_DIR_OPTIONS}
-              value={handedness}
-              onChange={v => setHandedness(HandSchema.parse(v))}
-              getLabel={v => v}
-            />
-          </label>
-          <label>
-            Rotations
-            <input
-              type="text"
-              inputMode="decimal"
-              value={rotations}
-              onChange={e => setRotations(e.target.value)}
-            />
-          </label>
-        </>
-      )}
-
-      {action === 'turn' && (
-        <>
-          <label>
-            Target
-            <SearchableDropdown
-              options={DIR_OPTIONS}
-              value={turnText}
-              onChange={setTurnText}
-              placeholder="e.g. across, partner"
-            />
-          </label>
-          <label>
-            Offset
-            <input
-              type="text"
-              inputMode="decimal"
-              value={turnOffset}
-              onChange={e => setTurnOffset(e.target.value)}
-            />
-          </label>
-        </>
-      )}
-
-      {action === 'step' && (
-        <>
-          <label>
-            Direction
-            <SearchableDropdown
-              options={DIR_OPTIONS}
-              value={stepText}
-              onChange={setStepText}
-              placeholder="e.g. across, partner, 45"
-            />
-          </label>
-          <label>
-            Distance
-            <input
-              type="text"
-              inputMode="decimal"
-              value={distance}
-              onChange={e => setDistance(e.target.value)}
-            />
-          </label>
-        </>
-      )}
-
-      {action === 'balance' && (
-        <>
-          <label>
-            Direction
-            <SearchableDropdown
-              options={DIR_OPTIONS}
-              value={balanceText}
-              onChange={setBalanceText}
-              placeholder="e.g. across, partner, 45"
-            />
-          </label>
-          <label>
-            Distance
-            <input
-              type="text"
-              inputMode="decimal"
-              value={distance}
-              onChange={e => setDistance(e.target.value)}
-            />
-          </label>
-        </>
-      )}
-
-      {action === 'swing' && (
-        <label>
-          End facing
-          <SearchableDropdown
-            options={DIR_OPTIONS}
-            value={turnText}
-            onChange={setTurnText}
-            placeholder="e.g. across, up"
-          />
-        </label>
-      )}
-
-      {action !== 'split' && action !== 'group' && action !== 'take_hands' && action !== 'drop_hands' && (
-        <label>
-          Beats
-          <input
-            type="text"
-            inputMode="decimal"
-            value={beats}
-            onChange={e => setBeats(e.target.value)}
-          />
-        </label>
-      )}
-
-      <div className="builder-buttons">
-        <button className="add-btn" onClick={save}>{initial ? 'Save' : 'Add'}</button>
-        <button className="cancel-btn" onClick={onCancel}>Cancel</button>
-      </div>
+      {action === 'take_hands' && <TakeHandsFields {...common} initial={initial?.type === 'take_hands' ? initial : undefined} />}
+      {action === 'drop_hands' && <DropHandsFields {...common} initial={initial?.type === 'drop_hands' ? initial : undefined} />}
+      {action === 'allemande' && <AllemandeFields {...common} initial={initial?.type === 'allemande' ? initial : undefined} />}
+      {action === 'do_si_do' && <DoSiDoFields {...common} initial={initial?.type === 'do_si_do' ? initial : undefined} />}
+      {action === 'circle' && <CircleFields {...common} initial={initial?.type === 'circle' ? initial : undefined} />}
+      {action === 'pull_by' && <PullByFields {...common} initial={initial?.type === 'pull_by' ? initial : undefined} />}
+      {action === 'turn' && <TurnFields {...common} initial={initial?.type === 'turn' ? initial : undefined} />}
+      {action === 'step' && <StepFields {...common} initial={initial?.type === 'step' ? initial : undefined} />}
+      {action === 'balance' && <BalanceFields {...common} initial={initial?.type === 'balance' ? initial : undefined} />}
+      {action === 'swing' && <SwingFields {...common} initial={initial?.type === 'swing' ? initial : undefined} />}
+      {action === 'split' && <SplitFields {...common} initial={initial?.type === 'split' ? initial : undefined} />}
+      {action === 'group' && <GroupFields {...common} initial={initial?.type === 'group' ? initial : undefined} />}
     </div>
   );
 }
