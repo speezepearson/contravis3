@@ -61,11 +61,13 @@ export default function App() {
 
   // Keep a ref to keyframes for the animation loop
   const keyframesRef = useRef(keyframes);
-  keyframesRef.current = keyframes;
   const minBeatRef = useRef(minBeat);
-  minBeatRef.current = minBeat;
   const maxBeatRef = useRef(maxBeat);
-  maxBeatRef.current = maxBeat;
+  useEffect(() => {
+    keyframesRef.current = keyframes;
+    minBeatRef.current = minBeat;
+    maxBeatRef.current = maxBeat;
+  }, [keyframes, minBeat, maxBeat]);
 
   const draw = useCallback(() => {
     const renderer = rendererRef.current;
@@ -78,9 +80,10 @@ export default function App() {
     setBeat(beatRef.current);
   }, []);
 
-  // Redraw when keyframes change
+  // Redraw when keyframes change (deferred to avoid synchronous setState in effect)
   useEffect(() => {
-    draw();
+    const id = requestAnimationFrame(() => draw());
+    return () => cancelAnimationFrame(id);
   }, [keyframes, draw]);
 
   // Initialize renderer + ResizeObserver
@@ -120,22 +123,26 @@ export default function App() {
     };
   }, [draw]);
 
-  // Animation loop
-  const animate = useCallback((timestamp: number) => {
-    if (!playingRef.current) return;
-    if (lastTimestampRef.current === null) lastTimestampRef.current = timestamp;
+  // Animation loop – stored in a ref so the rAF callback can self-schedule
+  // without referencing a variable before its declaration completes.
+  const animateRef = useRef<(timestamp: number) => void>();
+  useEffect(() => {
+    animateRef.current = (timestamp: number) => {
+      if (!playingRef.current) return;
+      if (lastTimestampRef.current === null) lastTimestampRef.current = timestamp;
 
-    const dt = (timestamp - lastTimestampRef.current) / 1000;
-    lastTimestampRef.current = timestamp;
+      const dt = (timestamp - lastTimestampRef.current) / 1000;
+      lastTimestampRef.current = timestamp;
 
-    beatRef.current += dt * (bpmRef.current / 60);
-    if (beatRef.current > maxBeatRef.current) {
-      beatRef.current = minBeatRef.current;
-      rendererRef.current?.clearTrails();
-    }
+      beatRef.current += dt * (bpmRef.current / 60);
+      if (beatRef.current > maxBeatRef.current) {
+        beatRef.current = minBeatRef.current;
+        rendererRef.current?.clearTrails();
+      }
 
-    draw();
-    rafRef.current = requestAnimationFrame(animate);
+      draw();
+      rafRef.current = requestAnimationFrame((ts) => animateRef.current!(ts));
+    };
   }, [draw]);
 
   const togglePlay = useCallback(() => {
@@ -144,11 +151,11 @@ export default function App() {
     setPlaying(next);
     if (next) {
       lastTimestampRef.current = null;
-      rafRef.current = requestAnimationFrame(animate);
+      rafRef.current = requestAnimationFrame((ts) => animateRef.current!(ts));
     } else {
       cancelAnimationFrame(rafRef.current);
     }
-  }, [animate]);
+  }, []);
 
   const stepFwd = useCallback(() => {
     beatRef.current = Math.min(beatRef.current + 0.25, maxBeatRef.current);
