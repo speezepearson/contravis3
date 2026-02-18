@@ -95,8 +95,11 @@ export const InstructionSchema: z.ZodType<Instruction> = z.lazy(() => z.union([
 export const InitFormationSchema = z.enum(['improper', 'beckett']);
 export type InitFormation = z.infer<typeof InitFormationSchema>;
 
+export const ProgressionSchema = z.number().int();
+
 export const DanceSchema = z.object({
   initFormation: InitFormationSchema,
+  progression: ProgressionSchema,
   instructions: z.array(InstructionSchema),
 });
 export type Dance = z.infer<typeof DanceSchema>;

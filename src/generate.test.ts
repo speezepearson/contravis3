@@ -1187,18 +1187,21 @@ describe('DanceSchema', () => {
   it('parses a valid dance with improper formation', () => {
     const raw = {
       initFormation: 'improper',
+      progression: 1,
       instructions: [
         { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
       ],
     };
     const dance = DanceSchema.parse(raw);
     expect(dance.initFormation).toBe('improper');
+    expect(dance.progression).toBe(1);
     expect(dance.instructions).toHaveLength(1);
   });
 
   it('parses a valid dance with beckett formation', () => {
     const raw = {
       initFormation: 'beckett',
+      progression: 1,
       instructions: [],
     };
     const dance = DanceSchema.parse(raw);

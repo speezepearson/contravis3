@@ -16,6 +16,7 @@ export interface GifExportOptions {
   bpm?: number;
   smoothness?: number;
   progressionRate?: number;
+  progression?: number;
   bgColor?: string;
 }
 
@@ -68,6 +69,7 @@ export function exportGif(
     bpm = 120,
     smoothness = 1,
     progressionRate = -1 / 64,
+    progression = 0,
     bgColor = DEFAULT_BG_COLOR,
   } = options;
 
@@ -83,7 +85,7 @@ export function exportGif(
 
   for (let beat = minBeat; beat <= maxBeat + beatStep / 2; beat += beatStep) {
     const clampedBeat = Math.min(beat, maxBeat);
-    const frame = getFrameAtBeat(keyframes, clampedBeat, smoothness);
+    const frame = getFrameAtBeat(keyframes, clampedBeat, smoothness, 64, progression);
     if (!frame) continue;
 
     renderer.drawFrame(frame, progressionRate);

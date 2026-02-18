@@ -5,7 +5,7 @@ import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { Instruction, InitFormation, InstructionId } from './types';
 
-const PROGRESSION_RATE = -1 / 64;
+const DANCE_LENGTH = 64;
 
 function instructionDuration(instr: Instruction): number {
   if (instr.type === 'split')
@@ -47,19 +47,20 @@ export default function App() {
   const [annotation, setAnnotation] = useState('');
   const [instructions, setInstructions] = useState<Instruction[]>([]);
   const [initFormation, setInitFormation] = useState<InitFormation>('improper');
+  const [progression, setProgression] = useState(1);
   const [smoothness, setSmoothness] = useState(100);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const bpmRef = useRef(120);
   const smoothnessRef = useRef(1);
+  const progressionRef = useRef(1);
 
   const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
 
-  const DANCE_BEATS = 64;
   const minBeat = 0;
-  const maxBeat = DANCE_BEATS;
+  const maxBeat = DANCE_LENGTH;
 
   // Keep a ref to keyframes for the animation loop
   const keyframesRef = useRef(keyframes);
@@ -74,9 +75,9 @@ export default function App() {
   const draw = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    const frame = getFrameAtBeat(keyframesRef.current, beatRef.current, smoothnessRef.current);
+    const frame = getFrameAtBeat(keyframesRef.current, beatRef.current, smoothnessRef.current, DANCE_LENGTH, progressionRef.current);
     if (frame) {
-      renderer.drawFrame(frame, PROGRESSION_RATE);
+      renderer.drawFrame(frame, -progressionRef.current / DANCE_LENGTH);
       setAnnotation(frame.annotation || '');
     }
     setBeat(beatRef.current);
@@ -127,7 +128,7 @@ export default function App() {
 
   // Animation loop – stored in a ref so the rAF callback can self-schedule
   // without referencing a variable before its declaration completes.
-  const animateRef = useRef<(timestamp: number) => void>();
+  const animateRef = useRef<(timestamp: number) => void>(undefined);
   useEffect(() => {
     animateRef.current = (timestamp: number) => {
       if (!playingRef.current) return;
@@ -216,7 +217,8 @@ export default function App() {
         height: h,
         bpm,
         smoothness: smoothnessRef.current,
-        progressionRate: PROGRESSION_RATE,
+        progressionRate: -progressionRef.current / DANCE_LENGTH,
+        progression: progressionRef.current,
       });
       const blob = new Blob([gifBytes.buffer as ArrayBuffer], { type: 'image/gif' });
       const url = URL.createObjectURL(blob);
@@ -302,7 +304,7 @@ export default function App() {
       {/* Desktop sidebar */}
       <div className="sidebar-column">
         <div className="sidebar-instructions">
-          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} />
+          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} />
         </div>
         <div className="sidebar-controls">
           {controlsBlock}
@@ -319,7 +321,7 @@ export default function App() {
 
       {/* Mobile instruction drawer */}
       <div className={`instruction-drawer ${drawerOpen ? 'open' : ''}`}>
-        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} />
+        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} />
       </div>
     </div>
   );

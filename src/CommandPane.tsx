@@ -229,6 +229,8 @@ interface Props {
   setInstructions: (instructions: Instruction[]) => void;
   initFormation: InitFormation;
   setInitFormation: (formation: InitFormation) => void;
+  progression: number;
+  setProgression: (progression: number) => void;
   activeId: InstructionId | null;
   warnings: Map<InstructionId, string>;
   generateError: GenerateError | null;
@@ -691,7 +693,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, activeId, warnings, generateError }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError }: Props) {
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -770,7 +772,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
   }
 
   function copyJson() {
-    const dance = { initFormation, instructions };
+    const dance = { initFormation, progression, instructions };
     navigator.clipboard.writeText(JSON.stringify(dance, null, 2));
     setCopyFeedback('Copied!');
     setTimeout(() => setCopyFeedback(''), 1500);
@@ -783,6 +785,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     if (!result.success) return;
     const parsed = result.data;
     setInitFormation(parsed.initFormation);
+    setProgression(parsed.progression);
     setInstructions(parsed.instructions);
     setEditingId(null);
     setInsertTarget(null);
@@ -824,6 +827,8 @@ export default function CommandPane({ instructions, setInstructions, initFormati
           onChange={v => setInitFormation(InitFormationSchema.parse(v))}
           getLabel={v => v.charAt(0).toUpperCase() + v.slice(1)}
         />
+        <label> Progression: </label>
+        <input type="text" inputMode="numeric" value={String(progression)} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setProgression(v); }} style={{ width: '3em' }} />
       </div>
 
       <h2>Instructions</h2>

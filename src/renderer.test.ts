@@ -48,7 +48,7 @@ describe('getFrameAtBeat', () => {
     it('wraps beats beyond dance length', () => {
       const kfs = uniformKeyframes();
       // beat 66 wraps to 2 (66 % 64 = 2), between kf[0](beat 0, x=0) and kf[1](beat 4, x=1)
-      const frame = getFrameAtBeat(kfs, 66, 0)!;
+      const frame = getFrameAtBeat(kfs, 66, 0, 64, 0)!;
       expect(frame.dancers.up_lark_0.x).toBeCloseTo(0.5);
     });
 
@@ -174,6 +174,54 @@ describe('getFrameAtBeat', () => {
       const f = frame.dancers.up_lark_0.facing;
       // Should be near 0 (between 350 and 10), not near 180
       expect(f > 340 || f < 20).toBe(true);
+    });
+  });
+
+  describe('progression', () => {
+    it('t=65 with progression=1 translates up dancers +1 and down dancers -1 in y', () => {
+      const kfs = uniformKeyframes();
+      const base = getFrameAtBeat(kfs, 1, 0, 64, 0)!;
+      const progressed = getFrameAtBeat(kfs, 65, 0, 64, 1)!;
+      // up dancers: y += 1
+      expect(progressed.dancers.up_lark_0.y).toBeCloseTo(base.dancers.up_lark_0.y + 1);
+      expect(progressed.dancers.up_robin_0.y).toBeCloseTo(base.dancers.up_robin_0.y + 1);
+      // down dancers: y -= 1
+      expect(progressed.dancers.down_lark_0.y).toBeCloseTo(base.dancers.down_lark_0.y - 1);
+      expect(progressed.dancers.down_robin_0.y).toBeCloseTo(base.dancers.down_robin_0.y - 1);
+      // x unchanged
+      expect(progressed.dancers.up_lark_0.x).toBeCloseTo(base.dancers.up_lark_0.x);
+    });
+
+    it('t=-1 with progression=1 translates the other way', () => {
+      const kfs = uniformKeyframes();
+      const base = getFrameAtBeat(kfs, 63, 0, 64, 0)!;
+      const progressed = getFrameAtBeat(kfs, -1, 0, 64, 1)!;
+      // cycle = -1, so up dancers y -= 1, down dancers y += 1
+      expect(progressed.dancers.up_lark_0.y).toBeCloseTo(base.dancers.up_lark_0.y - 1);
+      expect(progressed.dancers.down_lark_0.y).toBeCloseTo(base.dancers.down_lark_0.y + 1);
+    });
+
+    it('progression=0 applies no translation', () => {
+      const kfs = uniformKeyframes();
+      const base = getFrameAtBeat(kfs, 1, 0, 64, 0)!;
+      const same = getFrameAtBeat(kfs, 65, 0, 64, 0)!;
+      expect(same.dancers.up_lark_0.y).toBeCloseTo(base.dancers.up_lark_0.y);
+    });
+
+    it('progression=2 doubles the translation', () => {
+      const kfs = uniformKeyframes();
+      const base = getFrameAtBeat(kfs, 1, 0, 64, 0)!;
+      const progressed = getFrameAtBeat(kfs, 65, 0, 64, 2)!;
+      expect(progressed.dancers.up_lark_0.y).toBeCloseTo(base.dancers.up_lark_0.y + 2);
+      expect(progressed.dancers.down_lark_0.y).toBeCloseTo(base.dancers.down_lark_0.y - 2);
+    });
+
+    it('two cycles applies twice the translation', () => {
+      const kfs = uniformKeyframes();
+      const base = getFrameAtBeat(kfs, 1, 0, 64, 0)!;
+      const progressed = getFrameAtBeat(kfs, 129, 0, 64, 1)!; // cycle=2
+      expect(progressed.dancers.up_lark_0.y).toBeCloseTo(base.dancers.up_lark_0.y + 2);
+      expect(progressed.dancers.down_lark_0.y).toBeCloseTo(base.dancers.down_lark_0.y - 2);
     });
   });
 });
