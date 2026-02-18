@@ -678,6 +678,268 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
   return result;
 }
 
+function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'box_the_gnat' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  // Collect pairs with validation
+  type GnatPair = {
+    lark: ProtoDancerId;
+    robin: ProtoDancerId;
+    cx: number; cy: number;
+    majorX: number; majorY: number;  // unit vector from center toward lark start
+    minorX: number; minorY: number;  // unit vector perpendicular (toward lark's right)
+    semiMajor: number;
+    semiMinor: number;
+    larkStartFacing: number;  // radians, facing toward robin
+    robinStartFacing: number; // radians, facing toward lark
+  };
+
+  const pairs: GnatPair[] = [];
+  const processed = new Set<ProtoDancerId>();
+
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    if (processed.has(id)) continue;
+
+    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
+    const { proto: targetProto, offset } = parseDancerId(targetId);
+
+    if (offset !== 0) {
+      throw new Error(`Box the gnat: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
+    }
+    if (!scope.has(targetProto)) {
+      throw new Error(`Box the gnat: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
+    }
+
+    // Check reciprocity
+    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
+    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
+    if (reverseProto !== id || reverseOffset !== 0) {
+      throw new Error(`Box the gnat: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
+    }
+
+    // Check opposite roles
+    if (isLark(id) === isLark(targetProto)) {
+      throw new Error(`Box the gnat: ${id} and ${targetProto} have the same role`);
+    }
+
+    const lark = isLark(id) ? id : targetProto;
+    const robin = isLark(id) ? targetProto : id;
+    processed.add(lark);
+    processed.add(robin);
+
+    const larkState = prev.dancers[lark];
+    const robinState = prev.dancers[robin];
+    const cx = (larkState.x + robinState.x) / 2;
+    const cy = (larkState.y + robinState.y) / 2;
+    const dx = larkState.x - cx;
+    const dy = larkState.y - cy;
+    const dist = Math.hypot(dx, dy);
+    const majorX = dx / dist;
+    const majorY = dy / dist;
+    // Minor axis: 90° CW from major axis (toward lark's right when facing robin)
+    const minorX = majorY;
+    const minorY = -majorX;
+
+    // Lark faces robin, robin faces lark
+    const larkStartFacing = Math.atan2(robinState.x - larkState.x, robinState.y - larkState.y);
+    const robinStartFacing = Math.atan2(larkState.x - robinState.x, larkState.y - robinState.y);
+
+    pairs.push({
+      lark, robin, cx, cy, majorX, majorY, minorX, minorY,
+      semiMajor: dist,
+      semiMinor: dist / 2,
+      larkStartFacing, robinStartFacing,
+    });
+  }
+
+  // Build hand connections: right hand to right hand
+  let gnatHands = [...prev.hands];
+  for (const { lark, robin } of pairs) {
+    gnatHands.push({ a: makeDancerId(lark, 0), ha: 'right', b: makeDancerId(robin, 0), hb: 'right' });
+  }
+
+  const result: Keyframe[] = [];
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const tEased = easeInOut(t);
+    const theta = Math.PI * tEased;
+
+    const dancers = copyDancers(prev.dancers);
+    for (const p of pairs) {
+      // Lark traces top half of ellipse (θ from 0 to π)
+      dancers[p.lark].x = p.cx + p.semiMajor * Math.cos(theta) * p.majorX + p.semiMinor * Math.sin(theta) * p.minorX;
+      dancers[p.lark].y = p.cy + p.semiMajor * Math.cos(theta) * p.majorY + p.semiMinor * Math.sin(theta) * p.minorY;
+      // Robin traces bottom half (opposite side)
+      dancers[p.robin].x = p.cx - p.semiMajor * Math.cos(theta) * p.majorX - p.semiMinor * Math.sin(theta) * p.minorX;
+      dancers[p.robin].y = p.cy - p.semiMajor * Math.cos(theta) * p.majorY - p.semiMinor * Math.sin(theta) * p.minorY;
+
+      // Lark turns CW 180°, robin turns CCW 180°
+      const larkFacing = p.larkStartFacing + Math.PI * tEased;
+      const robinFacing = p.robinStartFacing - Math.PI * tEased;
+      dancers[p.lark].facing = ((larkFacing * 180 / Math.PI) % 360 + 360) % 360;
+      dancers[p.robin].facing = ((robinFacing * 180 / Math.PI) % 360 + 360) % 360;
+    }
+
+    // Drop hands on the final frame
+    const hands = i === nFrames ? prev.hands : gnatHands;
+    result.push({ beat, dancers, hands });
+  }
+
+  return result;
+}
+
+function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+  const walkBeats = 1;
+  const swingBeats = instr.beats - walkBeats;
+
+  // Collect pairs with validation
+  type GTPair = {
+    drawer: ProtoDancerId;
+    drawee: ProtoDancerId;
+    lark: ProtoDancerId;
+    robin: ProtoDancerId;
+  };
+
+  const pairs: GTPair[] = [];
+  const processed = new Set<ProtoDancerId>();
+
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    if (processed.has(id)) continue;
+
+    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
+    const { proto: targetProto, offset } = parseDancerId(targetId);
+
+    if (offset !== 0) {
+      throw new Error(`Give & take into swing: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
+    }
+    if (!scope.has(targetProto)) {
+      throw new Error(`Give & take into swing: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
+    }
+
+    // Check reciprocity
+    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
+    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
+    if (reverseProto !== id || reverseOffset !== 0) {
+      throw new Error(`Give & take into swing: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
+    }
+
+    // Check opposite roles
+    if (isLark(id) === isLark(targetProto)) {
+      throw new Error(`Give & take into swing: ${id} and ${targetProto} have the same role`);
+    }
+
+    // Check opposite sides
+    const aState = prev.dancers[id];
+    const bState = prev.dancers[targetProto];
+    if (Math.sign(aState.x) === Math.sign(bState.x) && Math.abs(aState.x) > 1e-6 && Math.abs(bState.x) > 1e-6) {
+      throw new Error(`Give & take into swing: ${id} and ${targetProto} are on the same side of the set`);
+    }
+
+    const lark = isLark(id) ? id : targetProto;
+    const robin = isLark(id) ? targetProto : id;
+    const drawer = instr.role === 'lark' ? lark : robin;
+    const drawee = instr.role === 'lark' ? robin : lark;
+
+    processed.add(lark);
+    processed.add(robin);
+    pairs.push({ drawer, drawee, lark, robin });
+  }
+
+  // Phase 1: drawee walks halfway to drawer (1 beat)
+  // Face each other immediately
+  const walkStartDancers = copyDancers(prev.dancers);
+  for (const { drawer, drawee } of pairs) {
+    const drawerState = prev.dancers[drawer];
+    const draweeState = prev.dancers[drawee];
+    walkStartDancers[drawer].facing = ((Math.atan2(draweeState.x - drawerState.x, draweeState.y - drawerState.y) * 180 / Math.PI) % 360 + 360) % 360;
+    walkStartDancers[drawee].facing = ((Math.atan2(drawerState.x - draweeState.x, drawerState.y - draweeState.y) * 180 / Math.PI) % 360 + 360) % 360;
+  }
+  const walkStart: Keyframe = { beat: prev.beat, dancers: walkStartDancers, hands: prev.hands };
+
+  const walkNFrames = Math.max(1, Math.round(walkBeats / 0.25));
+  const walkFrames: Keyframe[] = [];
+  for (let i = 1; i <= walkNFrames; i++) {
+    const t = i / walkNFrames;
+    const beat = prev.beat + t * walkBeats;
+    const tEased = easeInOut(t);
+    const dancers = copyDancers(walkStart.dancers);
+    for (const { drawer, drawee } of pairs) {
+      const draweeStart = prev.dancers[drawee];
+      const drawerPos = prev.dancers[drawer];
+      const halfwayX = (drawerPos.x + draweeStart.x) / 2;
+      const halfwayY = (drawerPos.y + draweeStart.y) / 2;
+      dancers[drawee].x = draweeStart.x + (halfwayX - draweeStart.x) * tEased;
+      dancers[drawee].y = draweeStart.y + (halfwayY - draweeStart.y) * tEased;
+      // Drawee keeps facing drawer during walk
+      dancers[drawee].facing = walkStart.dancers[drawee].facing;
+      // Drawer stays put
+      dancers[drawer].x = drawerPos.x;
+      dancers[drawer].y = drawerPos.y;
+      dancers[drawer].facing = walkStart.dancers[drawer].facing;
+    }
+    walkFrames.push({ beat, dancers, hands: prev.hands });
+  }
+
+  // Phase 2: swing from the meeting point, with CoM drift
+  const afterWalk = walkFrames.length > 0 ? walkFrames[walkFrames.length - 1] : walkStart;
+
+  // Compute the swing as if it started from the afterWalk state
+  // Then shift each frame's CoM to drift toward the final position
+  const swingInstr: Extract<AtomicInstruction, { type: 'swing' }> = {
+    id: instr.id,
+    beats: swingBeats,
+    type: 'swing',
+    relationship: instr.relationship,
+    endFacing: instr.endFacing,
+  };
+  const rawSwingFrames = generateSwing(afterWalk, swingInstr, scope);
+
+  // For each pair, compute the final CoM and drift
+  const driftData: { lark: ProtoDancerId; robin: ProtoDancerId; finalCx: number; finalCy: number; startCx: number; startCy: number }[] = [];
+  for (const { drawer, lark, robin } of pairs) {
+    const drawerState = prev.dancers[drawer];
+    const drawerFacing = walkStart.dancers[drawer].facing * Math.PI / 180;
+    // "Right" if drawer is lark, "left" if drawer is robin
+    const sign = isLark(drawer) ? 1 : -1;
+    // CW rotation of facing vector gives "right": (sin(f), cos(f)) → (cos(f), -sin(f))
+    const rightX = sign * Math.cos(drawerFacing);
+    const rightY = sign * -Math.sin(drawerFacing);
+    const finalCx = drawerState.x + 0.5 * rightX;
+    const finalCy = drawerState.y + 0.5 * rightY;
+
+    // Start CoM is from the afterWalk positions
+    const startCx = (afterWalk.dancers[lark].x + afterWalk.dancers[robin].x) / 2;
+    const startCy = (afterWalk.dancers[lark].y + afterWalk.dancers[robin].y) / 2;
+
+    driftData.push({ lark, robin, finalCx, finalCy, startCx, startCy });
+  }
+
+  // Shift swing frames so CoM drifts from startCoM to finalCoM
+  const shiftedSwingFrames: Keyframe[] = rawSwingFrames.map((kf, idx) => {
+    const t = (idx + 1) / rawSwingFrames.length;
+    const tEased = easeInOut(t);
+    const dancers = copyDancers(kf.dancers);
+    for (const { lark, robin, finalCx, finalCy, startCx, startCy } of driftData) {
+      const currentCx = (kf.dancers[lark].x + kf.dancers[robin].x) / 2;
+      const currentCy = (kf.dancers[lark].y + kf.dancers[robin].y) / 2;
+      const targetCx = startCx + (finalCx - startCx) * tEased;
+      const targetCy = startCy + (finalCy - startCy) * tEased;
+      const shiftX = targetCx - currentCx;
+      const shiftY = targetCy - currentCy;
+      dancers[lark].x += shiftX;
+      dancers[lark].y += shiftY;
+      dancers[robin].x += shiftX;
+      dancers[robin].y += shiftY;
+    }
+    return { ...kf, dancers };
+  });
+
+  return [...walkFrames, ...shiftedSwingFrames];
+}
+
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
@@ -692,8 +954,8 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'step':        return generateStep(prev, instr, scope);
     case 'balance':     return generateBalance(prev, instr, scope);
     case 'swing':       return generateSwing(prev, instr, scope);
-    case 'box_the_gnat':            throw new Error('box_the_gnat generation not yet implemented');
-    case 'give_and_take_into_swing': throw new Error('give_and_take_into_swing generation not yet implemented');
+    case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
+    case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
   }
 }
 

@@ -1265,4 +1265,213 @@ describe('generateAllKeyframes with initFormation', () => {
     expect(kfs[0].dancers.down_lark_0).toEqual({ x:  0.5, y: -0.5, facing: 270 });
     expect(kfs[0].dancers.down_robin_0).toEqual({ x:  0.5, y:  0.5, facing: 270 });
   });
+
+  describe('box_the_gnat', () => {
+    it('errors when pairs have the same role', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'opposite' },
+      ]);
+      const { error } = generateAllKeyframes(instructions);
+      expect(error).not.toBeNull();
+      expect(error!.message).toMatch(/same role/);
+    });
+
+    it('errors when relationship is not reciprocal', () => {
+      // on_right is not reciprocal in general; set up a situation that breaks reciprocity
+      // Use a split so only larks do it — on_right from larks points to their partners,
+      // but partner's on_right doesn't point back.
+      // Actually, let's just use the initial formation with "in_front" after turning everyone up
+      // — the down dancers' "in_front" crosses hands-fours, which isn't reciprocal.
+      const instructions = instr([
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
+        { id: tid(2), beats: 4, type: 'box_the_gnat', relationship: 'in_front' },
+      ]);
+      const { error } = generateAllKeyframes(instructions);
+      expect(error).not.toBeNull();
+      expect(error!.message).toMatch(/reciprocal/i);
+    });
+
+    it('dancers trade places after box the gnat', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // up_lark ↔ down_robin should swap positions
+      expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['down_robin_0'].x, 1);
+      expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['down_robin_0'].y, 1);
+      expect(last.dancers['down_robin_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x, 1);
+      expect(last.dancers['down_robin_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y, 1);
+    });
+
+    it('lark turns CW 180° and robin turns CCW 180°', () => {
+      // First face neighbors toward each other, then box the gnat
+      const instructions = instr([
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'neighbor' } },
+        { id: tid(2), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      // After turn: up_lark faces down_robin → facing 0° (up, since down_robin is north of up_lark)
+      // After box the gnat: lark turns CW 180° → facing 180°
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers['up_lark_0'].facing).toBeCloseTo(180, 0);
+      // down_robin was facing up_lark → facing 180° (south), turns CCW 180° → facing 0°
+      expect(last.dancers['down_robin_0'].facing).toBeCloseTo(0, 0);
+    });
+
+    it('path follows an ellipse (midpoint is off the major axis)', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      // At the midpoint of the motion, dancers should be displaced perpendicular to the
+      // line connecting their start positions (the minor axis of the ellipse)
+      const midBeat = 2;
+      const mid = kfs.reduce((best, kf) =>
+        Math.abs(kf.beat - midBeat) < Math.abs(best.beat - midBeat) ? kf : best
+      );
+      // The major axis for up_lark ↔ down_robin is vertical (same x).
+      // The minor axis is horizontal. At the midpoint, up_lark should be displaced
+      // horizontally from the center line (x = -0.5).
+      const centerX = (init.dancers['up_lark_0'].x + init.dancers['down_robin_0'].x) / 2;
+      expect(Math.abs(mid.dancers['up_lark_0'].x - centerX)).toBeGreaterThan(0.05);
+      // Both dancers should be on opposite sides of the center
+      expect(Math.sign(mid.dancers['up_lark_0'].x - centerX))
+        .not.toBe(Math.sign(mid.dancers['down_robin_0'].x - centerX));
+    });
+
+    it('has right hand connections during the figure', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      const mid = kfs[Math.floor(kfs.length / 2)];
+      expect(mid.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
+      expect(mid.hands).toContainEqual({ a: 'down_lark_0', ha: 'right', b: 'up_robin_0', hb: 'right' });
+    });
+
+    it('drops hands on the final frame', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(0);
+    });
+
+    it('minor axis is half the major axis length', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      const init = initialKeyframe();
+      // Major axis length for up_lark ↔ down_robin = distance between them
+      const majorLen = Math.hypot(
+        init.dancers['up_lark_0'].x - init.dancers['down_robin_0'].x,
+        init.dancers['up_lark_0'].y - init.dancers['down_robin_0'].y,
+      );
+      // At the midpoint, the dancer is at the end of the minor axis
+      // The displacement from center perpendicular to major axis = semi-minor = majorLen/4
+      const midBeat = 2;
+      const mid = kfs.reduce((best, kf) =>
+        Math.abs(kf.beat - midBeat) < Math.abs(best.beat - midBeat) ? kf : best
+      );
+      const centerX = (init.dancers['up_lark_0'].x + init.dancers['down_robin_0'].x) / 2;
+      const centerY = (init.dancers['up_lark_0'].y + init.dancers['down_robin_0'].y) / 2;
+      // For the neighbor pair on the same x, the major axis is vertical,
+      // so the perpendicular displacement is horizontal
+      const perpDisp = Math.hypot(
+        mid.dancers['up_lark_0'].x - centerX,
+        mid.dancers['up_lark_0'].y - centerY,
+      );
+      // At the eased midpoint, the position isn't exactly at semi-minor because of easing
+      // At t=0.5 with easeInOut, θ = π * easeInOut(0.5) = π * 0.5 = π/2
+      // position = a*cos(π/2)*major + b*sin(π/2)*minor = b*minor
+      // So at the midpoint, displacement should equal semi-minor = majorLen/4
+      expect(perpDisp).toBeCloseTo(majorLen / 4, 1);
+    });
+  });
+
+  describe('give_and_take_into_swing', () => {
+    // Set up: turn everyone to face across, so pairs are on opposite sides of the set
+    function faceAcross() {
+      return { id: tid(99), beats: 0, type: 'turn' as const, offset: 0, target: { kind: 'direction' as const, value: 'across' as const } };
+    }
+
+    it('errors when pairs have the same role', () => {
+      const instructions = instr([
+        faceAcross(),
+        { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'opposite', role: 'lark',
+          endFacing: { kind: 'direction', value: 'across' } },
+      ]);
+      const { error } = generateAllKeyframes(instructions);
+      expect(error).not.toBeNull();
+      expect(error!.message).toMatch(/same role/);
+    });
+
+    it('errors when pairs are on the same side of the set', () => {
+      // In initial improper, neighbors are on the same side (both at x=-0.5 or x=0.5)
+      const instructions = instr([
+        { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'neighbor', role: 'lark',
+          endFacing: { kind: 'direction', value: 'across' } },
+      ]);
+      const { error } = generateAllKeyframes(instructions);
+      expect(error).not.toBeNull();
+      expect(error!.message).toMatch(/same side/i);
+    });
+
+    it('drawee walks halfway to drawer in the first beat', () => {
+      // Use partner relationship: partners are on opposite sides in improper
+      // up_lark (-0.5,-0.5) ↔ up_robin (0.5,-0.5)
+      const instructions = instr([
+        faceAcross(),
+        { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'partner', role: 'lark',
+          endFacing: { kind: 'direction', value: 'across' } },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      // At beat 1, drawee (up_robin) should be halfway from (0.5,-0.5) to (-0.5,-0.5) = (0,-0.5)
+      const beat1 = kfs.reduce((best, kf) =>
+        Math.abs(kf.beat - 1) < Math.abs(best.beat - 1) ? kf : best
+      );
+      expect(beat1.dancers['up_robin_0'].x).toBeCloseTo(0, 1);
+      expect(beat1.dancers['up_robin_0'].y).toBeCloseTo(-0.5, 1);
+    });
+
+    it('center of mass drifts to final position (0.5m to drawer right for lark)', () => {
+      const instructions = instr([
+        faceAcross(),
+        { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'partner', role: 'lark',
+          endFacing: { kind: 'direction', value: 'across' } },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      // Drawer up_lark at (-0.5, -0.5) faces 90° (east). Right = south (0, -1).
+      // Final CoM for pair (up_lark + up_robin): (-0.5, -0.5) + 0.5*(0, -1) = (-0.5, -1.0)
+      const finalCx = (last.dancers['up_lark_0'].x + last.dancers['up_robin_0'].x) / 2;
+      const finalCy = (last.dancers['up_lark_0'].y + last.dancers['up_robin_0'].y) / 2;
+      expect(finalCx).toBeCloseTo(-0.5, 1);
+      expect(finalCy).toBeCloseTo(-1.0, 1);
+    });
+
+    it('at the end, both dancers face the endFacing', () => {
+      const instructions = instr([
+        faceAcross(),
+        { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'partner', role: 'lark',
+          endFacing: { kind: 'direction', value: 'across' } },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      // Pair 1 ends on lark's side (x < 0): across = 90°
+      expect(last.dancers['up_lark_0'].facing).toBeCloseTo(90, 0);
+      expect(last.dancers['up_robin_0'].facing).toBeCloseTo(90, 0);
+      // Pair 2 ends on lark's side (x > 0): across = 270°
+      expect(last.dancers['down_lark_0'].facing).toBeCloseTo(270, 0);
+      expect(last.dancers['down_robin_0'].facing).toBeCloseTo(270, 0);
+    });
+  });
 });
