@@ -55,8 +55,9 @@ export default function App() {
   const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
 
-  const minBeat = keyframes.length > 0 ? keyframes[0].beat : 0;
-  const maxBeat = keyframes.length > 0 ? keyframes[keyframes.length - 1].beat : 0;
+  const DANCE_BEATS = 64;
+  const minBeat = 0;
+  const maxBeat = DANCE_BEATS;
 
   // Keep a ref to keyframes for the animation loop
   const keyframesRef = useRef(keyframes);
@@ -79,12 +80,8 @@ export default function App() {
 
   // Redraw when keyframes change
   useEffect(() => {
-    // Clamp beat to new range
-    if (beatRef.current > maxBeat) {
-      beatRef.current = maxBeat;
-    }
     draw();
-  }, [keyframes, maxBeat, draw]);
+  }, [keyframes, draw]);
 
   // Initialize renderer + ResizeObserver
   useEffect(() => {
