@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, validateHandDistances } from './generate';
-import type { Instruction, Keyframe, Dance } from './types';
+import type { Instruction, Keyframe } from './types';
 import { parseDancerId, InstructionSchema, DanceSchema, ProtoDancerIdSchema } from './types';
 import { z } from 'zod';
 
