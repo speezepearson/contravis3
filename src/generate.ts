@@ -111,6 +111,59 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
   }
 }
 
+/** Resolve a relationship for all scoped dancers, returning a Map from each
+ *  proto-dancer to its target DancerId.
+ *  Asserts that pairs are symmetric, target protos are in scope, and
+ *  (optionally) paired dancers have same/different roles. */
+function resolvePairs(
+  relationship: Relationship,
+  dancers: Record<ProtoDancerId, DancerState>,
+  scope: Set<ProtoDancerId>,
+  { pairRoles }: { pairRoles?: "same" | "different" },
+): Map<ProtoDancerId, DancerId> {
+  const result = new Map<ProtoDancerId, DancerId>();
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    result.set(id, resolveRelationship(relationship, id, dancers));
+  }
+
+  const [larks] = SPLIT_GROUPS.role;
+  for (const [id, targetDancerId] of result) {
+    const { proto: targetProto } = parseDancerId(targetDancerId);
+
+    if (!scope.has(targetProto)) {
+      throw new Error(
+        `${id}'s ${relationship} resolves to ${targetDancerId}, whose proto ${targetProto} is not in scope`,
+      );
+    }
+
+    const reverseTarget = result.get(targetProto);
+    if (reverseTarget === undefined) {
+      throw new Error(
+        `${relationship} is not symmetric: ${id} → ${targetProto} but ${targetProto} has no resolution`,
+      );
+    }
+    if (parseDancerId(reverseTarget).proto !== id) {
+      throw new Error(
+        `${relationship} is not symmetric: ${id} → ${targetProto} but ${targetProto} → ${parseDancerId(reverseTarget).proto}`,
+      );
+    }
+
+    if (pairRoles === "same" && larks.has(id) !== larks.has(targetProto)) {
+      throw new Error(
+        `expected same roles, but ${id} and ${targetProto} have different roles`,
+      );
+    }
+    if (pairRoles === "different" && larks.has(id) === larks.has(targetProto)) {
+      throw new Error(
+        `expected opposite roles, but ${id} and ${targetProto} are both ${larks.has(id) ? "larks" : "robins"}`,
+      );
+    }
+  }
+
+  return result;
+}
+
 function easeInOut(t: number): number {
   return (1 - Math.cos(t * Math.PI)) / 2;
 }
@@ -238,13 +291,13 @@ function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { t
   // Shoulder offset: right hand → face 90° CCW from partner; left → 90° CW
   const shoulderOffset = instr.handedness === 'right' ? -90 : 90;
 
-  // Build hand connections and orbit data from per-dancer resolution
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
+
+  // Build hand connections and orbit data from pairs
   const handsSeen = new Set<string>();
   const allemandHands: HandConnection[] = [];
   const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; radius: number }[] = [];
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
-    const target = resolveRelationship(instr.relationship, id, prev.dancers);
+  for (const [id, target] of pairs) {
     // Hand connection (deduped)
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
@@ -350,11 +403,11 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   const totalAngleRad = instr.rotations * 2 * Math.PI; // always CW (pass right shoulders)
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
+
   const SEMI_MINOR = 0.25; // perpendicular axis half-width (0.5m total)
   const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; semiMajor: number; originalFacing: number }[] = [];
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
-    const target = resolveRelationship(instr.relationship, id, prev.dancers);
+  for (const [id, target] of pairs) {
     const da = prev.dancers[id];
     const partnerPos = dancerPosition(target, prev.dancers);
     const cx = (da.x + partnerPos.x) / 2;
@@ -486,6 +539,8 @@ function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
+
   // Build swap pairs with ellipse parameters and hand connections
   const swapData: {
     protoId: ProtoDancerId; originalFacing: number;
@@ -494,9 +549,7 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   }[] = [];
   const pullHands: HandConnection[] = [];
   const seen = new Set<string>();
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
-    const target = resolveRelationship(instr.relationship, id, prev.dancers);
+  for (const [id, target] of pairs) {
     const da = prev.dancers[id];
     const targetPos = dancerPosition(target, prev.dancers);
     // Ellipse: major axis from start to target, minor axis = half of major
@@ -554,6 +607,8 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
 
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
+  const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
+
   // Collect pairs
   type SwingPair = {
     lark: ProtoDancerId;
@@ -570,31 +625,11 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
   const pairs: SwingPair[] = [];
   const processed = new Set<ProtoDancerId>();
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
+  for (const [id] of pairMap) {
     if (processed.has(id)) continue;
 
-    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
-    const { proto: targetProto, offset } = parseDancerId(targetId);
-
-    if (offset !== 0) {
-      throw new Error(`Swing: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
-    }
-    if (!scope.has(targetProto)) {
-      throw new Error(`Swing: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
-    }
-
-    // Check reciprocity
-    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
-    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
-    if (reverseProto !== id || reverseOffset !== 0) {
-      throw new Error(`Swing: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
-    }
-
-    // Check opposite roles
-    if (isLark(id) === isLark(targetProto)) {
-      throw new Error(`Swing: ${id} and ${targetProto} have the same role`);
-    }
+    const targetId = pairMap.get(id)!;
+    const { proto: targetProto } = parseDancerId(targetId);
 
     const lark = isLark(id) ? id : targetProto;
     const robin = isLark(id) ? targetProto : id;
@@ -714,7 +749,9 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
 function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'box_the_gnat' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  // Collect pairs with validation
+  const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
+
+  // Collect pairs
   type GnatPair = {
     lark: ProtoDancerId;
     robin: ProtoDancerId;
@@ -730,31 +767,11 @@ function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { 
   const pairs: GnatPair[] = [];
   const processed = new Set<ProtoDancerId>();
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
+  for (const [id] of pairMap) {
     if (processed.has(id)) continue;
 
-    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
-    const { proto: targetProto, offset } = parseDancerId(targetId);
-
-    if (offset !== 0) {
-      throw new Error(`Box the gnat: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
-    }
-    if (!scope.has(targetProto)) {
-      throw new Error(`Box the gnat: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
-    }
-
-    // Check reciprocity
-    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
-    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
-    if (reverseProto !== id || reverseOffset !== 0) {
-      throw new Error(`Box the gnat: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
-    }
-
-    // Check opposite roles
-    if (isLark(id) === isLark(targetProto)) {
-      throw new Error(`Box the gnat: ${id} and ${targetProto} have the same role`);
-    }
+    const targetId = pairMap.get(id)!;
+    const { proto: targetProto } = parseDancerId(targetId);
 
     const lark = isLark(id) ? id : targetProto;
     const robin = isLark(id) ? targetProto : id;
@@ -827,7 +844,9 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   const walkBeats = 1;
   const swingBeats = instr.beats - walkBeats;
 
-  // Collect pairs with validation
+  const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
+
+  // Collect pairs
   type GTPair = {
     drawer: ProtoDancerId;
     drawee: ProtoDancerId;
@@ -838,31 +857,11 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   const pairs: GTPair[] = [];
   const processed = new Set<ProtoDancerId>();
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
+  for (const [id] of pairMap) {
     if (processed.has(id)) continue;
 
-    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
-    const { proto: targetProto, offset } = parseDancerId(targetId);
-
-    if (offset !== 0) {
-      throw new Error(`Give & take into swing: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
-    }
-    if (!scope.has(targetProto)) {
-      throw new Error(`Give & take into swing: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
-    }
-
-    // Check reciprocity
-    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
-    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
-    if (reverseProto !== id || reverseOffset !== 0) {
-      throw new Error(`Give & take into swing: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
-    }
-
-    // Check opposite roles
-    if (isLark(id) === isLark(targetProto)) {
-      throw new Error(`Give & take into swing: ${id} and ${targetProto} have the same role`);
-    }
+    const targetId = pairMap.get(id)!;
+    const { proto: targetProto } = parseDancerId(targetId);
 
     // Check opposite sides
     const aState = prev.dancers[id];

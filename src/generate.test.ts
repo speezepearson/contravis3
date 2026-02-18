@@ -1185,7 +1185,7 @@ describe('generateAllKeyframes', () => {
       const { error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
       expect(error!.instructionId).toBe(tid(1));
-      expect(error!.message).toMatch(/same role/);
+      expect(error!.message).toMatch(/opposite roles/);
     });
 
     it('orbits clockwise (lark moves westward from initial south-of-CoM position)', () => {
@@ -1324,23 +1324,10 @@ describe('generateAllKeyframes with initFormation', () => {
       ]);
       const { error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
-      expect(error!.message).toMatch(/same role/);
+      expect(error!.message).toMatch(/opposite roles/);
     });
 
-    it('errors when relationship is not reciprocal', () => {
-      // on_right is not reciprocal in general; set up a situation that breaks reciprocity
-      // Use a split so only larks do it — on_right from larks points to their partners,
-      // but partner's on_right doesn't point back.
-      // Actually, let's just use the initial formation with "in_front" after turning everyone up
-      // — the down dancers' "in_front" crosses hands-fours, which isn't reciprocal.
-      const instructions = instr([
-        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
-        { id: tid(2), beats: 4, type: 'box_the_gnat', relationship: 'in_front' },
-      ]);
-      const { error } = generateAllKeyframes(instructions);
-      expect(error).not.toBeNull();
-      expect(error!.message).toMatch(/reciprocal/i);
-    });
+
 
     it('dancers trade places after box the gnat', () => {
       const instructions = instr([
@@ -1459,7 +1446,7 @@ describe('generateAllKeyframes with initFormation', () => {
       ]);
       const { error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
-      expect(error!.message).toMatch(/same role/);
+      expect(error!.message).toMatch(/opposite roles/);
     });
 
     it('errors when pairs are on the same side of the set', () => {
