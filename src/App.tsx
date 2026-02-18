@@ -4,8 +4,6 @@ import { generateAllKeyframes, validateHandDistances } from './generate';
 import CommandPane from './CommandPane';
 import type { Instruction, InitFormation } from './types';
 
-const CANVAS_WIDTH = 600;
-const CANVAS_HEIGHT = 700;
 const PROGRESSION_RATE = -1 / 64;
 
 function instructionDuration(instr: Instruction): number {
@@ -35,6 +33,7 @@ function activeInstructionId(instructions: Instruction[], beat: number): number 
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
   const beatRef = useRef(0);
   const playingRef = useRef(false);
@@ -48,11 +47,12 @@ export default function App() {
   const [instructions, setInstructions] = useState<Instruction[]>([]);
   const [initFormation, setInitFormation] = useState<InitFormation>('improper');
   const [smoothness, setSmoothness] = useState(100);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const bpmRef = useRef(120);
   const smoothnessRef = useRef(1);
 
-  const keyframes = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
+  const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
 
   const minBeat = keyframes.length > 0 ? keyframes[0].beat : 0;
@@ -86,14 +86,41 @@ export default function App() {
     draw();
   }, [keyframes, maxBeat, draw]);
 
-  // Initialize renderer
+  // Initialize renderer + ResizeObserver
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = canvasContainerRef.current;
+    if (!canvas || !container) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    rendererRef.current = new Renderer(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
-    draw();
+
+    const applySize = () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return;
+      canvas.width = w;
+      canvas.height = h;
+      if (!rendererRef.current) {
+        rendererRef.current = new Renderer(ctx, w, h);
+      } else {
+        rendererRef.current.resize(w, h);
+      }
+      draw();
+    };
+
+    applySize();
+
+    let resizeRaf = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(applySize);
+    });
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(resizeRaf);
+    };
   }, [draw]);
 
   // Animation loop
@@ -171,67 +198,91 @@ export default function App() {
     ? Math.round((beat - minBeat) / (maxBeat - minBeat) * 1000)
     : 0;
 
+  const controlsBlock = (
+    <>
+      <div className="controls">
+        <button onClick={togglePlay}>
+          {playing ? '\u23F8 Pause' : '\u25B6 Play'}
+        </button>
+        <button onClick={stepBack}>{'\u25C0 Step'}</button>
+        <button onClick={stepFwd}>{'Step \u25B6'}</button>
+        <input
+          type="range"
+          min={0}
+          max={1000}
+          value={scrubberValue}
+          onChange={e => scrub(Number(e.target.value))}
+        />
+        <div className="beat-display">Beat {beat.toFixed(1)}</div>
+      </div>
+      <div className="controls">
+        <span className="speed-display">{bpm} BPM</span>
+        <input
+          type="range"
+          min={60}
+          max={120}
+          value={bpm}
+          onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
+        />
+      </div>
+      <div className="controls">
+        <span className="speed-display">Smooth {(smoothness / 100).toFixed(1)} beats</span>
+        <input
+          type="range"
+          min={0}
+          max={200}
+          value={smoothness}
+          onChange={e => { const v = Number(e.target.value); smoothnessRef.current = v / 100; setSmoothness(v); }}
+        />
+      </div>
+      <div className="legend">
+        <div className="legend-item">
+          <span className="legend-dot" style={{ background: '#4a90d9' }} /> Lark
+        </div>
+        <div className="legend-item">
+          <span className="legend-dot" style={{ background: '#d94a4a' }} /> Robin
+        </div>
+        <div className="legend-item">
+          <span style={{ color: '#7a7' }}>{'\u25B2'}</span> Up
+        </div>
+        <div className="legend-item">
+          <span style={{ color: '#a77' }}>{'\u25BC'}</span> Down
+        </div>
+      </div>
+      {annotation && <div className="annotation">{annotation}</div>}
+    </>
+  );
+
   return (
     <div className="app-layout">
-      <div className="canvas-column">
-        <h1>Contra Dance Visualizer</h1>
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-        />
-        <div className="controls">
-          <button onClick={togglePlay}>
-            {playing ? '\u23F8 Pause' : '\u25B6 Play'}
-          </button>
-          <button onClick={stepBack}>{'\u25C0 Step'}</button>
-          <button onClick={stepFwd}>{'Step \u25B6'}</button>
-          <input
-            type="range"
-            min={0}
-            max={1000}
-            value={scrubberValue}
-            onChange={e => scrub(Number(e.target.value))}
-          />
-          <div className="beat-display">Beat {beat.toFixed(1)}</div>
+      <div className="vis-column">
+        <div className="canvas-container" ref={canvasContainerRef}>
+          <canvas ref={canvasRef} />
         </div>
-        <div className="controls">
-          <span className="speed-display">{bpm} BPM</span>
-          <input
-            type="range"
-            min={60}
-            max={120}
-            value={bpm}
-            onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
-          />
-        </div>
-        <div className="controls">
-          <span className="speed-display">Smooth {(smoothness / 100).toFixed(1)} beats</span>
-          <input
-            type="range"
-            min={0}
-            max={200}
-            value={smoothness}
-            onChange={e => { const v = Number(e.target.value); smoothnessRef.current = v / 100; setSmoothness(v); }}
-          />
-        </div>
-        <div className="legend">
-          <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#4a90d9' }} /> Lark
-          </div>
-          <div className="legend-item">
-            <span className="legend-dot" style={{ background: '#d94a4a' }} /> Robin
-          </div>
-          <div className="legend-item">
-            <span style={{ color: '#7a7' }}>{'\u25B2'}</span> Up (progressing north)
-          </div>
-          <div className="legend-item">
-            <span style={{ color: '#a77' }}>{'\u25BC'}</span> Down (progressing south)
-          </div>
-        </div>
-        {annotation && <div className="annotation">{annotation}</div>}
       </div>
-      <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} activeId={activeInstructionId(instructions, beat)} warnings={warnings} />
+
+      {/* Desktop sidebar */}
+      <div className="sidebar-column">
+        <div className="sidebar-instructions">
+          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} />
+        </div>
+        <div className="sidebar-controls">
+          {controlsBlock}
+        </div>
+      </div>
+
+      {/* Mobile controls overlay */}
+      <div className="mobile-controls">
+        {controlsBlock}
+        <button className="drawer-toggle" onClick={() => setDrawerOpen(!drawerOpen)}>
+          {drawerOpen ? '\u25BC Hide Instructions' : '\u25B2 Show Instructions'}
+        </button>
+      </div>
+
+      {/* Mobile instruction drawer */}
+      <div className={`instruction-drawer ${drawerOpen ? 'open' : ''}`}>
+        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} />
+      </div>
     </div>
   );
 }

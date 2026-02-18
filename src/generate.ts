@@ -852,14 +852,31 @@ function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyfram
   }
 }
 
-export function generateAllKeyframes(instructions: Instruction[], initFormation?: InitFormation): Keyframe[] {
-  const result: Keyframe[] = [initialKeyframe(initFormation)];
+export interface GenerateError {
+  instructionId: number;
+  message: string;
+}
+
+export interface GenerateResult {
+  keyframes: Keyframe[];
+  error: GenerateError | null;
+}
+
+export function generateAllKeyframes(instructions: Instruction[], initFormation?: InitFormation): GenerateResult {
+  const keyframes: Keyframe[] = [initialKeyframe(initFormation)];
 
   for (const instr of instructions) {
-    const prev = result[result.length - 1];
-    const newFrames = processTopLevelInstruction(prev, instr);
-    result.push(...newFrames);
+    const prev = keyframes[keyframes.length - 1];
+    try {
+      const newFrames = processTopLevelInstruction(prev, instr);
+      keyframes.push(...newFrames);
+    } catch (e) {
+      return {
+        keyframes,
+        error: { instructionId: instr.id, message: e instanceof Error ? e.message : String(e) },
+      };
+    }
   }
 
-  return result;
+  return { keyframes, error: null };
 }

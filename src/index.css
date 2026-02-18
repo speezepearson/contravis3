@@ -270,6 +270,13 @@ input[type="range"] {
   padding: 2px 8px 2px 12px;
 }
 
+.instruction-error {
+  color: #ff3333;
+  font-weight: bold;
+  font-size: 0.75em;
+  padding: 2px 8px 2px 12px;
+}
+
 .instruction-empty {
   font-size: 0.85em;
   color: #666;

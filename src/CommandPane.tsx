@@ -7,6 +7,7 @@ import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
 import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema } from './types';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand } from './types';
+import type { GenerateError } from './generate';
 import { z } from 'zod';
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
@@ -224,6 +225,7 @@ interface Props {
   setInitFormation: (formation: InitFormation) => void;
   activeId: number | null;
   warnings: Map<number, string>;
+  generateError: GenerateError | null;
 }
 
 function summarizeAtomic(instr: AtomicInstruction): string {
@@ -699,7 +701,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, activeId, warnings }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, activeId, warnings, generateError }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -878,6 +880,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                       {warnings.get(instr.id) && (
                         <div className="instruction-warning">{warnings.get(instr.id)}</div>
                       )}
+                      {generateError?.instructionId === instr.id && (
+                        <div className="instruction-error">{generateError.message}</div>
+                      )}
                       {instr.type === 'split' && renderSplitBody(instr)}
                       {instr.type === 'group' && renderGroupBody(instr)}
                     </>
@@ -939,6 +944,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                   )}
                   {warnings.get(child.id) && (
                     <div className="instruction-warning">{warnings.get(child.id)}</div>
+                  )}
+                  {generateError?.instructionId === child.id && (
+                    <div className="instruction-error">{generateError.message}</div>
                   )}
                   {child.type === 'split' && renderSplitBody(child)}
                   {child.type === 'group' && renderGroupBody(child)}
