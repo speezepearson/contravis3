@@ -56,10 +56,18 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
   switch (relationship) {
     case 'partner': case 'neighbor': case 'opposite':
       return makeDancerId(STATIC_RELATIONSHIPS[relationship][id], 0);
-    case 'on_right': case 'on_left': case 'in_front': {
+    case 'on_right': case 'on_left': case 'in_front':
+    case 'larks_left_robins_right': case 'larks_right_robins_left': {
       // Bias towards people in front of the dancer vs behind,
       // since those loom larger in their attention.
-      const angleOffset = relationship === 'on_right' ? 70 : relationship === 'on_left' ? -70 : relationship === 'in_front' ? 0 : assertNever(relationship);
+      const isLark = SPLIT_GROUPS.role[0].has(id);
+      const angleOffset =
+        relationship === 'on_right' ? 70 :
+        relationship === 'on_left' ? -70 :
+        relationship === 'in_front' ? 0 :
+        relationship === 'larks_left_robins_right' ? (isLark ? -70 : 70) :
+        relationship === 'larks_right_robins_left' ? (isLark ? 70 : -70) :
+        assertNever(relationship);
       const d = dancers[id];
       const headingRad = (d.facing + angleOffset) * Math.PI / 180;
       const ux = Math.sin(headingRad);
@@ -103,8 +111,85 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
   }
 }
 
+/** Resolve a relationship for all scoped dancers, returning a Map from each
+ *  proto-dancer to its target DancerId.
+ *  Asserts that pairs are symmetric, target protos are in scope, and
+ *  (optionally) paired dancers have same/different roles. */
+function resolvePairs(
+  relationship: Relationship,
+  dancers: Record<ProtoDancerId, DancerState>,
+  scope: Set<ProtoDancerId>,
+  { pairRoles }: { pairRoles?: "same" | "different" },
+): Map<ProtoDancerId, DancerId> {
+  const result = new Map<ProtoDancerId, DancerId>();
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    result.set(id, resolveRelationship(relationship, id, dancers));
+  }
+
+  const [larks] = SPLIT_GROUPS.role;
+  for (const [id, targetDancerId] of result) {
+    const { proto: targetProto } = parseDancerId(targetDancerId);
+
+    if (!scope.has(targetProto)) {
+      throw new Error(
+        `${id}'s ${relationship} resolves to ${targetDancerId}, whose proto ${targetProto} is not in scope`,
+      );
+    }
+
+    const reverseTarget = result.get(targetProto);
+    if (reverseTarget === undefined) {
+      throw new Error(
+        `${relationship} is not symmetric: ${id} → ${targetProto} but ${targetProto} has no resolution`,
+      );
+    }
+    if (parseDancerId(reverseTarget).proto !== id) {
+      throw new Error(
+        `${relationship} is not symmetric: ${id} → ${targetProto} but ${targetProto} → ${parseDancerId(reverseTarget).proto}`,
+      );
+    }
+
+    if (pairRoles === "same" && larks.has(id) !== larks.has(targetProto)) {
+      throw new Error(
+        `expected same roles, but ${id} and ${targetProto} have different roles`,
+      );
+    }
+    if (pairRoles === "different" && larks.has(id) === larks.has(targetProto)) {
+      throw new Error(
+        `expected opposite roles, but ${id} and ${targetProto} are both ${larks.has(id) ? "larks" : "robins"}`,
+      );
+    }
+  }
+
+  return result;
+}
+
 function easeInOut(t: number): number {
   return (1 - Math.cos(t * Math.PI)) / 2;
+}
+
+/** Position on an ellipse whose major axis runs from `a` to `b`.
+ *  phi=0 → a, phi=π → b, phi=2π → a again. */
+function ellipsePosition(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  semiMinor: number,
+  phi: number,
+): { x: number; y: number } {
+  const cx = (a.x + b.x) / 2;
+  const cy = (a.y + b.y) / 2;
+  const dx = a.x - cx;
+  const dy = a.y - cy;
+  const semiMajor = Math.hypot(dx, dy);
+  if (semiMajor < 1e-9) return { x: cx, y: cy };
+  const sinStart = dx / semiMajor;
+  const cosStart = dy / semiMajor;
+  const cosPhi = Math.cos(phi);
+  const sinPhi = Math.sin(phi);
+  return {
+    x: cx + semiMajor * cosPhi * sinStart + semiMinor * sinPhi * cosStart,
+    y: cy + semiMajor * cosPhi * cosStart - semiMinor * sinPhi * sinStart,
+  };
 }
 
 /** Resolve a RelativeDirection to an absolute heading in radians for a specific dancer.
@@ -230,13 +315,13 @@ function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { t
   // Shoulder offset: right hand → face 90° CCW from partner; left → 90° CW
   const shoulderOffset = instr.handedness === 'right' ? -90 : 90;
 
-  // Build hand connections and orbit data from per-dancer resolution
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
+
+  // Build hand connections and orbit data from pairs
   const handsSeen = new Set<string>();
   const allemandHands: HandConnection[] = [];
   const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; radius: number }[] = [];
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
-    const target = resolveRelationship(instr.relationship, id, prev.dancers);
+  for (const [id, target] of pairs) {
     // Hand connection (deduped)
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
@@ -342,19 +427,23 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   const totalAngleRad = instr.rotations * 2 * Math.PI; // always CW (pass right shoulders)
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  const SEMI_MINOR = 0.25; // perpendicular axis half-width (0.5m total)
-  const orbitData: { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; semiMajor: number; originalFacing: number }[] = [];
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
-    const target = resolveRelationship(instr.relationship, id, prev.dancers);
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
+  const orbitData: {
+    protoId: ProtoDancerId;
+    startPos: { x: number; y: number };
+    partnerPos: { x: number; y: number };
+    semiMinor: number;
+    originalFacing: number;
+  }[] = [];
+  for (const [id, target] of pairs) {
     const da = prev.dancers[id];
     const partnerPos = dancerPosition(target, prev.dancers);
-    const cx = (da.x + partnerPos.x) / 2;
-    const cy = (da.y + partnerPos.y) / 2;
+    const dist = Math.hypot(da.x - partnerPos.x, da.y - partnerPos.y);
     orbitData.push({
-      protoId: id, cx, cy,
-      startAngle: Math.atan2(da.x - cx, da.y - cy),
-      semiMajor: Math.hypot(da.x - cx, da.y - cy),
+      protoId: id,
+      startPos: { x: da.x, y: da.y },
+      partnerPos: { x: partnerPos.x, y: partnerPos.y },
+      semiMinor: dist / 4,
       originalFacing: da.facing,
     });
   }
@@ -367,15 +456,10 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     const phase = tEased * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
-      // Elliptical orbit: major axis along the dancers' starting line, minor axis perpendicular.
-      // Decompose into axis-aligned components using the starting angle.
-      const cosPhase = Math.cos(phase);
-      const sinPhase = Math.sin(phase);
-      const sinStart = Math.sin(od.startAngle);
-      const cosStart = Math.cos(od.startAngle);
-      dancers[od.protoId].x = od.cx + od.semiMajor * cosPhase * sinStart + SEMI_MINOR * sinPhase * cosStart;
-      dancers[od.protoId].y = od.cy + od.semiMajor * cosPhase * cosStart - SEMI_MINOR * sinPhase * sinStart;
-      dancers[od.protoId].facing = od.originalFacing; // maintain original facing
+      const pos = ellipsePosition(od.startPos, od.partnerPos, od.semiMinor, phase);
+      dancers[od.protoId].x = pos.x;
+      dancers[od.protoId].y = pos.y;
+      dancers[od.protoId].facing = od.originalFacing;
     }
     result.push({ beat, dancers, hands: prev.hands });
   }
@@ -478,33 +562,26 @@ function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
+
   // Build swap pairs with ellipse parameters and hand connections
   const swapData: {
-    protoId: ProtoDancerId; originalFacing: number;
-    cx: number; cy: number; semiMajor: number;
-    majorX: number; majorY: number; perpX: number; perpY: number;
+    protoId: ProtoDancerId;
+    startPos: { x: number; y: number };
+    targetPos: { x: number; y: number };
+    originalFacing: number;
   }[] = [];
   const pullHands: HandConnection[] = [];
   const seen = new Set<string>();
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
-    const target = resolveRelationship(instr.relationship, id, prev.dancers);
+  const lateralSign = instr.hand === 'right' ? 1 : -1;
+  for (const [id, target] of pairs) {
     const da = prev.dancers[id];
     const targetPos = dancerPosition(target, prev.dancers);
-    // Ellipse: major axis from start to target, minor axis = half of major
-    const dx = targetPos.x - da.x;
-    const dy = targetPos.y - da.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const majorX = dist > 0 ? dx / dist : 1;
-    const majorY = dist > 0 ? dy / dist : 0;
-    // Perpendicular: CW for right hand, CCW for left hand
-    const sign = instr.hand === 'right' ? -1 : 1;
-    const perpX = sign * majorY;
-    const perpY = sign * -majorX;
     swapData.push({
-      protoId: id, originalFacing: da.facing,
-      cx: (da.x + targetPos.x) / 2, cy: (da.y + targetPos.y) / 2,
-      semiMajor: dist / 2, majorX, majorY, perpX, perpY,
+      protoId: id,
+      startPos: { x: da.x, y: da.y },
+      targetPos: { x: targetPos.x, y: targetPos.y },
+      originalFacing: da.facing,
     });
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
@@ -519,15 +596,12 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
   for (let i = 1; i <= nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const tEased = easeInOut(t);
     const dancers = copyDancers(prev.dancers);
     for (const sd of swapData) {
-      // Sweep from θ=π (start) to θ=0 (target) along an ellipse
-      const theta = Math.PI * (1 - tEased);
-      const semiMinor = sd.semiMajor / 2;
-      dancers[sd.protoId].x = sd.cx + sd.semiMajor * Math.cos(theta) * sd.majorX + semiMinor * Math.sin(theta) * sd.perpX;
-      dancers[sd.protoId].y = sd.cy + sd.semiMajor * Math.cos(theta) * sd.majorY + semiMinor * Math.sin(theta) * sd.perpY;
-      dancers[sd.protoId].facing = sd.originalFacing; // maintain facing
+      const pos = ellipsePosition(sd.startPos, sd.targetPos, lateralSign * 0.25, Math.PI * easeInOut(t));
+      dancers[sd.protoId].x = pos.x;
+      dancers[sd.protoId].y = pos.y;
+      dancers[sd.protoId].facing = sd.originalFacing;
     }
     result.push({ beat, dancers, hands });
   }
@@ -546,6 +620,8 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
 
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
+  const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
+
   // Collect pairs
   type SwingPair = {
     lark: ProtoDancerId;
@@ -562,31 +638,11 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
   const pairs: SwingPair[] = [];
   const processed = new Set<ProtoDancerId>();
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
+  for (const [id] of pairMap) {
     if (processed.has(id)) continue;
 
-    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
-    const { proto: targetProto, offset } = parseDancerId(targetId);
-
-    if (offset !== 0) {
-      throw new Error(`Swing: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
-    }
-    if (!scope.has(targetProto)) {
-      throw new Error(`Swing: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
-    }
-
-    // Check reciprocity
-    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
-    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
-    if (reverseProto !== id || reverseOffset !== 0) {
-      throw new Error(`Swing: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
-    }
-
-    // Check opposite roles
-    if (isLark(id) === isLark(targetProto)) {
-      throw new Error(`Swing: ${id} and ${targetProto} have the same role`);
-    }
+    const targetId = pairMap.get(id)!;
+    const { proto: targetProto } = parseDancerId(targetId);
 
     const lark = isLark(id) ? id : targetProto;
     const robin = isLark(id) ? targetProto : id;
@@ -706,14 +762,14 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
 function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'box_the_gnat' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  // Collect pairs with validation
+  const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
+
+  // Collect pairs
   type GnatPair = {
     lark: ProtoDancerId;
     robin: ProtoDancerId;
-    cx: number; cy: number;
-    majorX: number; majorY: number;  // unit vector from center toward lark start
-    minorX: number; minorY: number;  // unit vector perpendicular (toward lark's right)
-    semiMajor: number;
+    larkStart: { x: number; y: number };
+    robinStart: { x: number; y: number };
     semiMinor: number;
     larkStartFacing: number;  // radians, facing toward robin
     robinStartFacing: number; // radians, facing toward lark
@@ -722,31 +778,11 @@ function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { 
   const pairs: GnatPair[] = [];
   const processed = new Set<ProtoDancerId>();
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
+  for (const [id] of pairMap) {
     if (processed.has(id)) continue;
 
-    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
-    const { proto: targetProto, offset } = parseDancerId(targetId);
-
-    if (offset !== 0) {
-      throw new Error(`Box the gnat: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
-    }
-    if (!scope.has(targetProto)) {
-      throw new Error(`Box the gnat: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
-    }
-
-    // Check reciprocity
-    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
-    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
-    if (reverseProto !== id || reverseOffset !== 0) {
-      throw new Error(`Box the gnat: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
-    }
-
-    // Check opposite roles
-    if (isLark(id) === isLark(targetProto)) {
-      throw new Error(`Box the gnat: ${id} and ${targetProto} have the same role`);
-    }
+    const targetId = pairMap.get(id)!;
+    const { proto: targetProto } = parseDancerId(targetId);
 
     const lark = isLark(id) ? id : targetProto;
     const robin = isLark(id) ? targetProto : id;
@@ -755,25 +791,17 @@ function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { 
 
     const larkState = prev.dancers[lark];
     const robinState = prev.dancers[robin];
-    const cx = (larkState.x + robinState.x) / 2;
-    const cy = (larkState.y + robinState.y) / 2;
-    const dx = larkState.x - cx;
-    const dy = larkState.y - cy;
-    const dist = Math.hypot(dx, dy);
-    const majorX = dx / dist;
-    const majorY = dy / dist;
-    // Minor axis: 90° CW from major axis (toward lark's right when facing robin)
-    const minorX = majorY;
-    const minorY = -majorX;
+    const dist = Math.hypot(larkState.x - robinState.x, larkState.y - robinState.y);
 
     // Lark faces robin, robin faces lark
     const larkStartFacing = Math.atan2(robinState.x - larkState.x, robinState.y - larkState.y);
     const robinStartFacing = Math.atan2(larkState.x - robinState.x, larkState.y - robinState.y);
 
     pairs.push({
-      lark, robin, cx, cy, majorX, majorY, minorX, minorY,
-      semiMajor: dist,
-      semiMinor: dist / 2,
+      lark, robin,
+      larkStart: { x: larkState.x, y: larkState.y },
+      robinStart: { x: robinState.x, y: robinState.y },
+      semiMinor: dist / 4,
       larkStartFacing, robinStartFacing,
     });
   }
@@ -793,12 +821,12 @@ function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { 
 
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
-      // Lark traces top half of ellipse (θ from 0 to π)
-      dancers[p.lark].x = p.cx + p.semiMajor * Math.cos(theta) * p.majorX + p.semiMinor * Math.sin(theta) * p.minorX;
-      dancers[p.lark].y = p.cy + p.semiMajor * Math.cos(theta) * p.majorY + p.semiMinor * Math.sin(theta) * p.minorY;
-      // Robin traces bottom half (opposite side)
-      dancers[p.robin].x = p.cx - p.semiMajor * Math.cos(theta) * p.majorX - p.semiMinor * Math.sin(theta) * p.minorX;
-      dancers[p.robin].y = p.cy - p.semiMajor * Math.cos(theta) * p.majorY - p.semiMinor * Math.sin(theta) * p.minorY;
+      const larkPos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
+      const robinPos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
+      dancers[p.lark].x = larkPos.x;
+      dancers[p.lark].y = larkPos.y;
+      dancers[p.robin].x = robinPos.x;
+      dancers[p.robin].y = robinPos.y;
 
       // Lark turns CW 180°, robin turns CCW 180°
       const larkFacing = p.larkStartFacing + Math.PI * tEased;
@@ -819,7 +847,9 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   const walkBeats = 1;
   const swingBeats = instr.beats - walkBeats;
 
-  // Collect pairs with validation
+  const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
+
+  // Collect pairs
   type GTPair = {
     drawer: ProtoDancerId;
     drawee: ProtoDancerId;
@@ -830,31 +860,11 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   const pairs: GTPair[] = [];
   const processed = new Set<ProtoDancerId>();
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
+  for (const [id] of pairMap) {
     if (processed.has(id)) continue;
 
-    const targetId = resolveRelationship(instr.relationship, id, prev.dancers);
-    const { proto: targetProto, offset } = parseDancerId(targetId);
-
-    if (offset !== 0) {
-      throw new Error(`Give & take into swing: relationship '${instr.relationship}' for ${id} resolves to a different hands-four`);
-    }
-    if (!scope.has(targetProto)) {
-      throw new Error(`Give & take into swing: relationship '${instr.relationship}' for ${id} resolves to ${targetProto} which is not in scope`);
-    }
-
-    // Check reciprocity
-    const reverseId = resolveRelationship(instr.relationship, targetProto, prev.dancers);
-    const { proto: reverseProto, offset: reverseOffset } = parseDancerId(reverseId);
-    if (reverseProto !== id || reverseOffset !== 0) {
-      throw new Error(`Give & take into swing: relationship '${instr.relationship}' is not reciprocal between ${id} and ${targetProto}`);
-    }
-
-    // Check opposite roles
-    if (isLark(id) === isLark(targetProto)) {
-      throw new Error(`Give & take into swing: ${id} and ${targetProto} have the same role`);
-    }
+    const targetId = pairMap.get(id)!;
+    const { proto: targetProto } = parseDancerId(targetId);
 
     // Check opposite sides
     const aState = prev.dancers[id];
@@ -965,6 +975,73 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   return [...walkFrames, ...shiftedSwingFrames];
 }
 
+function generateMadRobin(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
+  scope: Set<ProtoDancerId>,
+): Keyframe[] {
+  const relationship =
+    instr.with === "larks_left"
+      ? ("larks_left_robins_right" as const)
+      : ("larks_right_robins_left" as const);
+  const pairs = resolvePairs(relationship, prev.dancers, scope, {});
+
+  const cw =
+    (instr.dir === "larks_in_middle") === (instr.with === "robins_left");
+  const totalAngleRad = instr.rotations * 2 * Math.PI * (cw ? 1 : -1);
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  // Assert same side of set and build orbit data
+  const checked = new Set<ProtoDancerId>();
+  const orbitData: {
+    protoId: ProtoDancerId;
+    startPos: { x: number; y: number };
+    partnerPos: { x: number; y: number };
+    acrossFacing: number;
+  }[] = [];
+
+  for (const [id, targetDancerId] of pairs) {
+    const { proto: targetProto } = parseDancerId(targetDancerId);
+    if (!checked.has(id) && !checked.has(targetProto)) {
+      checked.add(id);
+      checked.add(targetProto);
+      const da = prev.dancers[id];
+      const db = dancerPosition(targetDancerId, prev.dancers);
+      if (da.x * db.x < -1e-6) {
+        throw new Error(
+          `mad robin: ${id} and ${targetProto} are not on the same side of the set`,
+        );
+      }
+    }
+
+    const da = prev.dancers[id];
+    const targetPos = dancerPosition(targetDancerId, prev.dancers);
+
+    orbitData.push({
+      protoId: id,
+      startPos: { x: da.x, y: da.y },
+      partnerPos: { x: targetPos.x, y: targetPos.y },
+      acrossFacing: da.x < 0 ? 90 : 270,
+    });
+  }
+
+  const result: Keyframe[] = [];
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const phi = easeInOut(t) * totalAngleRad;
+    const dancers = copyDancers(prev.dancers);
+    for (const od of orbitData) {
+      const pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, phi);
+      dancers[od.protoId].x = pos.x;
+      dancers[od.protoId].y = pos.y;
+      dancers[od.protoId].facing = od.acrossFacing;
+    }
+    result.push({ beat, dancers, hands: prev.hands });
+  }
+  return result;
+}
+
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
@@ -981,6 +1058,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'swing':       return generateSwing(prev, instr, scope);
     case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
+    case 'mad_robin':                return generateMadRobin(prev, instr, scope);
   }
 }
 

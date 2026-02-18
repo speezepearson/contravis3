@@ -12,12 +12,13 @@ import { z } from 'zod';
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'split', 'group'];
+const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'split', 'group'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
   turn: 'turn', step: 'step', balance: 'balance',
   box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
+  mad_robin: 'mad robin',
   split: 'split', group: 'group',
 };
 
@@ -78,6 +79,7 @@ function defaultBeats(action: string): string {
     case 'balance':   return '4';
     case 'box_the_gnat': return '4';
     case 'give_and_take_into_swing': return '16';
+    case 'mad_robin':  return '8';
     default:          return '0';
   }
 }
@@ -305,6 +307,15 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
       const ef = instr.endFacing.kind === 'direction' ? instr.endFacing.value : instr.endFacing.value;
       return `${instr.role}s give & take ${label} into swing \u2192 ${ef} (${instr.beats}b)`;
+    }
+    case "mad_robin": {
+      const dirLabel =
+        instr.dir === "larks_in_middle"
+          ? "larks in middle"
+          : "robins in middle";
+      const withLabel =
+        instr.with === "larks_left" ? "larks' left" : "robins' left";
+      return `mad robin ${dirLabel}, ${withLabel} ${instr.rotations}x (${instr.beats}b)`;
     }
   }
 }
@@ -677,6 +688,42 @@ function GiveAndTakeIntoSwingFields({ id, isEditing, initial, onSave, onCancel }
   </>);
 }
 
+const MAD_ROBIN_DIR_OPTIONS = ['larks_in_middle', 'robins_in_middle'];
+const MAD_ROBIN_DIR_LABELS: Record<string, string> = { larks_in_middle: 'larks in middle', robins_in_middle: 'robins in middle' };
+const MAD_ROBIN_WITH_OPTIONS = ['larks_left', 'robins_left'];
+const MAD_ROBIN_WITH_LABELS: Record<string, string> = { larks_left: "larks' left", robins_left: "robins' left" };
+
+function MadRobinFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'mad_robin' }> }) {
+  const [dir, setDir] = useState<'larks_in_middle' | 'robins_in_middle'>(initial?.dir ?? 'larks_in_middle');
+  const [withDir, setWithDir] = useState<'larks_left' | 'robins_left'>(initial?.with ?? 'larks_left');
+  const [rotations, setRotations] = useState(initial ? String(initial.rotations) : '1');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('mad_robin'));
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'mad_robin', beats: Number(beats) || 0, dir, with: withDir, rotations: Number(rotations) || 1 }));
+  }
+
+  return (<>
+    <label>
+      Direction
+      <SearchableDropdown options={MAD_ROBIN_DIR_OPTIONS} value={dir} onChange={v => setDir(z.enum(['larks_in_middle', 'robins_in_middle']).parse(v))} getLabel={v => MAD_ROBIN_DIR_LABELS[v] ?? v} />
+    </label>
+    <label>
+      With
+      <SearchableDropdown options={MAD_ROBIN_WITH_OPTIONS} value={withDir} onChange={v => setWithDir(z.enum(['larks_left', 'robins_left']).parse(v))} getLabel={v => MAD_ROBIN_WITH_LABELS[v] ?? v} />
+    </label>
+    <label>
+      Rotations
+      <input type="text" inputMode="decimal" value={rotations} onChange={e => setRotations(e.target.value)} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
 function SplitFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'split' }> }) {
   const [splitBy, setSplitBy] = useState<SplitBy>(initial?.by ?? 'role');
 
@@ -758,6 +805,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
       {action === 'swing' && <SwingFields {...common} initial={initial?.type === 'swing' ? initial : undefined} />}
       {action === 'box_the_gnat' && <BoxTheGnatFields {...common} initial={initial?.type === 'box_the_gnat' ? initial : undefined} />}
       {action === 'give_and_take_into_swing' && <GiveAndTakeIntoSwingFields {...common} initial={initial?.type === 'give_and_take_into_swing' ? initial : undefined} />}
+      {action === 'mad_robin' && <MadRobinFields {...common} initial={initial?.type === 'mad_robin' ? initial : undefined} />}
       {action === 'split' && <SplitFields {...common} initial={initial?.type === 'split' ? initial : undefined} />}
       {action === 'group' && <GroupFields {...common} initial={initial?.type === 'group' ? initial : undefined} />}
     </div>
