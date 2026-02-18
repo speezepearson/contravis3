@@ -1,7 +1,7 @@
 import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId } from './types';
-import { makeDancerId, parseDancerId, dancerPosition } from './types';
+import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
 
-const PROTO_DANCER_IDS: readonly ProtoDancerId[] = ['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0'] as const;
+const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
 const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 
 const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
@@ -31,12 +31,10 @@ function initialKeyframe(): Keyframe {
 }
 
 function copyDancers(dancers: Record<ProtoDancerId, DancerState>): Record<ProtoDancerId, DancerState> {
-  const result = {} as Record<ProtoDancerId, DancerState>;
-  for (const id of PROTO_DANCER_IDS) {
+  return buildDancerRecord(id => {
     const d = dancers[id];
-    result[id] = { x: d.x, y: d.y, facing: d.facing };
-  }
-  return result;
+    return { x: d.x, y: d.y, facing: d.facing };
+  });
 }
 
 /** Resolve a relationship from a specific dancer's perspective.
@@ -637,16 +635,12 @@ function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'spli
     const kfA = sampleAtBeat(timelineA, beat);
     const kfB = sampleAtBeat(timelineB, beat);
 
-    const dancers = {} as Record<ProtoDancerId, DancerState>;
-    for (const id of PROTO_DANCER_IDS) {
-      if (groupA.has(id)) {
-        const src = kfA ? kfA.dancers[id] : prev.dancers[id];
-        dancers[id] = { x: src.x, y: src.y, facing: src.facing };
-      } else {
-        const src = kfB ? kfB.dancers[id] : prev.dancers[id];
-        dancers[id] = { x: src.x, y: src.y, facing: src.facing };
-      }
-    }
+    const dancers = buildDancerRecord(id => {
+      const src = groupA.has(id)
+        ? (kfA ? kfA.dancers[id] : prev.dancers[id])
+        : (kfB ? kfB.dancers[id] : prev.dancers[id]);
+      return { x: src.x, y: src.y, facing: src.facing };
+    });
 
     // Merge hands: combine from both timelines, dedup by (a,b) pair
     const handsA = kfA ? kfA.hands : prev.hands;
