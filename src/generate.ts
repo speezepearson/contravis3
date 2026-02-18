@@ -972,6 +972,91 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   return [...walkFrames, ...shiftedSwingFrames];
 }
 
+function generateMadRobin(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
+  scope: Set<ProtoDancerId>,
+): Keyframe[] {
+  const relationship =
+    instr.with === "larks_left"
+      ? ("larks_left_robins_right" as const)
+      : ("larks_right_robins_left" as const);
+  const pairs = resolvePairs(relationship, prev.dancers, scope, {});
+
+  const cw =
+    (instr.dir === "larks_in_middle") === (instr.with === "robins_left");
+  const totalAngleRad = instr.rotations * 2 * Math.PI * (cw ? 1 : -1);
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  // Assert same side of set and build orbit data
+  const checked = new Set<ProtoDancerId>();
+  const orbitData: {
+    protoId: ProtoDancerId;
+    cx: number;
+    cy: number;
+    semiMajor: number;
+    sinStart: number;
+    cosStart: number;
+    acrossFacing: number;
+  }[] = [];
+
+  for (const [id, targetDancerId] of pairs) {
+    const { proto: targetProto } = parseDancerId(targetDancerId);
+    if (!checked.has(id) && !checked.has(targetProto)) {
+      checked.add(id);
+      checked.add(targetProto);
+      const da = prev.dancers[id];
+      const db = dancerPosition(targetDancerId, prev.dancers);
+      if (da.x * db.x < -1e-6) {
+        throw new Error(
+          `mad robin: ${id} and ${targetProto} are not on the same side of the set`,
+        );
+      }
+    }
+
+    const da = prev.dancers[id];
+    const targetPos = dancerPosition(targetDancerId, prev.dancers);
+    const cx = (da.x + targetPos.x) / 2;
+    const cy = (da.y + targetPos.y) / 2;
+    const startAngle = Math.atan2(da.x - cx, da.y - cy);
+    const semiMajor = Math.hypot(da.x - cx, da.y - cy);
+
+    orbitData.push({
+      protoId: id,
+      cx,
+      cy,
+      semiMajor,
+      sinStart: Math.sin(startAngle),
+      cosStart: Math.cos(startAngle),
+      acrossFacing: da.x < 0 ? 90 : 270,
+    });
+  }
+
+  const result: Keyframe[] = [];
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const tEased = easeInOut(t);
+    const phi = tEased * totalAngleRad;
+    const dancers = copyDancers(prev.dancers);
+    for (const od of orbitData) {
+      const cosPhi = Math.cos(phi);
+      const sinPhi = Math.sin(phi);
+      dancers[od.protoId].x =
+        od.cx +
+        od.semiMajor * cosPhi * od.sinStart +
+        0.25 * sinPhi * od.cosStart;
+      dancers[od.protoId].y =
+        od.cy +
+        od.semiMajor * cosPhi * od.cosStart -
+        0.25 * sinPhi * od.sinStart;
+      dancers[od.protoId].facing = od.acrossFacing;
+    }
+    result.push({ beat, dancers, hands: prev.hands });
+  }
+  return result;
+}
+
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
@@ -988,6 +1073,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'swing':       return generateSwing(prev, instr, scope);
     case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
+    case 'mad_robin':                return generateMadRobin(prev, instr, scope);
   }
 }
 
