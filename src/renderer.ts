@@ -286,15 +286,17 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
 
   for (const id of ids) {
     let sumX = 0, sumY = 0;
-    // Unwrap all facing angles relative to the first sample to avoid 0/360 jumps
-    const refFacing = samples[0].dancers[id].facing;
+    // Unwrap facing angles via chaining: each sample unwraps relative to the
+    // previous one, so even fast rotations (>180° across the full window) work.
+    let prevFacing = samples[0].dancers[id].facing;
     let sumFacing = 0;
 
     for (const s of samples) {
       const d = s.dancers[id];
       sumX += d.x;
       sumY += d.y;
-      sumFacing += unwrapAngle(d.facing, refFacing);
+      prevFacing = unwrapAngle(d.facing, prevFacing);
+      sumFacing += prevFacing;
     }
 
     const n = SMOOTH_SAMPLES;
