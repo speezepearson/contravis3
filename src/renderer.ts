@@ -9,7 +9,7 @@ const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: strin
 };
 
 const MARGIN = 40;
-const Y_RANGE = 6; // meters shown vertically
+const PX_PER_METER = 103; // fixed scale: (700 - 80) / 6 ≈ 103
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -18,6 +18,7 @@ export class Renderer {
   private usableW: number;
   private usableH: number;
   private xRange: number;
+  private yRange: number;
   private cameraY = 0;
   private trails: Partial<Record<ProtoDancerId, { x: number; y: number }[]>> = {};
   private trailLength = 20;
@@ -28,8 +29,17 @@ export class Renderer {
     this.height = height;
     this.usableW = width - 2 * MARGIN;
     this.usableH = height - 2 * MARGIN;
-    const pxPerMeter = this.usableH / Y_RANGE;
-    this.xRange = this.usableW / pxPerMeter;
+    this.yRange = this.usableH / PX_PER_METER;
+    this.xRange = this.usableW / PX_PER_METER;
+  }
+
+  resize(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+    this.usableW = width - 2 * MARGIN;
+    this.usableH = height - 2 * MARGIN;
+    this.yRange = this.usableH / PX_PER_METER;
+    this.xRange = this.usableW / PX_PER_METER;
   }
 
   clearTrails() {
@@ -38,7 +48,7 @@ export class Renderer {
 
   private worldToCanvas(wx: number, wy: number): [number, number] {
     const cx = MARGIN + (wx + this.xRange / 2) / this.xRange * this.usableW;
-    const cy = MARGIN + ((this.cameraY + Y_RANGE / 2) - wy) / Y_RANGE * this.usableH;
+    const cy = MARGIN + ((this.cameraY + this.yRange / 2) - wy) / this.yRange * this.usableH;
     return [cx, cy];
   }
 
@@ -48,8 +58,8 @@ export class Renderer {
 
     this.cameraY = progressionRate * frame.beat;
 
-    const viewYMin = this.cameraY - Y_RANGE / 2;
-    const viewYMax = this.cameraY + Y_RANGE / 2;
+    const viewYMin = this.cameraY - this.yRange / 2;
+    const viewYMax = this.cameraY + this.yRange / 2;
 
     // Grid lines (set boundaries at x = ±0.5)
     ctx.strokeStyle = '#222';
@@ -137,8 +147,8 @@ export class Renderer {
 
   private drawHandsForAllCopies(da: DancerState, handA: 'left' | 'right', db: DancerState, handB: 'left' | 'right') {
     const ctx = this.ctx;
-    const viewYMin = this.cameraY - Y_RANGE / 2;
-    const viewYMax = this.cameraY + Y_RANGE / 2;
+    const viewYMin = this.cameraY - this.yRange / 2;
+    const viewYMax = this.cameraY + this.yRange / 2;
     const firstCopy = Math.floor((viewYMin - 1) / 2) * 2;
     const lastCopy = Math.ceil((viewYMax + 1) / 2) * 2;
     const r = 14;
@@ -222,8 +232,10 @@ function unwrapAngle(angle: number, ref: number): number {
 }
 
 /** Linear interpolation between keyframes (no smoothing). */
-function rawFrameAtBeat(keyframes: Keyframe[], beat: number): Keyframe | null {
+function rawFrameAtBeat(keyframes: Keyframe[], beat: number, danceLength: number = 64): Keyframe | null {
   if (keyframes.length === 0) return null;
+  // Wrap beat into [0, danceLength)
+  beat = ((beat % danceLength) + danceLength) % danceLength;
   if (beat <= keyframes[0].beat) return keyframes[0];
   if (beat >= keyframes[keyframes.length - 1].beat) return keyframes[keyframes.length - 1];
 
@@ -263,11 +275,11 @@ const SMOOTH_SAMPLES = 10;
  * Get an interpolated frame at `beat`.
  * `smoothness` is the width of a moving-average window in beats (0 = raw linear).
  */
-export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: number = 0): Keyframe | null {
+export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: number = 0, danceLength: number = 64): Keyframe | null {
   if (keyframes.length === 0) return null;
 
   if (smoothness === 0) {
-    return rawFrameAtBeat(keyframes, beat);
+    return rawFrameAtBeat(keyframes, beat, danceLength);
   }
 
   // Sample raw interpolation at evenly spaced points across the window
@@ -278,7 +290,7 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
   // Collect all samples
   const samples: Keyframe[] = [];
   for (let i = 0; i < SMOOTH_SAMPLES; i++) {
-    const s = rawFrameAtBeat(keyframes, start + i * step);
+    const s = rawFrameAtBeat(keyframes, start + i * step, danceLength);
     if (!s) return null;
     samples.push(s);
   }

@@ -38,15 +38,30 @@ describe('getFrameAtBeat', () => {
       expect(getFrameAtBeat([], 5)).toBeNull();
     });
 
-    it('returns first keyframe when beat is before first', () => {
+    it('wraps negative beats into [0, danceLength)', () => {
       const kfs = uniformKeyframes();
+      // beat -1 wraps to 63 (danceLength=64), which is past last keyframe (beat 12)
       const frame = getFrameAtBeat(kfs, -1);
-      expect(frame).toEqual(kfs[0]);
+      expect(frame).toEqual(kfs[kfs.length - 1]);
     });
 
-    it('returns last keyframe when beat is after last', () => {
+    it('wraps beats beyond dance length', () => {
       const kfs = uniformKeyframes();
-      const frame = getFrameAtBeat(kfs, 100);
+      // beat 66 wraps to 2 (66 % 64 = 2), between kf[0](beat 0, x=0) and kf[1](beat 4, x=1)
+      const frame = getFrameAtBeat(kfs, 66, 0)!;
+      expect(frame.dancers.up_lark_0.x).toBeCloseTo(0.5);
+    });
+
+    it('t=-0.3 equals t=63.7', () => {
+      const kfs = uniformKeyframes();
+      const neg = getFrameAtBeat(kfs, -0.3);
+      const pos = getFrameAtBeat(kfs, 63.7);
+      expect(neg).toEqual(pos);
+    });
+
+    it('returns last keyframe when beat is after last but within dance length', () => {
+      const kfs = uniformKeyframes();
+      const frame = getFrameAtBeat(kfs, 20);
       expect(frame).toEqual(kfs[kfs.length - 1]);
     });
 
