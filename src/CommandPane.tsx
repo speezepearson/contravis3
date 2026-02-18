@@ -5,8 +5,8 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema } from './types';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation } from './types';
+import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand } from './types';
 import { z } from 'zod';
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
@@ -37,6 +37,7 @@ const DROP_TARGET_LABELS: Record<string, string> = {
 };
 
 const HAND_OPTIONS = ['right', 'left'];
+const TAKE_HAND_OPTIONS = ['right', 'left', 'both'];
 const CIRCLE_DIR_OPTIONS = ['left', 'right'];
 
 function parseDirection(text: string): RelativeDirection | null {
@@ -230,7 +231,8 @@ function summarizeAtomic(instr: AtomicInstruction): string {
     case 'take_hands': {
       const r = instr.relationship;
       const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : `${r}s`;
-      return `${label} take ${instr.hand} hands`;
+      const handLabel = instr.hand === 'both' ? 'both' : instr.hand;
+      return `${label} take ${handLabel} hands`;
     }
     case 'drop_hands': {
       const t = instr.target;
@@ -346,7 +348,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
   const [dropTarget, setDropTarget] = useState<DropHandsTarget>(
     initAtomic?.type === 'drop_hands' ? initAtomic.target : 'neighbor'
   );
-  const [hand, setHand] = useState<'left' | 'right'>(() => {
+  const [hand, setHand] = useState<TakeHand>(() => {
     if (initAtomic?.type === 'take_hands' || initAtomic?.type === 'pull_by') return initAtomic.hand;
     return 'right';
   });
@@ -403,7 +405,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
       case 'circle':
         return { ...base, type: 'circle', direction: handedness, rotations: Number(rotations) || 1 };
       case 'pull_by':
-        return { ...base, type: 'pull_by', relationship, hand };
+        return { ...base, type: 'pull_by', relationship, hand: HandSchema.parse(hand) };
       case 'turn': {
         const target = parseDirection(turnText) ?? { kind: 'direction' as const, value: 'up' as const };
         return { ...base, type: 'turn', target, offset: Number(turnOffset) || 0 };
@@ -458,6 +460,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
               setBeats(defaultBeats(a));
               if (a === 'swing') setTurnText('across');
             }
+            if (a === 'pull_by' && hand === 'both') setHand('right');
           }}
           getLabel={v => ACTION_LABELS[v] ?? v}
         />
@@ -511,13 +514,26 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
         </label>
       )}
 
-      {(action === 'take_hands' || action === 'pull_by') && (
+      {action === 'take_hands' && (
+        <label>
+          Hand
+          <SearchableDropdown
+            options={TAKE_HAND_OPTIONS}
+            value={hand}
+            onChange={v => setHand(TakeHandSchema.parse(v))}
+            getLabel={v => v}
+          />
+        </label>
+      )}
+
+      {action === 'pull_by' && (
         <label>
           Hand
           <SearchableDropdown
             options={HAND_OPTIONS}
             value={hand}
             onChange={v => setHand(HandSchema.parse(v))}
+            getLabel={v => v}
           />
         </label>
       )}
@@ -530,6 +546,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
               options={HAND_OPTIONS}
               value={handedness}
               onChange={v => setHandedness(HandSchema.parse(v))}
+              getLabel={v => v}
             />
           </label>
           <label>
@@ -564,6 +581,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
               options={CIRCLE_DIR_OPTIONS}
               value={handedness}
               onChange={v => setHandedness(HandSchema.parse(v))}
+              getLabel={v => v}
             />
           </label>
           <label>
@@ -693,7 +711,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
 
   function handleAdd(containerId: string, index: number, instr: Instruction) {
     setInstructions(insertIntoContainer(instructions, containerId, instr, index));
-    setInsertTarget(null);
+    setInsertTarget({ containerId, index: index + 1 });
   }
 
   function openEdit(id: number) {

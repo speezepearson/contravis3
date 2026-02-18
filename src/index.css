@@ -171,6 +171,7 @@ input[type="range"] {
   background: #1e1e3a;
   border: 1px solid #444;
   border-radius: 4px;
+  max-width: 320px;
 }
 
 .inline-form label {

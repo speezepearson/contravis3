@@ -117,6 +117,7 @@ function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoDancerId
 function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const newHands: HandConnection[] = [...prev.hands];
   const seen = new Set<string>();
+  const hands: ('left' | 'right')[] = instr.hand === 'both' ? ['left', 'right'] : [instr.hand];
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const target = resolveRelationship(instr.relationship, id, prev.dancers);
@@ -124,7 +125,9 @@ function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!seen.has(key)) {
       seen.add(key);
-      newHands.push({ a: aId, ha: instr.hand, b: target, hb: instr.hand });
+      for (const h of hands) {
+        newHands.push({ a: aId, ha: h, b: target, hb: h });
+      }
     }
   }
   return [{
@@ -514,6 +517,14 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
     pairs.push({ lark, robin, cx, cy, f0, omega, endFacingRad, phase2Start, phase2Duration });
   }
 
+  // Drop all hands involving swing participants, then take lark-right ↔ robin-left
+  let swingHands = prev.hands.filter(h =>
+    !processed.has(parseDancerId(h.a).proto) && !processed.has(parseDancerId(h.b).proto)
+  );
+  for (const { lark, robin } of pairs) {
+    swingHands.push({ a: makeDancerId(lark, 0), ha: 'right', b: makeDancerId(robin, 0), hb: 'left' });
+  }
+
   const result: Keyframe[] = [];
 
   for (let i = 1; i <= nFrames; i++) {
@@ -575,7 +586,11 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
       }
     }
 
-    result.push({ beat, dancers, hands: prev.hands });
+    // Drop swing hands on the final frame
+    const hands = i === nFrames
+      ? swingHands.filter(h => !processed.has(parseDancerId(h.a).proto) || !processed.has(parseDancerId(h.b).proto))
+      : swingHands;
+    result.push({ beat, dancers, hands });
   }
 
   return result;

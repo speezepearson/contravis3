@@ -39,6 +39,8 @@ export const DropHandsTargetSchema = z.union([RelationshipSchema, z.enum(['left'
 export type DropHandsTarget = z.infer<typeof DropHandsTargetSchema>;
 
 export const HandSchema = z.enum(['left', 'right']);
+export const TakeHandSchema = z.enum(['left', 'right', 'both']);
+export type TakeHand = z.infer<typeof TakeHandSchema>;
 
 // Direction relative to a dancer: a named direction or a relationship
 export const RelativeDirectionSchema = z.discriminatedUnion('kind', [
@@ -50,7 +52,7 @@ export type RelativeDirection = z.infer<typeof RelativeDirectionSchema>;
 const baseFields = { id: z.number(), beats: z.number() };
 
 export const AtomicInstructionSchema = z.discriminatedUnion('type', [
-  z.object({ ...baseFields, type: z.literal('take_hands'), relationship: RelationshipSchema, hand: HandSchema }),
+  z.object({ ...baseFields, type: z.literal('take_hands'), relationship: RelationshipSchema, hand: TakeHandSchema }),
   z.object({ ...baseFields, type: z.literal('drop_hands'), target: DropHandsTargetSchema }),
   z.object({ ...baseFields, type: z.literal('allemande'), relationship: RelationshipSchema, handedness: HandSchema, rotations: z.number() }),
   z.object({ ...baseFields, type: z.literal('do_si_do'), relationship: RelationshipSchema, rotations: z.number() }),
