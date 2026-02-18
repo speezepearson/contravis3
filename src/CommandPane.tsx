@@ -697,6 +697,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
+  const [pasteFeedback, setPasteFeedback] = useState('');
 
   function openInsert(containerId: string, index: number) {
     setInsertTarget({ containerId, index });
@@ -780,10 +781,19 @@ export default function CommandPane({ instructions, setInstructions, initFormati
 
   function tryLoadJson(text: string) {
     let raw: unknown;
-    try { raw = JSON.parse(text); } catch { return; }
+    try { raw = JSON.parse(text); } catch (e) {
+      setPasteFeedback(`Invalid JSON: ${e instanceof SyntaxError ? e.message : String(e)}`);
+      setTimeout(() => setPasteFeedback(''), 3000);
+      return;
+    }
     const result = DanceSchema.safeParse(raw);
-    if (!result.success) return;
+    if (!result.success) {
+      setPasteFeedback(`Invalid dance: ${result.error.issues.map(i => i.message).join(', ')}`);
+      setTimeout(() => setPasteFeedback(''), 3000);
+      return;
+    }
     const parsed = result.data;
+    setPasteFeedback('');
     setInitFormation(parsed.initFormation);
     setProgression(parsed.progression);
     setInstructions(parsed.instructions);
@@ -893,6 +903,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
             placeholder="Paste JSON here to load"
             rows={3}
           />
+          {pasteFeedback && <div className="paste-error">{pasteFeedback}</div>}
         </div>
       </DndContext>
     </div>

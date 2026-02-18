@@ -407,6 +407,11 @@ input[type="range"] {
   resize: vertical;
 }
 
+.paste-error {
+  color: #ff6b6b;
+  font-size: 12px;
+}
+
 /* Mobile layout */
 
 @media (max-width: 768px) {
