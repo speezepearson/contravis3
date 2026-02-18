@@ -986,42 +986,45 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     return (
       <div className="group-body">
         <SortableContext id={containerId} items={group.instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {group.instructions.map(child => (
-            <SortableItem key={child.id} id={child.id}>
-              {(dragHandleProps) => (
-                <>
-                  {editingId === child.id ? (
-                    <InlineForm
-                      key={`edit-${child.id}`}
-                      initial={child}
-                      onSave={updated => handleSave(child.id, updated)}
-                      onCancel={() => setEditingId(null)}
-                    />
-                  ) : (
-                    <div className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}`}>
-                      <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                      <span className="instruction-summary">{summarize(child)}</span>
-                      <div className="instruction-actions">
-                        <button onClick={() => openEdit(child.id)} title="Edit">{'\u270E'}</button>
-                        <button onClick={() => handleRemove(child.id)} title="Delete">{'\u00D7'}</button>
+          {renderAddGap(containerId, 0)}
+          {group.instructions.map((child, i) => (
+            <Fragment key={child.id}>
+              <SortableItem id={child.id}>
+                {(dragHandleProps) => (
+                  <>
+                    {editingId === child.id ? (
+                      <InlineForm
+                        key={`edit-${child.id}`}
+                        initial={child}
+                        onSave={updated => handleSave(child.id, updated)}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    ) : (
+                      <div className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}`}>
+                        <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
+                        <span className="instruction-summary">{summarize(child)}</span>
+                        <div className="instruction-actions">
+                          <button onClick={() => openEdit(child.id)} title="Edit">{'\u270E'}</button>
+                          <button onClick={() => handleRemove(child.id)} title="Delete">{'\u00D7'}</button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {warnings.get(child.id) && (
-                    <div className="instruction-warning">{warnings.get(child.id)}</div>
-                  )}
-                  {generateError?.instructionId === child.id && (
-                    <div className="instruction-error">{generateError.message}</div>
-                  )}
-                  {child.type === 'split' && renderSplitBody(child)}
-                  {child.type === 'group' && renderGroupBody(child)}
-                </>
-              )}
-            </SortableItem>
+                    )}
+                    {warnings.get(child.id) && (
+                      <div className="instruction-warning">{warnings.get(child.id)}</div>
+                    )}
+                    {generateError?.instructionId === child.id && (
+                      <div className="instruction-error">{generateError.message}</div>
+                    )}
+                    {child.type === 'split' && renderSplitBody(child)}
+                    {child.type === 'group' && renderGroupBody(child)}
+                  </>
+                )}
+              </SortableItem>
+              {renderAddGap(containerId, i + 1)}
+            </Fragment>
           ))}
         </SortableContext>
         <DropZone containerId={containerId} />
-        {renderAddGap(containerId, group.instructions.length)}
       </div>
     );
   }
