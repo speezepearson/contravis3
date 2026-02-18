@@ -4,6 +4,10 @@ import type { Instruction, Keyframe, Dance } from './types';
 import { parseDancerId, InstructionSchema, DanceSchema, ProtoDancerIdSchema } from './types';
 import { z } from 'zod';
 
+function tid(n: number): string {
+  return `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+}
+
 /** Parse an array of raw instruction objects into branded Instructions. */
 function instr(data: unknown[]): Instruction[] {
   return z.array(InstructionSchema).parse(data);
@@ -35,7 +39,7 @@ describe('generateAllKeyframes', () => {
   describe('take_hands', () => {
     it('adds hand connections for neighbor pairs', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       expect(kfs).toHaveLength(2);
@@ -49,7 +53,7 @@ describe('generateAllKeyframes', () => {
 
     it('adds hand connections for partner pairs', () => {
       const instructions = instr([
-        { id: 1, beats: 2, type: 'take_hands', relationship: 'partner', hand: 'left' },
+        { id: tid(1), beats: 2, type: 'take_hands', relationship: 'partner', hand: 'left' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -63,7 +67,7 @@ describe('generateAllKeyframes', () => {
       // up_robin is to up_lark's right → up_lark uses right
       // up_lark is to up_robin's left → up_robin uses left
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'partner', hand: 'inside' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'partner', hand: 'inside' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -75,11 +79,11 @@ describe('generateAllKeyframes', () => {
     it('inside hand errors when target is directly in front', () => {
       // Improper: neighbors are directly in front of each other
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
       ]);
       const { error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
-      expect(error!.instructionId).toBe(1);
+      expect(error!.instructionId).toBe(tid(1));
       expect(error!.message).toMatch(/neither to the left nor to the right/);
     });
 
@@ -91,8 +95,8 @@ describe('generateAllKeyframes', () => {
       // Facing east (90°), north = left → up_lark uses left.
       // down_robin (at -0.5, 0.5) faces east (90°), up_lark is south → right.
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'partner' } },
-        { id: 2, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'partner' } },
+        { id: tid(2), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -107,11 +111,11 @@ describe('generateAllKeyframes', () => {
       // up_lark (facing N) → up_robin is directly to the right, but
       // up_robin (facing N) has nobody within range in the on_right direction.
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' },
       ]);
       const { error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
-      expect(error!.instructionId).toBe(1);
+      expect(error!.instructionId).toBe(tid(1));
       expect(error!.message).toMatch(/no valid candidate for 'on_right'/);
     });
 
@@ -120,8 +124,8 @@ describe('generateAllKeyframes', () => {
       // down_lark faces S → on_right (70° CW) finds down_robin (to the west).
       // Scoped to larks only, so robins (who have nobody on their right) are not evaluated.
       const instructions = instr([{
-        id: 1, type: 'split', by: 'role',
-        listA: [{ id: 10, beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' }],
+        id: tid(1), type: 'split', by: 'role',
+        listA: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' }],
         listB: [],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -134,7 +138,7 @@ describe('generateAllKeyframes', () => {
     it('in_front in initial formation resolves to neighbor pairs', () => {
       // In initial improper: ups face north toward downs, downs face south toward ups
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'in_front', hand: 'left' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'in_front', hand: 'left' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -146,8 +150,8 @@ describe('generateAllKeyframes', () => {
     it('on_left after turning to face across resolves correctly', () => {
       // Turn everyone to face across, then "on your left" resolves per-dancer.
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'across' } },
-        { id: 2, beats: 0, type: 'take_hands', relationship: 'on_left', hand: 'left' },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'across' } },
+        { id: tid(2), beats: 0, type: 'take_hands', relationship: 'on_left', hand: 'left' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -166,8 +170,8 @@ describe('generateAllKeyframes', () => {
       // for down dancers (nobody is north of them within the same hands-four).
       // They should find dancers in the adjacent hands-four (offset +1).
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
-        { id: 2, beats: 0, type: 'take_hands', relationship: 'in_front', hand: 'right' },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
+        { id: tid(2), beats: 0, type: 'take_hands', relationship: 'in_front', hand: 'right' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -182,8 +186,8 @@ describe('generateAllKeyframes', () => {
   describe('drop_hands', () => {
     it('removes hand connections for the relationship', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
-        { id: 2, beats: 0, type: 'drop_hands', target: 'neighbor' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: tid(2), beats: 0, type: 'drop_hands', target: 'neighbor' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -192,9 +196,9 @@ describe('generateAllKeyframes', () => {
 
     it('only removes the specified relationship hands', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
-        { id: 2, beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
-        { id: 3, beats: 0, type: 'drop_hands', target: 'neighbor' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: tid(2), beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
+        { id: tid(3), beats: 0, type: 'drop_hands', target: 'neighbor' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -205,9 +209,9 @@ describe('generateAllKeyframes', () => {
 
     it('drops by hand: removes all connections using that hand', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
-        { id: 2, beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
-        { id: 3, beats: 0, type: 'drop_hands', target: 'right' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: tid(2), beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
+        { id: tid(3), beats: 0, type: 'drop_hands', target: 'right' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -219,9 +223,9 @@ describe('generateAllKeyframes', () => {
 
     it('drops both: removes all hand connections', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
-        { id: 2, beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
-        { id: 3, beats: 0, type: 'drop_hands', target: 'both' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: tid(2), beats: 0, type: 'take_hands', relationship: 'partner', hand: 'left' },
+        { id: tid(3), beats: 0, type: 'drop_hands', target: 'both' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -232,7 +236,7 @@ describe('generateAllKeyframes', () => {
   describe('turn', () => {
     it('turns dancers to face up (0 degrees)', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -243,7 +247,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face down (180 degrees)', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -254,7 +258,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face across', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'across' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -266,7 +270,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face out', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'out' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'out' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -278,7 +282,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face progression direction', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'progression' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'progression' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -290,7 +294,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face forward (same as current facing)', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'forward' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'forward' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -301,7 +305,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face back (opposite of current facing)', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'back' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'back' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -311,7 +315,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face right (90° CW from current facing)', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'right' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'right' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -322,7 +326,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns dancers to face left (90° CCW from current facing)', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'left' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'left' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -333,7 +337,7 @@ describe('generateAllKeyframes', () => {
 
     it('offset rotates clockwise by given degrees from target', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 90, target: { kind: 'direction', value: 'forward' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 90, target: { kind: 'direction', value: 'forward' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -346,7 +350,7 @@ describe('generateAllKeyframes', () => {
 
     it('negative offset means counter-clockwise', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: -90, target: { kind: 'direction', value: 'forward' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: -90, target: { kind: 'direction', value: 'forward' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -357,7 +361,7 @@ describe('generateAllKeyframes', () => {
 
     it('applies offset degrees clockwise on top of target direction', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 90, target: { kind: 'direction', value: 'up' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 90, target: { kind: 'direction', value: 'up' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -369,7 +373,7 @@ describe('generateAllKeyframes', () => {
 
     it('turns selected dancers toward a relationship target', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'partner' } },
+        { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'partner' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -383,7 +387,7 @@ describe('generateAllKeyframes', () => {
   describe('allemande', () => {
     it('produces multiple keyframes for the arc', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       expect(kfs.length).toBeGreaterThan(2);
@@ -393,7 +397,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers return to approximately their starting positions after 1 full rotation', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -404,7 +408,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers swap positions after half rotation', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 0.5 },
+        { id: tid(1), beats: 4, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -416,7 +420,7 @@ describe('generateAllKeyframes', () => {
 
     it('allemande right: right shoulder faces partner (facing is 90° CCW from direction to partner)', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       // Check a mid-animation frame
@@ -434,7 +438,7 @@ describe('generateAllKeyframes', () => {
 
     it('allemande left: left shoulder faces partner (facing is 90° CW from direction to partner)', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const midIdx = Math.floor(kfs.length / 2);
@@ -450,7 +454,7 @@ describe('generateAllKeyframes', () => {
 
     it('allemande right adds right hand connections', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       // All allemande keyframes should have hand connections
@@ -461,7 +465,7 @@ describe('generateAllKeyframes', () => {
 
     it('allemande left adds left hand connections', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'allemande', relationship: 'partner', handedness: 'left', rotations: 0.5 },
+        { id: tid(1), beats: 4, type: 'allemande', relationship: 'partner', handedness: 'left', rotations: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
@@ -473,7 +477,7 @@ describe('generateAllKeyframes', () => {
       // Allemande left with neighbors: up_lark neighbors down_robin
       // CCW orbit: up_lark (at -0.5,-0.5) should move east first (toward +x)
       const instructions = instr([
-        { id: 1, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 0.5 },
+        { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       // After half rotation CCW, up_lark should be roughly where down_robin was
@@ -486,7 +490,7 @@ describe('generateAllKeyframes', () => {
   describe('step', () => {
     it('moves dancers up by distance', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -499,7 +503,7 @@ describe('generateAllKeyframes', () => {
 
     it('moves dancers down by distance', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -512,7 +516,7 @@ describe('generateAllKeyframes', () => {
 
     it('moves dancers across (toward center of set)', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -523,7 +527,7 @@ describe('generateAllKeyframes', () => {
 
     it('moves dancers out (away from center)', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'out' }, distance: 0.5 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'out' }, distance: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -535,7 +539,7 @@ describe('generateAllKeyframes', () => {
 
     it('moves dancers toward a relationship target', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'relationship', value: 'partner' }, distance: 0.5 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'relationship', value: 'partner' }, distance: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -547,7 +551,7 @@ describe('generateAllKeyframes', () => {
 
     it('moves dancers in their progression direction', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 1 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -560,7 +564,7 @@ describe('generateAllKeyframes', () => {
 
     it('negative distance steps in the opposite direction', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: -1 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: -1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -572,7 +576,7 @@ describe('generateAllKeyframes', () => {
 
     it('moves dancers forward (relative to their facing)', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 1 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -584,7 +588,7 @@ describe('generateAllKeyframes', () => {
 
     it('moves dancers right (90° CW from facing)', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'right' }, distance: 1 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'right' }, distance: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -596,7 +600,7 @@ describe('generateAllKeyframes', () => {
 
     it('produces multiple keyframes with easing', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       expect(kfs.length).toBeGreaterThan(2);
@@ -605,8 +609,8 @@ describe('generateAllKeyframes', () => {
 
     it('preserves hands through step', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
-        { id: 2, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+        { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -617,8 +621,8 @@ describe('generateAllKeyframes', () => {
   describe('instruction sequencing', () => {
     it('beats accumulate across instructions', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
-        { id: 2, beats: 4, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } },
+        { id: tid(1), beats: 4, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
+        { id: tid(2), beats: 4, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       expect(kfs[0].beat).toBe(0);
@@ -629,9 +633,9 @@ describe('generateAllKeyframes', () => {
   describe('split', () => {
     it('split by role: larks and robins do different things', () => {
       const instructions = instr([{
-        id: 1, type: 'split', by: 'role',
-        listA: [{ id: 10, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-        listB: [{ id: 11, beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+        id: tid(1), type: 'split', by: 'role',
+        listA: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+        listB: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -646,9 +650,9 @@ describe('generateAllKeyframes', () => {
 
     it('split by position: ups and downs do different things', () => {
       const instructions = instr([{
-        id: 1, type: 'split', by: 'position',
-        listA: [{ id: 10, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } }],
-        listB: [{ id: 11, beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } }],
+        id: tid(1), type: 'split', by: 'position',
+        listA: [{ id: tid(10), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } }],
+        listB: [{ id: tid(11), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -662,9 +666,9 @@ describe('generateAllKeyframes', () => {
 
     it('empty listA: group A dancers hold still', () => {
       const instructions = instr([{
-        id: 1, type: 'split', by: 'role',
+        id: tid(1), type: 'split', by: 'role',
         listA: [],
-        listB: [{ id: 11, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+        listB: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -678,8 +682,8 @@ describe('generateAllKeyframes', () => {
 
     it('empty listB: group B dancers hold still', () => {
       const instructions = instr([{
-        id: 1, type: 'split', by: 'position',
-        listA: [{ id: 10, beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 }],
+        id: tid(1), type: 'split', by: 'position',
+        listA: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 }],
         listB: [],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -694,7 +698,7 @@ describe('generateAllKeyframes', () => {
 
     it('both lists empty: no movement, 0 beats', () => {
       const instructions = instr([{
-        id: 1, type: 'split', by: 'role',
+        id: tid(1), type: 'split', by: 'role',
         listA: [],
         listB: [],
       }]);
@@ -705,13 +709,13 @@ describe('generateAllKeyframes', () => {
 
     it('split beats are computed from sub-lists', () => {
       const instructions = instr([{
-        id: 1, type: 'split', by: 'role',
+        id: tid(1), type: 'split', by: 'role',
         listA: [
-          { id: 10, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
-          { id: 11, beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 },
+          { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+          { id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 },
         ],
         listB: [
-          { id: 12, beats: 8, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 1 },
+          { id: tid(12), beats: 8, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 1 },
         ],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -720,9 +724,9 @@ describe('generateAllKeyframes', () => {
 
     it('split merges hands from both sub-timelines', () => {
       const instructions = instr([{
-        id: 1, type: 'split', by: 'role',
-        listA: [{ id: 10, beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'right' }],
-        listB: [{ id: 11, beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'left' }],
+        id: tid(1), type: 'split', by: 'role',
+        listA: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'right' }],
+        listB: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'left' }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -735,11 +739,11 @@ describe('generateAllKeyframes', () => {
     it('instructions after split continue from merged state', () => {
       const instructions = instr([
         {
-          id: 1, type: 'split', by: 'role',
-          listA: [{ id: 10, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-          listB: [{ id: 11, beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+          id: tid(1), type: 'split', by: 'role',
+          listA: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+          listB: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
         },
-        { id: 2, beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 },
+        { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -754,9 +758,9 @@ describe('generateAllKeyframes', () => {
 
     it('split with allemande in one list and step in the other', () => {
       const instructions = instr([{
-        id: 1, type: 'split', by: 'position',
-        listA: [{ id: 10, beats: 8, type: 'allemande', relationship: 'partner', handedness: 'right', rotations: 1 }],
-        listB: [{ id: 11, beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+        id: tid(1), type: 'split', by: 'position',
+        listA: [{ id: tid(10), beats: 8, type: 'allemande', relationship: 'partner', handedness: 'right', rotations: 1 }],
+        listB: [{ id: tid(11), beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -775,7 +779,7 @@ describe('generateAllKeyframes', () => {
   describe('balance', () => {
     it('dancers end at their starting position after a balance', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'across' }, distance: 0.2 },
+        { id: tid(1), beats: 4, type: 'balance', direction: { kind: 'direction', value: 'across' }, distance: 0.2 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -789,7 +793,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers are displaced at the midpoint of a balance', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'up' }, distance: 0.2 },
+        { id: tid(1), beats: 4, type: 'balance', direction: { kind: 'direction', value: 'up' }, distance: 0.2 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -803,7 +807,7 @@ describe('generateAllKeyframes', () => {
 
     it('balance produces multiple keyframes', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'balance', direction: { kind: 'direction', value: 'right' }, distance: 0.2 },
+        { id: tid(1), beats: 4, type: 'balance', direction: { kind: 'direction', value: 'right' }, distance: 0.2 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       expect(kfs.length).toBeGreaterThan(2);
@@ -812,8 +816,8 @@ describe('generateAllKeyframes', () => {
 
     it('balance beats accumulate correctly', () => {
       const instructions = instr([
-        { id: 1, beats: 2, type: 'balance', direction: { kind: 'direction', value: 'forward' }, distance: 0.2 },
-        { id: 2, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+        { id: tid(1), beats: 2, type: 'balance', direction: { kind: 'direction', value: 'forward' }, distance: 0.2 },
+        { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       expect(kfs[kfs.length - 1].beat).toBeCloseTo(6, 5);
@@ -823,7 +827,7 @@ describe('generateAllKeyframes', () => {
   describe('do_si_do', () => {
     it('dancers return to starting positions after 1 full rotation', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -834,7 +838,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers maintain their original facing throughout', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -846,7 +850,7 @@ describe('generateAllKeyframes', () => {
 
     it('no hand connections during do-si-do', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
@@ -855,7 +859,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers swap positions after half rotation', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'do_si_do', relationship: 'neighbor', rotations: 0.5 },
+        { id: tid(1), beats: 4, type: 'do_si_do', relationship: 'neighbor', rotations: 0.5 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -870,7 +874,7 @@ describe('generateAllKeyframes', () => {
   describe('circle', () => {
     it('dancers return to starting positions after full circle', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'circle', direction: 'left', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -883,7 +887,7 @@ describe('generateAllKeyframes', () => {
 
     it('circle left moves clockwise', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
+        { id: tid(1), beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -894,7 +898,7 @@ describe('generateAllKeyframes', () => {
 
     it('circle right moves counter-clockwise', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'circle', direction: 'right', rotations: 0.25 },
+        { id: tid(1), beats: 8, type: 'circle', direction: 'right', rotations: 0.25 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -905,7 +909,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers face center throughout', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
+        { id: tid(1), beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
@@ -920,7 +924,7 @@ describe('generateAllKeyframes', () => {
 
     it('has hand connections forming a ring', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'circle', direction: 'left', rotations: 1 },
+        { id: tid(1), beats: 8, type: 'circle', direction: 'left', rotations: 1 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
@@ -932,7 +936,7 @@ describe('generateAllKeyframes', () => {
   describe('pull_by', () => {
     it('dancers swap positions', () => {
       const instructions = instr([
-        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+        { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -946,7 +950,7 @@ describe('generateAllKeyframes', () => {
 
     it('dancers maintain original facing', () => {
       const instructions = instr([
-        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+        { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -957,7 +961,7 @@ describe('generateAllKeyframes', () => {
 
     it('has hand connections during the pull-by', () => {
       const instructions = instr([
-        { id: 1, beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+        { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const mid = kfs[Math.floor(kfs.length / 2)];
@@ -969,10 +973,10 @@ describe('generateAllKeyframes', () => {
   describe('group', () => {
     it('processes children sequentially', () => {
       const instructions = instr([{
-        id: 1, type: 'group', label: 'Allemande figure',
+        id: tid(1), type: 'group', label: 'Allemande figure',
         instructions: [
-          { id: 10, beats: 2, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
-          { id: 11, beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+          { id: tid(10), beats: 2, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+          { id: tid(11), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
         ],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -983,11 +987,11 @@ describe('generateAllKeyframes', () => {
 
     it('beats accumulate across groups and other instructions', () => {
       const instructions = instr([
-        { id: 1, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 0.5 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 0.5 },
         {
-          id: 2, type: 'group', label: 'My group',
+          id: tid(2), type: 'group', label: 'My group',
           instructions: [
-            { id: 20, beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 },
+            { id: tid(20), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 },
           ],
         },
       ]);
@@ -997,11 +1001,11 @@ describe('generateAllKeyframes', () => {
 
     it('group can contain a split', () => {
       const instructions = instr([{
-        id: 1, type: 'group', label: 'Split group',
+        id: tid(1), type: 'group', label: 'Split group',
         instructions: [{
-          id: 10, type: 'split', by: 'role',
-          listA: [{ id: 100, beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-          listB: [{ id: 101, beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+          id: tid(10), type: 'split', by: 'role',
+          listA: [{ id: tid(100), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+          listB: [{ id: tid(101), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
         }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -1013,7 +1017,7 @@ describe('generateAllKeyframes', () => {
 
     it('empty group produces no keyframes', () => {
       const instructions = instr([{
-        id: 1, type: 'group', label: 'Empty',
+        id: tid(1), type: 'group', label: 'Empty',
         instructions: [],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -1024,7 +1028,7 @@ describe('generateAllKeyframes', () => {
   describe('swing', () => {
     it('produces multiple keyframes spanning the beat count', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       expect(kfs.length).toBeGreaterThan(2);
@@ -1033,7 +1037,7 @@ describe('generateAllKeyframes', () => {
 
     it('CoM at the end equals CoM at the beginning', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -1056,7 +1060,7 @@ describe('generateAllKeyframes', () => {
 
     it('during phase 1, the two dancers face opposite directions', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       // Check at beat 4 (midpoint, solidly in phase 1)
@@ -1077,7 +1081,7 @@ describe('generateAllKeyframes', () => {
 
     it('at the end, both dancers face the endFacing', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -1091,7 +1095,7 @@ describe('generateAllKeyframes', () => {
 
     it('at the end, the robin is 1.0m to the lark\'s right', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -1114,7 +1118,7 @@ describe('generateAllKeyframes', () => {
 
     it('partner swing works with endFacing up', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'swing', relationship: 'partner', endFacing: { kind: 'direction', value: 'up' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'partner', endFacing: { kind: 'direction', value: 'up' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -1128,17 +1132,17 @@ describe('generateAllKeyframes', () => {
     it('errors when pairs have the same role', () => {
       // opposite: up_lark ↔ down_lark (both larks)
       const instructions = instr([
-        { id: 1, beats: 8, type: 'swing', relationship: 'opposite', endFacing: { kind: 'direction', value: 'up' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'opposite', endFacing: { kind: 'direction', value: 'up' } },
       ]);
       const { error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
-      expect(error!.instructionId).toBe(1);
+      expect(error!.instructionId).toBe(tid(1));
       expect(error!.message).toMatch(/same role/);
     });
 
     it('orbits clockwise (lark moves westward from initial south-of-CoM position)', () => {
       const instructions = instr([
-        { id: 1, beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       // up_lark starts south of CoM (-0.5, 0). CW from south goes west (decreasing x).
@@ -1150,7 +1154,7 @@ describe('generateAllKeyframes', () => {
   describe('validateHandDistances', () => {
     it('no warning when neighbors take hands (distance ~1.0m)', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       const warnings = validateHandDistances(instructions, keyframes);
@@ -1159,18 +1163,18 @@ describe('generateAllKeyframes', () => {
 
     it('warns when dancers step apart while holding hands', () => {
       const instructions = instr([
-        { id: 1, beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
-        { id: 2, beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4 },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
+        { id: tid(2), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       const warnings = validateHandDistances(instructions, keyframes);
-      expect(warnings.has(2)).toBe(true);
-      expect(warnings.get(2)).toMatch(/Hands too far apart/);
+      expect(warnings.has(tid(2))).toBe(true);
+      expect(warnings.get(tid(2))).toMatch(/Hands too far apart/);
     });
 
     it('no warning when stepping without hands', () => {
       const instructions = instr([
-        { id: 1, beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4 },
+        { id: tid(1), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       const warnings = validateHandDistances(instructions, keyframes);
@@ -1184,7 +1188,7 @@ describe('DanceSchema', () => {
     const raw = {
       initFormation: 'improper',
       instructions: [
-        { id: 1, beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
       ],
     };
     const dance = DanceSchema.parse(raw);
@@ -1220,7 +1224,7 @@ describe('DanceSchema', () => {
   it('rejects invalid instructions within a dance', () => {
     const raw = {
       initFormation: 'improper',
-      instructions: [{ id: 1, beats: 8, type: 'nonexistent' }],
+      instructions: [{ id: tid(1), beats: 8, type: 'nonexistent' }],
     };
     expect(() => DanceSchema.parse(raw)).toThrow();
   });

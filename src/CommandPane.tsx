@@ -5,8 +5,8 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema } from './types';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand } from './types';
+import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId } from './types';
 import type { GenerateError } from './generate';
 import { z } from 'zod';
 
@@ -78,24 +78,28 @@ function defaultBeats(action: string): string {
   }
 }
 
-let nextId = 1;
+function makeInstructionId(): InstructionId {
+  return InstructionIdSchema.parse(crypto.randomUUID());
+}
 
 // --- Tree manipulation helpers for cross-container drag ---
 
 function parseContainerId(id: string):
   | { type: 'top' }
-  | { type: 'group'; groupId: number }
-  | { type: 'split'; splitId: number; list: 'A' | 'B' }
+  | { type: 'group'; groupId: InstructionId }
+  | { type: 'split'; splitId: InstructionId; list: 'A' | 'B' }
 {
   if (id === 'top') return { type: 'top' };
-  const groupMatch = id.match(/^group-(\d+)$/);
-  if (groupMatch) return { type: 'group', groupId: Number(groupMatch[1]) };
-  const splitMatch = id.match(/^split-(\d+)-(A|B)$/);
-  if (splitMatch) return { type: 'split', splitId: Number(splitMatch[1]), list: z.enum(['A', 'B']).parse(splitMatch[2]) };
+  if (id.startsWith('group-'))
+    return { type: 'group', groupId: InstructionIdSchema.parse(id.slice(6)) };
+  if (id.startsWith('split-') && (id.endsWith('-A') || id.endsWith('-B'))) {
+    const list = z.enum(['A', 'B']).parse(id.slice(-1));
+    return { type: 'split', splitId: InstructionIdSchema.parse(id.slice(6, -2)), list };
+  }
   return { type: 'top' };
 }
 
-function findInstructionById(instrs: Instruction[], id: number): Instruction | null {
+function findInstructionById(instrs: Instruction[], id: InstructionId): Instruction | null {
   for (const i of instrs) {
     if (i.id === id) return i;
     if (i.type === 'group') {
@@ -111,14 +115,14 @@ function findInstructionById(instrs: Instruction[], id: number): Instruction | n
   return null;
 }
 
-function instructionContainsId(instr: Instruction, id: number): boolean {
+function instructionContainsId(instr: Instruction, id: InstructionId): boolean {
   if (instr.id === id) return true;
   if (instr.type === 'group') return instr.instructions.some(c => instructionContainsId(c, id));
   if (instr.type === 'split') return [...instr.listA, ...instr.listB].some(c => c.id === id);
   return false;
 }
 
-function removeFromTree(instrs: Instruction[], targetId: number): [Instruction[], Instruction | null] {
+function removeFromTree(instrs: Instruction[], targetId: InstructionId): [Instruction[], Instruction | null] {
   const topIdx = instrs.findIndex(i => i.id === targetId);
   if (topIdx !== -1) {
     return [[...instrs.slice(0, topIdx), ...instrs.slice(topIdx + 1)], instrs[topIdx]];
@@ -201,7 +205,7 @@ function getContainerItems(instrs: Instruction[], containerId: string): Instruct
   return null;
 }
 
-function replaceInTree(instrs: Instruction[], id: number, replacement: Instruction): Instruction[] {
+function replaceInTree(instrs: Instruction[], id: InstructionId, replacement: Instruction): Instruction[] {
   return instrs.map(i => {
     if (i.id === id) return replacement;
     if (i.type === 'split') {
@@ -225,8 +229,8 @@ interface Props {
   setInstructions: (instructions: Instruction[]) => void;
   initFormation: InitFormation;
   setInitFormation: (formation: InitFormation) => void;
-  activeId: number | null;
-  warnings: Map<number, string>;
+  activeId: InstructionId | null;
+  warnings: Map<InstructionId, string>;
   generateError: GenerateError | null;
 }
 
@@ -307,7 +311,7 @@ function summarize(instr: Instruction): string {
   return summarizeAtomic(instr);
 }
 
-function SortableItem({ id, children }: { id: number; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
+function SortableItem({ id, children }: { id: InstructionId; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -340,7 +344,7 @@ function SaveCancelButtons({ isEditing, onSave, onCancel }: { isEditing: boolean
 // --- Per-action sub-form components ---
 
 interface SubFormProps {
-  id: number;
+  id: InstructionId;
   isEditing: boolean;
   onSave: (instr: Instruction) => void;
   onCancel: () => void;
@@ -649,7 +653,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
 
   const actionRef = useRef<SearchableDropdownHandle>(null);
   useEffect(() => { actionRef.current?.focus(); }, []);
-  const idRef = useRef(initial ? initial.id : nextId++);
+  const idRef = useRef(initial ? initial.id : makeInstructionId());
   const isEditing = !!initial;
   const common = { id: idRef.current, isEditing, onSave, onCancel };
 
@@ -688,7 +692,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
 // --- CommandPane ---
 
 export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, activeId, warnings, generateError }: Props) {
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
 
@@ -702,17 +706,17 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     setInsertTarget({ containerId, index: index + 1 });
   }
 
-  function openEdit(id: number) {
+  function openEdit(id: InstructionId) {
     setEditingId(id);
     setInsertTarget(null);
   }
 
-  function handleSave(id: number, updated: Instruction) {
+  function handleSave(id: InstructionId, updated: Instruction) {
     setInstructions(replaceInTree(instructions, id, updated));
     setEditingId(null);
   }
 
-  function handleRemove(id: number) {
+  function handleRemove(id: InstructionId) {
     const [newTree] = removeFromTree(instructions, id);
     setInstructions(newTree);
     if (editingId === id) setEditingId(null);
@@ -739,7 +743,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
       return;
     }
 
-    const draggedId = z.number().parse(active.id);
+    const draggedId = InstructionIdSchema.parse(active.id);
     const draggedInstr = findInstructionById(instructions, draggedId);
     if (!draggedInstr) return;
 
@@ -780,19 +784,6 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     const parsed = result.data;
     setInitFormation(parsed.initFormation);
     setInstructions(parsed.instructions);
-    function maxId(instrs: Instruction[]): number {
-      let m = 0;
-      for (const i of instrs) {
-        m = Math.max(m, i.id);
-        if (i.type === 'split') {
-          for (const sub of [...i.listA, ...i.listB]) m = Math.max(m, sub.id);
-        } else if (i.type === 'group') {
-          m = Math.max(m, maxId(i.instructions));
-        }
-      }
-      return m;
-    }
-    nextId = maxId(parsed.instructions) + 1;
     setEditingId(null);
     setInsertTarget(null);
   }

@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
 import { generateAllKeyframes, validateHandDistances } from './generate';
 import CommandPane from './CommandPane';
-import type { Instruction, InitFormation } from './types';
+import type { Instruction, InitFormation, InstructionId } from './types';
 
 const PROGRESSION_RATE = -1 / 64;
 
@@ -15,9 +15,9 @@ function instructionDuration(instr: Instruction): number {
   return instr.beats;
 }
 
-function activeInstructionId(instructions: Instruction[], beat: number): number | null {
+function activeInstructionId(instructions: Instruction[], beat: number): InstructionId | null {
   let currentBeat = 0;
-  let activeId: number | null = null;
+  let activeId: InstructionId | null = null;
   for (const instr of instructions) {
     if (currentBeat > beat + 1e-9) break;
     activeId = instr.id;

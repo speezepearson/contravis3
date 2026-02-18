@@ -42,6 +42,9 @@ export const HandSchema = z.enum(['left', 'right']);
 export const TakeHandSchema = z.enum(['left', 'right', 'both', 'inside']);
 export type TakeHand = z.infer<typeof TakeHandSchema>;
 
+export const InstructionIdSchema = z.string().uuid();
+export type InstructionId = z.infer<typeof InstructionIdSchema>;
+
 // Direction relative to a dancer: a named direction or a relationship
 export const RelativeDirectionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('direction'), value: z.enum(['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left']) }),
@@ -49,7 +52,7 @@ export const RelativeDirectionSchema = z.discriminatedUnion('kind', [
 ]);
 export type RelativeDirection = z.infer<typeof RelativeDirectionSchema>;
 
-const baseFields = { id: z.number(), beats: z.number() };
+const baseFields = { id: InstructionIdSchema, beats: z.number() };
 
 export const AtomicInstructionSchema = z.discriminatedUnion('type', [
   z.object({ ...baseFields, type: z.literal('take_hands'), relationship: RelationshipSchema, hand: TakeHandSchema }),
@@ -75,8 +78,8 @@ export type SplitBy = z.infer<typeof SplitBySchema>;
 // type manually with the brand baked in and annotate the schema accordingly.
 export type Instruction = (
   | AtomicInstruction
-  | { id: number; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] }
-  | { id: number; type: 'group'; label: string; instructions: Instruction[] }
+  | { id: InstructionId; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] }
+  | { id: InstructionId; type: 'group'; label: string; instructions: Instruction[] }
 ) & z.BRAND<'Instruction'>;
 
 // The `as unknown as` double-cast bridges the gap between the unbranded
@@ -85,8 +88,8 @@ export type Instruction = (
 // compile-time type so that parse() returns branded Instructions.
 export const InstructionSchema: z.ZodType<Instruction> = z.lazy(() => z.union([
   AtomicInstructionSchema,
-  z.object({ id: z.number(), type: z.literal('split'), by: SplitBySchema, listA: z.array(AtomicInstructionSchema), listB: z.array(AtomicInstructionSchema) }),
-  z.object({ id: z.number(), type: z.literal('group'), label: z.string(), instructions: z.array(InstructionSchema) }),
+  z.object({ id: InstructionIdSchema, type: z.literal('split'), by: SplitBySchema, listA: z.array(AtomicInstructionSchema), listB: z.array(AtomicInstructionSchema) }),
+  z.object({ id: InstructionIdSchema, type: z.literal('group'), label: z.string(), instructions: z.array(InstructionSchema) }),
 ])) as unknown as z.ZodType<Instruction>;
 
 export const InitFormationSchema = z.enum(['improper', 'beckett']);

@@ -1,4 +1,4 @@
-import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId, InitFormation } from './types';
+import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId, InitFormation, InstructionId } from './types';
 import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
 import { assertNever } from './utils';
 
@@ -329,10 +329,10 @@ function generateStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 
 
 function generateBalance(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'balance' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const halfBeats = instr.beats / 2;
-  const stepOut = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: instr.distance };
+  const stepOut = { id: instr.id, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: instr.distance };
   const outFrames = generateStep(prev, stepOut, scope);
   const lastOut = outFrames.length > 0 ? outFrames[outFrames.length - 1] : prev;
-  const stepBack = { id: 0, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -instr.distance };
+  const stepBack = { id: instr.id, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -instr.distance };
   const backFrames = generateStep(lastOut, stepBack, scope);
   return [...outFrames, ...backFrames];
 }
@@ -784,8 +784,8 @@ function instructionDuration(instr: Instruction): number {
 }
 
 /** Flatten instructions into leaf-level beat ranges (recurses into groups). */
-function buildBeatRanges(instructions: Instruction[]): { id: number; start: number; end: number }[] {
-  const ranges: { id: number; start: number; end: number }[] = [];
+function buildBeatRanges(instructions: Instruction[]): { id: InstructionId; start: number; end: number }[] {
+  const ranges: { id: InstructionId; start: number; end: number }[] = [];
   let cumBeat = 0;
   function walk(instrs: Instruction[]) {
     for (const instr of instrs) {
@@ -806,10 +806,10 @@ export function validateHandDistances(
   instructions: Instruction[],
   keyframes: Keyframe[],
   maxDistance = 1.2
-): Map<number, string> {
+): Map<InstructionId, string> {
   const ranges = buildBeatRanges(instructions);
 
-  const warnings = new Map<number, string>();
+  const warnings = new Map<InstructionId, string>();
 
   for (const kf of keyframes) {
     for (const hand of kf.hands) {
@@ -853,7 +853,7 @@ function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyfram
 }
 
 export interface GenerateError {
-  instructionId: number;
+  instructionId: InstructionId;
   message: string;
 }
 
