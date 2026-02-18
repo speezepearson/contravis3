@@ -1196,11 +1196,10 @@ describe('generateAllKeyframes with initFormation', () => {
 
   it('beckett formation has correct positions', () => {
     const kfs = generateAllKeyframes([], 'beckett');
-    // In Beckett, larks and robins swap sides compared to improper
-    // Larks on one side, robins on the other, all facing across
-    expect(kfs[0].dancers.up_lark_0).toEqual({ x: -0.5, y: -0.5, facing: 90 });
-    expect(kfs[0].dancers.up_robin_0).toEqual({ x: -0.5, y: 0.5, facing: 90 });
-    expect(kfs[0].dancers.down_lark_0).toEqual({ x: 0.5, y: -0.5, facing: 270 });
-    expect(kfs[0].dancers.down_robin_0).toEqual({ x: 0.5, y: 0.5, facing: 270 });
+    // Beckett = improper rotated 90° CW: (x,y) -> (y, -x), facing -> facing+90
+    expect(kfs[0].dancers.up_lark_0).toEqual({ x: -0.5, y:  0.5, facing: 90 });
+    expect(kfs[0].dancers.up_robin_0).toEqual({ x: -0.5, y: -0.5, facing: 90 });
+    expect(kfs[0].dancers.down_lark_0).toEqual({ x:  0.5, y: -0.5, facing: 270 });
+    expect(kfs[0].dancers.down_robin_0).toEqual({ x:  0.5, y:  0.5, facing: 270 });
   });
 });

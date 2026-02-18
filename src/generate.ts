@@ -22,8 +22,8 @@ function initialKeyframe(initFormation: InitFormation = 'improper'): Keyframe {
     return {
       beat: 0,
       dancers: {
-        up_lark_0:    { x: -0.5, y: -0.5, facing: 90 },
-        up_robin_0:   { x: -0.5, y:  0.5, facing: 90 },
+        up_lark_0:    { x: -0.5, y:  0.5, facing: 90 },
+        up_robin_0:   { x: -0.5, y: -0.5, facing: 90 },
         down_lark_0:  { x:  0.5, y: -0.5, facing: 270 },
         down_robin_0: { x:  0.5, y:  0.5, facing: 270 },
       },

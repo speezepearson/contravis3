@@ -673,10 +673,12 @@ export default function CommandPane({ instructions, setInstructions, initFormati
 
       <div className="formation-selector">
         <label>Formation: </label>
-        <select value={initFormation} onChange={e => setInitFormation(InitFormationSchema.parse(e.target.value))}>
-          <option value="improper">Improper</option>
-          <option value="beckett">Beckett</option>
-        </select>
+        <SearchableDropdown
+          options={InitFormationSchema.options}
+          value={initFormation}
+          onChange={v => setInitFormation(InitFormationSchema.parse(v))}
+          getLabel={v => v.charAt(0).toUpperCase() + v.slice(1)}
+        />
       </div>
 
       {isSubContext && currentSplit && (
