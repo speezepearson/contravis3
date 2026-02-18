@@ -85,6 +85,9 @@ button:hover { background: #3a3a5a; }
 button.active { background: #4a4a7a; border-color: #6a6aaa; }
 button:disabled { opacity: 0.4; cursor: default; }
 
+.gif-btn { background: #2a4a3a; border-color: #3a6a5a; }
+.gif-btn:hover:not(:disabled) { background: #3a5a4a; }
+
 input[type="range"] {
   width: 100%;
   min-width: 120px;

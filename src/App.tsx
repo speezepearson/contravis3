@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
 import { generateAllKeyframes, validateHandDistances } from './generate';
+import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { Instruction, InitFormation, InstructionId } from './types';
 
@@ -48,6 +49,7 @@ export default function App() {
   const [initFormation, setInitFormation] = useState<InitFormation>('improper');
   const [smoothness, setSmoothness] = useState(100);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const bpmRef = useRef(120);
   const smoothnessRef = useRef(1);
@@ -198,6 +200,35 @@ export default function App() {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
+  const downloadGif = useCallback(() => {
+    if (keyframes.length === 0) return;
+    setExporting(true);
+    // Yield to let the UI show the "Exporting..." state before blocking
+    setTimeout(() => {
+      const w = 400;
+      const h = 600;
+      const offscreen = document.createElement('canvas');
+      offscreen.width = w;
+      offscreen.height = h;
+      const offCtx = offscreen.getContext('2d')!;
+      const gifBytes = exportGif(keyframes, offCtx, {
+        width: w,
+        height: h,
+        bpm,
+        smoothness: smoothnessRef.current,
+        progressionRate: PROGRESSION_RATE,
+      });
+      const blob = new Blob([gifBytes.buffer as ArrayBuffer], { type: 'image/gif' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'dance.gif';
+      a.click();
+      URL.revokeObjectURL(url);
+      setExporting(false);
+    }, 50);
+  }, [keyframes, bpm]);
+
   const scrubberValue = maxBeat > minBeat
     ? Math.round((beat - minBeat) / (maxBeat - minBeat) * 1000)
     : 0;
@@ -210,6 +241,9 @@ export default function App() {
         </button>
         <button onClick={stepBack}>{'\u25C0 Step'}</button>
         <button onClick={stepFwd}>{'Step \u25B6'}</button>
+        <button onClick={downloadGif} disabled={exporting || keyframes.length === 0} className="gif-btn">
+          {exporting ? 'Exporting\u2026' : 'Download GIF'}
+        </button>
         <input
           type="range"
           min={0}
