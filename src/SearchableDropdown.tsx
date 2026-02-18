@@ -39,14 +39,13 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
     : value;
 
   // Reset highlight to first item when filtered results change
-  const prevFilteredKey = useRef(filtered.join('\0'));
-  useEffect(() => {
-    const key = filtered.join('\0');
-    if (key !== prevFilteredKey.current) {
-      prevFilteredKey.current = key;
-      setHighlightIndex(filtered.length > 0 ? 0 : -1);
-    }
-  }, [filtered]);
+  // (adjust state during render – the React pattern for derived state)
+  const filteredKey = filtered.join('\0');
+  const [prevFilteredKey, setPrevFilteredKey] = useState(filteredKey);
+  if (filteredKey !== prevFilteredKey) {
+    setPrevFilteredKey(filteredKey);
+    setHighlightIndex(filtered.length > 0 ? 0 : -1);
+  }
 
   // Scroll highlighted item into view
   useEffect(() => {

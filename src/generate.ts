@@ -600,7 +600,7 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
   }
 
   // Drop all hands involving swing participants, then take lark-right ↔ robin-left
-  let swingHands = prev.hands.filter(h =>
+  const swingHands = prev.hands.filter(h =>
     !processed.has(parseDancerId(h.a).proto) && !processed.has(parseDancerId(h.b).proto)
   );
   for (const { lark, robin } of pairs) {
