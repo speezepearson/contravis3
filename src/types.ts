@@ -6,19 +6,21 @@ export type Role = z.infer<typeof RoleSchema>;
 export const ProgressionDirSchema = z.enum(['up', 'down']);
 export type ProgressionDir = z.infer<typeof ProgressionDirSchema>;
 
-export const ProtoDancerIdSchema = z.enum(['up_lark', 'up_robin', 'down_lark', 'down_robin']);
+export const ProtoDancerIdSchema = z.enum(['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0']);
 export type ProtoDancerId = z.infer<typeof ProtoDancerIdSchema>;
 
 export const DancerIdSchema = z.templateLiteral([ProgressionDirSchema, '_', RoleSchema, '_', z.number().int()]);
 export type DancerId = z.infer<typeof DancerIdSchema>;
 
+undefined as unknown as ProtoDancerId satisfies DancerId;  // type assertion
+
 export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
   const i = id.lastIndexOf('_');
-  return { proto: ProtoDancerIdSchema.parse(id.slice(0, i)), offset: parseInt(id.slice(i + 1)) };
+  return { proto: ProtoDancerIdSchema.parse(`${id.slice(0, i)}_0`), offset: parseInt(id.slice(i + 1)) };
 }
 
 export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
-  return DancerIdSchema.parse(`${proto}_${offset}`);
+  return DancerIdSchema.parse(`${proto.slice(0, proto.lastIndexOf('_'))}_${offset}`);
 }
 
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
@@ -110,9 +112,9 @@ export type Keyframe = z.infer<typeof KeyframeSchema>;
 
 export function buildDancerRecord(f: (id: ProtoDancerId) => DancerState): Record<ProtoDancerId, DancerState> {
   return {
-    up_lark: f('up_lark'),
-    up_robin: f('up_robin'),
-    down_lark: f('down_lark'),
-    down_robin: f('down_robin'),
+    up_lark_0: f('up_lark_0'),
+    up_robin_0: f('up_robin_0'),
+    down_lark_0: f('down_lark_0'),
+    down_robin_0: f('down_robin_0'),
   };
 }

@@ -4,27 +4,27 @@ import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, build
 const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
 const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 
-const UPS = new Set<ProtoDancerId>(['up_lark', 'up_robin']);
+const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
 
 const STATIC_RELATIONSHIPS: Partial<Record<Relationship, Record<ProtoDancerId, ProtoDancerId>>> = {
-  partner:  { up_lark: 'up_robin', up_robin: 'up_lark', down_lark: 'down_robin', down_robin: 'down_lark' },
-  neighbor: { up_lark: 'down_robin', up_robin: 'down_lark', down_lark: 'up_robin', down_robin: 'up_lark' },
-  opposite: { up_lark: 'down_lark', up_robin: 'down_robin', down_lark: 'up_lark', down_robin: 'up_robin' },
+  partner:  { up_lark_0: 'up_robin_0', up_robin_0: 'up_lark_0', down_lark_0: 'down_robin_0', down_robin_0: 'down_lark_0' },
+  neighbor: { up_lark_0: 'down_robin_0', up_robin_0: 'down_lark_0', down_lark_0: 'up_robin_0', down_robin_0: 'up_lark_0' },
+  opposite: { up_lark_0: 'down_lark_0', up_robin_0: 'down_robin_0', down_lark_0: 'up_lark_0', down_robin_0: 'up_robin_0' },
 };
 
 const SPLIT_GROUPS: Record<'role' | 'position', [Set<ProtoDancerId>, Set<ProtoDancerId>]> = {
-  role:     [new Set(['up_lark', 'down_lark']), new Set(['up_robin', 'down_robin'])],
-  position: [new Set(['up_lark', 'up_robin']), new Set(['down_lark', 'down_robin'])],
+  role:     [new Set(['up_lark_0', 'down_lark_0']), new Set(['up_robin_0', 'down_robin_0'])],
+  position: [new Set(['up_lark_0', 'up_robin_0']), new Set(['down_lark_0', 'down_robin_0'])],
 };
 
 function initialKeyframe(): Keyframe {
   return {
     beat: 0,
     dancers: {
-      up_lark:    { x: -0.5, y: -0.5, facing: 0 },
-      up_robin:   { x:  0.5, y: -0.5, facing: 0 },
-      down_lark:  { x:  0.5, y:  0.5, facing: 180 },
-      down_robin: { x: -0.5, y:  0.5, facing: 180 },
+      up_lark_0:    { x: -0.5, y: -0.5, facing: 0 },
+      up_robin_0:   { x:  0.5, y: -0.5, facing: 0 },
+      down_lark_0:  { x:  0.5, y:  0.5, facing: 180 },
+      down_robin_0: { x: -0.5, y:  0.5, facing: 180 },
     },
     hands: [],
   };
@@ -413,7 +413,7 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 }
 
 function isLark(id: ProtoDancerId): boolean {
-  return id === 'up_lark' || id === 'down_lark';
+  return id === 'up_lark_0' || id === 'down_lark_0';
 }
 
 function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>): Keyframe[] {
