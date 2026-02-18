@@ -30,7 +30,7 @@ export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, Danc
 }
 
 // Who they interact with (only for actions that involve a partner)
-export const RelationshipSchema = z.enum(['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front']);
+export const RelationshipSchema = z.enum(['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front', 'larks_left_robins_right', 'larks_right_robins_left']);
 export type Relationship = z.infer<typeof RelationshipSchema>;
 
 // What to drop: a relationship (drops hand connections between those pairs),

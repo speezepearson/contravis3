@@ -56,10 +56,18 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
   switch (relationship) {
     case 'partner': case 'neighbor': case 'opposite':
       return makeDancerId(STATIC_RELATIONSHIPS[relationship][id], 0);
-    case 'on_right': case 'on_left': case 'in_front': {
+    case 'on_right': case 'on_left': case 'in_front':
+    case 'larks_left_robins_right': case 'larks_right_robins_left': {
       // Bias towards people in front of the dancer vs behind,
       // since those loom larger in their attention.
-      const angleOffset = relationship === 'on_right' ? 70 : relationship === 'on_left' ? -70 : relationship === 'in_front' ? 0 : assertNever(relationship);
+      const isLark = SPLIT_GROUPS.role[0].has(id);
+      const angleOffset =
+        relationship === 'on_right' ? 70 :
+        relationship === 'on_left' ? -70 :
+        relationship === 'in_front' ? 0 :
+        relationship === 'larks_left_robins_right' ? (isLark ? -70 : 70) :
+        relationship === 'larks_right_robins_left' ? (isLark ? 70 : -70) :
+        assertNever(relationship);
       const d = dancers[id];
       const headingRad = (d.facing + angleOffset) * Math.PI / 180;
       const ux = Math.sin(headingRad);
