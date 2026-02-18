@@ -472,8 +472,12 @@ function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type
 function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  // Build swap pairs and hand connections
-  const swapData: { protoId: ProtoDancerId; targetPos: { x: number; y: number }; originalFacing: number }[] = [];
+  // Build swap pairs with ellipse parameters and hand connections
+  const swapData: {
+    protoId: ProtoDancerId; originalFacing: number;
+    cx: number; cy: number; semiMajor: number;
+    majorX: number; majorY: number; perpX: number; perpY: number;
+  }[] = [];
   const pullHands: HandConnection[] = [];
   const seen = new Set<string>();
   for (const id of PROTO_DANCER_IDS) {
@@ -481,7 +485,21 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     const target = resolveRelationship(instr.relationship, id, prev.dancers);
     const da = prev.dancers[id];
     const targetPos = dancerPosition(target, prev.dancers);
-    swapData.push({ protoId: id, targetPos: { x: targetPos.x, y: targetPos.y }, originalFacing: da.facing });
+    // Ellipse: major axis from start to target, minor axis = half of major
+    const dx = targetPos.x - da.x;
+    const dy = targetPos.y - da.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const majorX = dist > 0 ? dx / dist : 1;
+    const majorY = dist > 0 ? dy / dist : 0;
+    // Perpendicular: CW for right hand, CCW for left hand
+    const sign = instr.hand === 'right' ? -1 : 1;
+    const perpX = sign * majorY;
+    const perpY = sign * -majorX;
+    swapData.push({
+      protoId: id, originalFacing: da.facing,
+      cx: (da.x + targetPos.x) / 2, cy: (da.y + targetPos.y) / 2,
+      semiMajor: dist / 2, majorX, majorY, perpX, perpY,
+    });
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
     if (!seen.has(key)) {
@@ -498,10 +516,11 @@ function generatePullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type
     const tEased = easeInOut(t);
     const dancers = copyDancers(prev.dancers);
     for (const sd of swapData) {
-      const startX = prev.dancers[sd.protoId].x;
-      const startY = prev.dancers[sd.protoId].y;
-      dancers[sd.protoId].x = startX + (sd.targetPos.x - startX) * tEased;
-      dancers[sd.protoId].y = startY + (sd.targetPos.y - startY) * tEased;
+      // Sweep from θ=π (start) to θ=0 (target) along an ellipse
+      const theta = Math.PI * (1 - tEased);
+      const semiMinor = sd.semiMajor / 2;
+      dancers[sd.protoId].x = sd.cx + sd.semiMajor * Math.cos(theta) * sd.majorX + semiMinor * Math.sin(theta) * sd.perpX;
+      dancers[sd.protoId].y = sd.cy + sd.semiMajor * Math.cos(theta) * sd.majorY + semiMinor * Math.sin(theta) * sd.perpY;
       dancers[sd.protoId].facing = sd.originalFacing; // maintain facing
     }
     result.push({ beat, dancers, hands });
