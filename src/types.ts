@@ -1,14 +1,17 @@
 export type Role = 'lark' | 'robin';
-export type ProtoDancerId = 'up_lark' | 'up_robin' | 'down_lark' | 'down_robin';
-export type DancerId = `${ProtoDancerId}_${number}`;
+export type DancerBase = 'up_lark' | 'up_robin' | 'down_lark' | 'down_robin';
+export type ProtoDancerId = 'up_lark_0' | 'up_robin_0' | 'down_lark_0' | 'down_robin_0';
+export type DancerId = `${DancerBase}_${number}`;
+
+undefined as unknown as ProtoDancerId satisfies DancerId;  // type assertion
 
 export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
   const i = id.lastIndexOf('_');
-  return { proto: id.slice(0, i) as ProtoDancerId, offset: parseInt(id.slice(i + 1)) };
+  return { proto: `${id.slice(0, i)}_0` as ProtoDancerId, offset: parseInt(id.slice(i + 1)) };
 }
 
 export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
-  return `${proto}_${offset}` as DancerId;
+  return `${proto.slice(0, proto.lastIndexOf('_'))}_${offset}` as DancerId;
 }
 
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
