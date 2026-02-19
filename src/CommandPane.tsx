@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Fragment } from 'react';
+import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -241,6 +241,53 @@ function replaceInTree(instrs: Instruction[], id: InstructionId, replacement: In
     }
     return i;
   });
+}
+
+/** Given the erroring instruction's ID, compute the set of instruction IDs that
+ *  should be visually dimmed — i.e. instructions that come strictly after the
+ *  erroring instruction in sequential order (within the same branch of a split,
+ *  within the same group, or at the top level). */
+function computeDimmedIds(instructions: Instruction[], errorId: InstructionId | undefined): Set<InstructionId> {
+  const dimmed = new Set<InstructionId>();
+  if (!errorId) return dimmed;
+
+  function addAllIds(instr: Instruction) {
+    dimmed.add(instr.id);
+    if (instr.type === 'group') {
+      for (const child of instr.instructions) addAllIds(child);
+    }
+    if (instr.type === 'split') {
+      const [la, lb] = splitLists(instr);
+      for (const sub of [...la, ...lb]) dimmed.add(sub.id);
+    }
+  }
+
+  function walk(instrs: Instruction[]): boolean {
+    let found = false;
+    for (const instr of instrs) {
+      if (found) { addAllIds(instr); continue; }
+      if (instr.id === errorId) { found = true; continue; }
+      if (instr.type === 'group') {
+        if (walk(instr.instructions)) found = true;
+      } else if (instr.type === 'split') {
+        const [la, lb] = splitLists(instr);
+        if (walkAtomic(la) || walkAtomic(lb)) found = true;
+      }
+    }
+    return found;
+  }
+
+  function walkAtomic(instrs: AtomicInstruction[]): boolean {
+    let found = false;
+    for (const instr of instrs) {
+      if (found) { dimmed.add(instr.id); continue; }
+      if (instr.id === errorId) found = true;
+    }
+    return found;
+  }
+
+  walk(instructions);
+  return dimmed;
 }
 
 interface Props {
@@ -864,6 +911,11 @@ export default function CommandPane({ instructions, setInstructions, initFormati
   const [copyFeedback, setCopyFeedback] = useState('');
   const [pasteFeedback, setPasteFeedback] = useState('');
 
+  const dimmedIds = useMemo(
+    () => computeDimmedIds(instructions, generateError?.instructionId),
+    [instructions, generateError],
+  );
+
   function openInsert(containerId: string, index: number) {
     setInsertTarget({ containerId, index });
     setEditingId(null);
@@ -1025,7 +1077,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           onCancel={() => setEditingId(null)}
                         />
                       ) : (
-                        <div className={`instruction-item${instr.id === activeId ? ' active' : ''}`}>
+                        <div className={`instruction-item${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}`}>
                           <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
                           <span className="instruction-summary">{summarize(instr)}</span>
                           <div className="instruction-actions">
@@ -1096,7 +1148,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                         onCancel={() => setEditingId(null)}
                       />
                     ) : (
-                      <div className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}`}>
+                      <div className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}${dimmedIds.has(child.id) ? ' dimmed' : ''}`}>
                         <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
                         <span className="instruction-summary">{summarize(child)}</span>
                         <div className="instruction-actions">
@@ -1149,7 +1201,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           allowContainers={false}
                         />
                       ) : (
-                        <div className={`instruction-item split-sub-item${sub.id === activeId ? ' active' : ''}`}>
+                        <div className={`instruction-item split-sub-item${sub.id === activeId ? ' active' : ''}${dimmedIds.has(sub.id) ? ' dimmed' : ''}`}>
                           <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
                           <span className="instruction-summary">{summarizeAtomic(sub)}</span>
                           <div className="instruction-actions">
