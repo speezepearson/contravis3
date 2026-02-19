@@ -18,7 +18,10 @@
           "id": "a1000000-0000-4000-a000-000000000002",
           "beats": 4,
           "type": "balance",
-          "direction": { "kind": "relationship", "value": "neighbor" },
+          "direction": {
+            "kind": "relationship",
+            "value": "neighbor"
+          },
           "distance": 0.2
         },
         {
@@ -39,13 +42,6 @@
           "type": "do_si_do",
           "relationship": "neighbor",
           "rotations": 1.25
-        },
-        {
-          "id": "a1000000-0000-4000-a000-000000000006",
-          "beats": 0,
-          "type": "turn",
-          "target": { "kind": "relationship", "value": "neighbor" },
-          "offset": 0
         },
         {
           "id": "a1000000-0000-4000-a000-000000000007",
@@ -80,7 +76,10 @@
           "id": "a2000000-0000-4000-a000-000000000001",
           "beats": 4,
           "type": "balance",
-          "direction": { "kind": "direction", "value": "right" },
+          "direction": {
+            "kind": "direction",
+            "value": "right"
+          },
           "distance": 0.2
         },
         {
@@ -96,6 +95,12 @@
           "relationship": "neighbor",
           "handedness": "right",
           "rotations": 0.5
+        },
+        {
+          "id": "0202ad2b-e18b-4e5a-8a1a-29a28762c658",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "both"
         },
         {
           "id": "a2000000-0000-4000-a000-000000000004",
@@ -118,7 +123,10 @@
           "beats": 8,
           "type": "swing",
           "relationship": "partner",
-          "endFacing": { "kind": "direction", "value": "across" }
+          "endFacing": {
+            "kind": "direction",
+            "value": "across"
+          }
         }
       ]
     },
@@ -133,7 +141,10 @@
           "type": "give_and_take_into_swing",
           "relationship": "neighbor",
           "role": "lark",
-          "endFacing": { "kind": "direction", "value": "across" }
+          "endFacing": {
+            "kind": "direction",
+            "value": "across"
+          }
         }
       ]
     },
@@ -153,7 +164,10 @@
           "id": "b2000000-0000-4000-a000-000000000002",
           "beats": 4,
           "type": "balance",
-          "direction": { "kind": "relationship", "value": "partner" },
+          "direction": {
+            "kind": "relationship",
+            "value": "partner"
+          },
           "distance": 0.2
         },
         {
@@ -173,7 +187,10 @@
           "id": "b2000000-0000-4000-a000-000000000005",
           "beats": 0,
           "type": "turn",
-          "target": { "kind": "relationship", "value": "neighbor" },
+          "target": {
+            "kind": "relationship",
+            "value": "neighbor"
+          },
           "offset": 0
         },
         {
@@ -193,7 +210,10 @@
           "id": "b2000000-0000-4000-a000-000000000008",
           "beats": 0,
           "type": "turn",
-          "target": { "kind": "relationship", "value": "partner" },
+          "target": {
+            "kind": "relationship",
+            "value": "partner"
+          },
           "offset": 0
         },
         {
@@ -207,7 +227,10 @@
           "id": "b2000000-0000-4000-a000-00000000000a",
           "beats": 4,
           "type": "balance",
-          "direction": { "kind": "relationship", "value": "partner" },
+          "direction": {
+            "kind": "relationship",
+            "value": "partner"
+          },
           "distance": 0.2
         },
         {
@@ -227,7 +250,10 @@
           "id": "b2000000-0000-4000-a000-00000000000d",
           "beats": 0,
           "type": "turn",
-          "target": { "kind": "relationship", "value": "neighbor" },
+          "target": {
+            "kind": "relationship",
+            "value": "neighbor"
+          },
           "offset": 0
         },
         {
