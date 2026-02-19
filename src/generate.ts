@@ -17,7 +17,7 @@ export class KeyframeGenerationError extends Error {
 }
 
 const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
-const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
+export const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 
 const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
 
@@ -27,7 +27,7 @@ const STATIC_RELATIONSHIPS: Record<'partner' | 'neighbor' | 'opposite', Record<P
   opposite: { up_lark_0: 'down_lark_0', up_robin_0: 'down_robin_0', down_lark_0: 'up_lark_0', down_robin_0: 'up_robin_0' },
 };
 
-const SPLIT_GROUPS: Record<'role' | 'position', [Set<ProtoDancerId>, Set<ProtoDancerId>]> = {
+export const SPLIT_GROUPS: Record<'role' | 'position', [Set<ProtoDancerId>, Set<ProtoDancerId>]> = {
   role:     [new Set(['up_lark_0', 'down_lark_0']), new Set(['up_robin_0', 'down_robin_0'])],
   position: [new Set(['up_lark_0', 'up_robin_0']), new Set(['down_lark_0', 'down_robin_0'])],
 };
@@ -1344,4 +1344,92 @@ export function generateAllKeyframes(instructions: Instruction[], initFormation?
   }
 
   return { keyframes, error: null };
+}
+
+/** Find the beat at which a specific instruction starts, by walking the tree. */
+export function findInstructionStartBeat(instructions: Instruction[], targetId: InstructionId): number | null {
+  function walk(instrs: Instruction[], baseBeat: number): number | null {
+    let beat = baseBeat;
+    for (const instr of instrs) {
+      if (instr.id === targetId) return beat;
+      if (instr.type === 'group') {
+        const result = walk(instr.instructions, beat);
+        if (result !== null) return result;
+      } else if (instr.type === 'split') {
+        const [listA, listB] = splitLists(instr);
+        let b = beat;
+        for (const sub of listA) {
+          if (sub.id === targetId) return b;
+          b += sub.beats;
+        }
+        b = beat;
+        for (const sub of listB) {
+          if (sub.id === targetId) return b;
+          b += sub.beats;
+        }
+      }
+      beat += instructionDuration(instr);
+    }
+    return null;
+  }
+  return walk(instructions, 0);
+}
+
+/** Find the dancer scope for a specific instruction (ALL_DANCERS unless inside a split). */
+export function findInstructionScope(instructions: Instruction[], targetId: InstructionId): Set<ProtoDancerId> {
+  for (const instr of instructions) {
+    if (instr.id === targetId) return ALL_DANCERS;
+    if (instr.type === 'group') {
+      const result = findInstructionScope(instr.instructions, targetId);
+      if (result !== ALL_DANCERS || instr.instructions.some(c => instructionContainsId(c, targetId))) return result;
+    }
+    if (instr.type === 'split') {
+      const [groupA, groupB] = SPLIT_GROUPS[instr.by];
+      const [listA, listB] = splitLists(instr);
+      for (const sub of listA) {
+        if (sub.id === targetId) return groupA;
+      }
+      for (const sub of listB) {
+        if (sub.id === targetId) return groupB;
+      }
+    }
+  }
+  return ALL_DANCERS;
+}
+
+function instructionContainsId(instr: Instruction, id: InstructionId): boolean {
+  if (instr.id === id) return true;
+  if (instr.type === 'group') return instr.instructions.some(c => instructionContainsId(c, id));
+  if (instr.type === 'split') {
+    const [listA, listB] = splitLists(instr);
+    return [...listA, ...listB].some(s => s.id === id);
+  }
+  return false;
+}
+
+/** Generate preview keyframes for a single instruction given a starting keyframe and scope.
+ *  Returns null if generation fails (e.g., parse error in the instruction). */
+export function generateInstructionPreview(
+  instruction: Instruction,
+  prevKeyframe: Keyframe,
+  scope: Set<ProtoDancerId>,
+): Keyframe[] | null {
+  try {
+    if (instruction.type === 'split') {
+      return generateSplit(prevKeyframe, instruction);
+    } else if (instruction.type === 'group') {
+      const result: Keyframe[] = [];
+      let current = prevKeyframe;
+      for (const child of instruction.instructions) {
+        const childFrames = processTopLevelInstruction(current, child);
+        result.push(...childFrames);
+        if (childFrames.length > 0) current = childFrames[childFrames.length - 1];
+      }
+      return result;
+    } else {
+      return processAtomicInstruction(prevKeyframe, instruction, scope);
+    }
+  } catch {
+    return null;
+  }
 }
