@@ -3,7 +3,11 @@ import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, build
 import { assertNever } from './utils';
 
 export class KeyframeGenerationError extends Error {
-  constructor(message: string, public readonly partialKeyframes: Keyframe[]) {
+  constructor(
+    message: string,
+    public readonly partialKeyframes: Keyframe[],
+    public readonly instructionId?: InstructionId,
+  ) {
     super(message);
   }
 }
@@ -1084,6 +1088,7 @@ function processInstructions(prev: Keyframe, instructions: AtomicInstruction[], 
       throw new KeyframeGenerationError(
         e instanceof Error ? e.message : String(e),
         result,
+        e instanceof KeyframeGenerationError ? e.instructionId : instr.id,
       );
     }
   }
@@ -1176,8 +1181,9 @@ function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'spli
   const merged = mergeSplitTimelines(prev, groupA, timelineA, timelineB);
 
   if (errorA || errorB) {
-    const message = (errorA ?? errorB)!.message;
-    throw new KeyframeGenerationError(message, merged);
+    const firstError = errorA ?? errorB;
+    const instructionId = firstError instanceof KeyframeGenerationError ? firstError.instructionId : undefined;
+    throw new KeyframeGenerationError(firstError!.message, merged, instructionId);
   }
 
   return merged;
@@ -1290,6 +1296,7 @@ function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyfram
         throw new KeyframeGenerationError(
           e instanceof Error ? e.message : String(e),
           result,
+          e instanceof KeyframeGenerationError ? e.instructionId : child.id,
         );
       }
     }
@@ -1321,9 +1328,10 @@ export function generateAllKeyframes(instructions: Instruction[], initFormation?
       if (e instanceof KeyframeGenerationError) {
         keyframes.push(...e.partialKeyframes);
       }
+      const instructionId = e instanceof KeyframeGenerationError && e.instructionId ? e.instructionId : instr.id;
       return {
         keyframes,
-        error: { instructionId: instr.id, message: e instanceof Error ? e.message : String(e) },
+        error: { instructionId, message: e instanceof Error ? e.message : String(e) },
       };
     }
   }

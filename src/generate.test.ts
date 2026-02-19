@@ -1555,7 +1555,7 @@ describe('generateAllKeyframes with initFormation', () => {
       }]);
       const { keyframes, error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
-      expect(error!.instructionId).toBe(tid(1));
+      expect(error!.instructionId).toBe(tid(11));
       // Should have the initial keyframe PLUS keyframes from the successful step
       expect(keyframes.length).toBeGreaterThan(1);
       expect(keyframes[keyframes.length - 1].beat).toBeCloseTo(4, 5);
@@ -1572,6 +1572,7 @@ describe('generateAllKeyframes with initFormation', () => {
       }]);
       const { keyframes, error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
+      expect(error!.instructionId).toBe(tid(11));
       // Should have the initial keyframe plus merged partial frames from the successful lark branch
       expect(keyframes.length).toBeGreaterThan(1);
       // The larks should have moved forward in the partial result
