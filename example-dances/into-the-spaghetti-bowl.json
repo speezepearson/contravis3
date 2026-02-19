@@ -1,0 +1,144 @@
+{
+  "name": "Into The Spaghetti Bowl",
+  "author": "Kenny Greer",
+  "initFormation": "beckett",
+  "progression": 1,
+  "instructions": [
+    {
+      "id": "a1000000-0000-4000-a000-000000000000",
+      "type": "group",
+      "label": "A1: long lines forward & back; ladles chain",
+      "instructions": [
+        {
+          "id": "a1000000-0000-4000-a000-000000000001",
+          "beats": 8,
+          "type": "balance",
+          "direction": { "kind": "direction", "value": "forward" },
+          "distance": 0.5
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000010",
+          "type": "split",
+          "by": "role",
+          "larks": [],
+          "robins": [
+            {
+              "id": "a1000000-0000-4000-a000-000000000011",
+              "beats": 2,
+              "type": "pull_by",
+              "relationship": "opposite",
+              "hand": "right"
+            }
+          ]
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000012",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "both"
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000013",
+          "beats": 6,
+          "type": "allemande",
+          "relationship": "neighbor",
+          "handedness": "left",
+          "rotations": 0.5
+        },
+        {
+          "id": "a1000000-0000-4000-a000-000000000014",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "both"
+        }
+      ]
+    },
+    {
+      "id": "a2000000-0000-4000-a000-000000000000",
+      "type": "group",
+      "label": "A2: long lines forward & back; ladles roll away neighbors; mad robin CW",
+      "instructions": [
+        {
+          "id": "a2000000-0000-4000-a000-000000000001",
+          "beats": 8,
+          "type": "balance",
+          "direction": { "kind": "direction", "value": "forward" },
+          "distance": 0.5
+        },
+        {
+          "id": "a2000000-0000-4000-a000-000000000002",
+          "beats": 4,
+          "type": "do_si_do",
+          "relationship": "neighbor",
+          "rotations": 0.5
+        },
+        {
+          "id": "a2000000-0000-4000-a000-000000000003",
+          "beats": 0,
+          "type": "turn",
+          "target": { "kind": "direction", "value": "across" },
+          "offset": 0
+        },
+        {
+          "id": "a2000000-0000-4000-a000-000000000004",
+          "beats": 4,
+          "type": "mad_robin",
+          "dir": "robins_in_middle",
+          "with": "larks_left",
+          "rotations": 1
+        }
+      ]
+    },
+    {
+      "id": "b1000000-0000-4000-a000-000000000000",
+      "type": "group",
+      "label": "B1: mad robin CCW with new couple; ladles allemande right 1½",
+      "instructions": [
+        {
+          "id": "b1000000-0000-4000-a000-000000000001",
+          "beats": 8,
+          "type": "mad_robin",
+          "dir": "robins_in_middle",
+          "with": "robins_left",
+          "rotations": 1
+        },
+        {
+          "id": "b1000000-0000-4000-a000-000000000002",
+          "beats": 0,
+          "type": "drop_hands",
+          "target": "both"
+        },
+        {
+          "id": "b1000000-0000-4000-a000-000000000003",
+          "type": "split",
+          "by": "role",
+          "larks": [],
+          "robins": [
+            {
+              "id": "b1000000-0000-4000-a000-000000000004",
+              "beats": 8,
+              "type": "allemande",
+              "relationship": "opposite",
+              "handedness": "right",
+              "rotations": 1.5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b2000000-0000-4000-a000-000000000000",
+      "type": "group",
+      "label": "B2: partners meltdown swing",
+      "instructions": [
+        {
+          "id": "b2000000-0000-4000-a000-000000000001",
+          "beats": 16,
+          "type": "swing",
+          "relationship": "partner",
+          "endFacing": { "kind": "direction", "value": "across" }
+        }
+      ]
+    }
+  ]
+}
