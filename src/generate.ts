@@ -230,6 +230,15 @@ function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoDancerId
   return ((heading * 180 / Math.PI) % 360 + 360) % 360;
 }
 
+function normalizeFacing(deg: number): number {
+  return ((deg % 360) + 360) % 360;
+}
+
+function interpolateFacing(startDeg: number, endDeg: number, t: number): number {
+  const delta = ((endDeg - startDeg + 540) % 360) - 180;
+  return normalizeFacing(startDeg + delta * t);
+}
+
 // --- Per-instruction generators ---
 
 /** Determine a dancer's inside hand (the hand closer to the target).
@@ -985,6 +994,162 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   return [...walkFrames, ...shiftedSwingFrames];
 }
 
+function generateRobinsChain(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: 'robins_chain' }>,
+  scope: Set<ProtoDancerId>,
+): Keyframe[] {
+  const robins = PROTO_DANCER_IDS.filter(id => scope.has(id) && !isLark(id));
+  const larks = PROTO_DANCER_IDS.filter(id => scope.has(id) && isLark(id));
+  if (robins.length !== 2 || larks.length !== 2) {
+    throw new Error(`robins chain requires 2 robins and 2 larks in scope, got ${robins.length} robins and ${larks.length} larks`);
+  }
+
+  const [r1, r2] = robins;
+
+  const phase1Beats = instr.beats * 3 / 8;
+  const phase2Beats = instr.beats - phase1Beats;
+  const phase1FramesCount = Math.max(1, Math.round(phase1Beats / 0.25));
+  const phase2FramesCount = Math.max(1, Math.round(phase2Beats / 0.25));
+
+  const r1Start = prev.dancers[r1];
+  const r2Start = prev.dancers[r2];
+  const robinPhase1 = [
+    {
+      id: r1,
+      startPos: { x: r1Start.x, y: r1Start.y },
+      targetPos: { x: r2Start.x, y: r2Start.y },
+      startFacing: r1Start.facing,
+    },
+    {
+      id: r2,
+      startPos: { x: r2Start.x, y: r2Start.y },
+      targetPos: { x: r1Start.x, y: r1Start.y },
+      startFacing: r2Start.facing,
+    },
+  ];
+
+  const larkPhase1 = larks.map(lark => {
+    const start = prev.dancers[lark];
+    return {
+      id: lark,
+      startPos: { x: start.x, y: start.y },
+      // Step toward the center to receive robins out of the pull-by.
+      targetPos: {
+        x: start.x * 0.7,
+        y: start.y,
+      },
+      startFacing: start.facing,
+      midFacing: normalizeFacing(start.facing - 30),
+    };
+  });
+
+  const robinHands: HandConnection[] = [{
+    a: makeDancerId(r1, 0), ha: 'right',
+    b: makeDancerId(r2, 0), hb: 'right',
+  }];
+
+  const phase1Frames: Keyframe[] = [];
+  for (let i = 1; i <= phase1FramesCount; i++) {
+    const t = i / phase1FramesCount;
+    const beat = prev.beat + t * phase1Beats;
+    const tEased = easeInOut(t);
+    const dancers = copyDancers(prev.dancers);
+
+    for (const robin of robinPhase1) {
+      const pos = ellipsePosition(robin.startPos, robin.targetPos, 0.25, Math.PI * tEased);
+      dancers[robin.id].x = pos.x;
+      dancers[robin.id].y = pos.y;
+      dancers[robin.id].facing = robin.startFacing;
+    }
+
+    for (const lark of larkPhase1) {
+      dancers[lark.id].x = lark.startPos.x + (lark.targetPos.x - lark.startPos.x) * tEased;
+      dancers[lark.id].y = lark.startPos.y + (lark.targetPos.y - lark.startPos.y) * tEased;
+      dancers[lark.id].facing = interpolateFacing(lark.startFacing, lark.midFacing, tEased);
+    }
+
+    phase1Frames.push({ beat, dancers, hands: [...prev.hands, ...robinHands] });
+  }
+
+  const phase1End = phase1Frames.length > 0 ? phase1Frames[phase1Frames.length - 1] : prev;
+
+  const remainingLarks = new Set<ProtoDancerId>(larks);
+  const courtesyPairs: {
+    robin: ProtoDancerId;
+    lark: ProtoDancerId;
+    robinStart: DancerState;
+    larkStart: DancerState;
+    center: { x: number; y: number };
+    robinEndFacing: number;
+    larkEndFacing: number;
+  }[] = [];
+
+  for (const robin of robins) {
+    let bestLark: ProtoDancerId | null = null;
+    let bestDist = Infinity;
+    for (const lark of remainingLarks) {
+      const r = phase1End.dancers[robin];
+      const l = phase1End.dancers[lark];
+      const dist = Math.hypot(r.x - l.x, r.y - l.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestLark = lark;
+      }
+    }
+    if (bestLark === null) continue;
+    remainingLarks.delete(bestLark);
+
+    const robinStart = phase1End.dancers[robin];
+    const larkStart = phase1End.dancers[bestLark];
+    courtesyPairs.push({
+      robin,
+      lark: bestLark,
+      robinStart,
+      larkStart,
+      center: {
+        x: (robinStart.x + larkStart.x) / 2,
+        y: (robinStart.y + larkStart.y) / 2,
+      },
+      robinEndFacing: larkStart.x < 0 ? 90 : 270,
+      larkEndFacing: robinStart.x < 0 ? 90 : 270,
+    });
+  }
+
+  const courtesyHands: HandConnection[] = courtesyPairs.map(({ robin, lark }) => ({
+    a: makeDancerId(lark, 0), ha: 'left',
+    b: makeDancerId(robin, 0), hb: 'left',
+  }));
+
+  const phase2Frames: Keyframe[] = [];
+  for (let i = 1; i <= phase2FramesCount; i++) {
+    const t = i / phase2FramesCount;
+    const beat = prev.beat + phase1Beats + t * phase2Beats;
+    const tEased = easeInOut(t);
+    const dancers = copyDancers(phase1End.dancers);
+    for (const pair of courtesyPairs) {
+      const robinStartAngle = Math.atan2(pair.robinStart.x - pair.center.x, pair.robinStart.y - pair.center.y);
+      const robinRadius = Math.hypot(pair.robinStart.x - pair.center.x, pair.robinStart.y - pair.center.y);
+      const larkStartAngle = Math.atan2(pair.larkStart.x - pair.center.x, pair.larkStart.y - pair.center.y);
+      const larkRadius = Math.hypot(pair.larkStart.x - pair.center.x, pair.larkStart.y - pair.center.y);
+      const turnAngle = -Math.PI * tEased;
+
+      dancers[pair.robin].x = pair.center.x + robinRadius * Math.sin(robinStartAngle + turnAngle);
+      dancers[pair.robin].y = pair.center.y + robinRadius * Math.cos(robinStartAngle + turnAngle);
+      dancers[pair.lark].x = pair.center.x + larkRadius * Math.sin(larkStartAngle + turnAngle);
+      dancers[pair.lark].y = pair.center.y + larkRadius * Math.cos(larkStartAngle + turnAngle);
+
+      dancers[pair.robin].facing = interpolateFacing(pair.robinStart.facing, pair.robinEndFacing, tEased);
+      dancers[pair.lark].facing = interpolateFacing(pair.larkStart.facing, pair.larkEndFacing, tEased);
+    }
+
+    const hands = i === phase2FramesCount ? prev.hands : [...prev.hands, ...courtesyHands];
+    phase2Frames.push({ beat, dancers, hands });
+  }
+
+  return [...phase1Frames, ...phase2Frames];
+}
+
 function generateMadRobin(
   prev: Keyframe,
   instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
@@ -1068,6 +1233,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'swing':       return generateSwing(prev, instr, scope);
     case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
+    case 'robins_chain':             return generateRobinsChain(prev, instr, scope);
     case 'mad_robin':                return generateMadRobin(prev, instr, scope);
   }
 }

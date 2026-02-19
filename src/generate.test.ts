@@ -1432,6 +1432,69 @@ describe('generateAllKeyframes with initFormation', () => {
     });
   });
 
+  describe('robins_chain', () => {
+    it('runs without errors and trades robin rows by the end', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers['up_robin_0'].y).toBeGreaterThan(0);
+      expect(last.dancers['down_robin_0'].y).toBeLessThan(0);
+    });
+
+    it('shows robin right-hand connection during the pull-by phase', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const beat15 = kfs.reduce((best, kf) =>
+        Math.abs(kf.beat - 1.5) < Math.abs(best.beat - 1.5) ? kf : best
+      );
+      expect(beat15.hands).toContainEqual({
+        a: 'up_robin_0', ha: 'right',
+        b: 'down_robin_0', hb: 'right',
+      });
+    });
+
+    it('uses left-hand courtesy turn in phase 2 and drops temporary hands at the end', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const beat5 = kfs.reduce((best, kf) =>
+        Math.abs(kf.beat - 5) < Math.abs(best.beat - 5) ? kf : best
+      );
+      expect(beat5.hands).toContainEqual({
+        a: 'down_lark_0', ha: 'left',
+        b: 'up_robin_0', hb: 'left',
+      });
+      expect(beat5.hands).toContainEqual({
+        a: 'up_lark_0', ha: 'left',
+        b: 'down_robin_0', hb: 'left',
+      });
+
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(0);
+    });
+
+    it('ends with everyone facing across the set', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      for (const id of ProtoDancerIdSchema.options) {
+        const expectedFacing = last.dancers[id].x < 0 ? 90 : 270;
+        expect(last.dancers[id].facing).toBeCloseTo(expectedFacing, 0);
+      }
+    });
+  });
+
   describe('give_and_take_into_swing', () => {
     // Set up: turn everyone to face across, so pairs are on opposite sides of the set
     function faceAcross() {
