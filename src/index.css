@@ -335,7 +335,6 @@ input[type="range"] {
 
 .split-body {
   margin-left: 12px;
-  border-left: 2px solid #444;
   padding-left: 8px;
   margin-top: 4px;
   margin-bottom: 4px;
@@ -360,7 +359,6 @@ input[type="range"] {
 
 .group-body {
   margin-left: 12px;
-  border-left: 2px solid #5a5a3a;
   padding-left: 8px;
   margin-top: 4px;
   margin-bottom: 4px;
