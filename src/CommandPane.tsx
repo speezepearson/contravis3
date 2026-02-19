@@ -8,6 +8,8 @@ import type { SearchableDropdownHandle } from './SearchableDropdown';
 import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema, splitLists, splitWithLists, instructionDuration } from './types';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId, Role, Dance } from './types';
 import type { GenerateError } from './generate';
+import { findInstructionStartBeat, findInstructionScope, ALL_DANCERS, SPLIT_GROUPS } from './generate';
+import type { ProtoDancerId } from './types';
 import { z } from 'zod';
 
 const exampleDanceModules = import.meta.glob<Dance>('/example-dances/*.json', { eager: true, import: 'default' });
@@ -293,6 +295,11 @@ function computeDimmedIds(instructions: Instruction[], errorId: InstructionId | 
   return dimmed;
 }
 
+export interface EditingInfo {
+  startBeat: number;
+  scope: Set<ProtoDancerId>;
+}
+
 interface Props {
   instructions: Instruction[];
   setInstructions: (instructions: Instruction[]) => void;
@@ -304,6 +311,9 @@ interface Props {
   warnings: Map<InstructionId, string>;
   generateError: GenerateError | null;
   progressionWarning: string | null;
+  onEditingStart?: (info: EditingInfo) => void;
+  onEditingEnd?: () => void;
+  onPreviewInstruction?: (instr: Instruction | null) => void;
 }
 
 function relLabel(r: string): string {
@@ -406,11 +416,31 @@ interface SubFormProps {
   isEditing: boolean;
   onSave: (instr: Instruction) => void;
   onCancel: () => void;
+  onPreview?: (instr: Instruction | null) => void;
 }
 
-function TakeHandsFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'take_hands' }> }) {
+/** Hook that tries to build an instruction from current form state and calls onPreview. */
+function useInstructionPreview(
+  onPreview: ((instr: Instruction | null) => void) | undefined,
+  builder: () => Record<string, unknown>,
+  deps: unknown[],
+) {
+  useEffect(() => {
+    if (!onPreview) return;
+    try {
+      onPreview(InstructionSchema.parse(builder()));
+    } catch {
+      onPreview(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onPreview, ...deps]);
+}
+
+function TakeHandsFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'take_hands' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
   const [hand, setHand] = useState<TakeHand>(initial?.hand ?? 'right');
+
+  useInstructionPreview(onPreview, () => ({ id, beats: 0, type: 'take_hands', relationship, hand }), [id, relationship, hand]);
 
   function save() {
     onSave(InstructionSchema.parse({ id, beats: 0, type: 'take_hands', relationship, hand }));
@@ -429,8 +459,10 @@ function TakeHandsFields({ id, isEditing, initial, onSave, onCancel }: SubFormPr
   </>);
 }
 
-function DropHandsFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'drop_hands' }> }) {
+function DropHandsFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'drop_hands' }> }) {
   const [dropTarget, setDropTarget] = useState<DropHandsTarget>(initial?.target ?? 'neighbor');
+
+  useInstructionPreview(onPreview, () => ({ id, beats: 0, type: 'drop_hands', target: dropTarget }), [id, dropTarget]);
 
   function save() {
     onSave(InstructionSchema.parse({ id, beats: 0, type: 'drop_hands', target: dropTarget }));
@@ -445,11 +477,13 @@ function DropHandsFields({ id, isEditing, initial, onSave, onCancel }: SubFormPr
   </>);
 }
 
-function AllemandeFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'allemande' }> }) {
+function AllemandeFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'allemande' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
   const [handedness, setHandedness] = useState<'left' | 'right'>(initial?.handedness ?? 'right');
   const [rotations, setRotations] = useState(initial ? String(initial.rotations) : '1');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('allemande'));
+
+  useInstructionPreview(onPreview, () => ({ id, type: 'allemande', beats: Number(beats) || 0, relationship, handedness, rotations: Number(rotations) || 1 }), [id, relationship, handedness, rotations, beats]);
 
   function save() {
     onSave(InstructionSchema.parse({ id, type: 'allemande', beats: Number(beats) || 0, relationship, handedness, rotations: Number(rotations) || 1 }));
@@ -476,10 +510,12 @@ function AllemandeFields({ id, isEditing, initial, onSave, onCancel }: SubFormPr
   </>);
 }
 
-function DoSiDoFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'do_si_do' }> }) {
+function DoSiDoFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'do_si_do' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
   const [rotations, setRotations] = useState(initial ? String(initial.rotations) : '1');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('do_si_do'));
+
+  useInstructionPreview(onPreview, () => ({ id, type: 'do_si_do', beats: Number(beats) || 0, relationship, rotations: Number(rotations) || 1 }), [id, relationship, rotations, beats]);
 
   function save() {
     onSave(InstructionSchema.parse({ id, type: 'do_si_do', beats: Number(beats) || 0, relationship, rotations: Number(rotations) || 1 }));
@@ -502,10 +538,12 @@ function DoSiDoFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps
   </>);
 }
 
-function CircleFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'circle' }> }) {
+function CircleFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'circle' }> }) {
   const [direction, setDirection] = useState<'left' | 'right'>(initial?.direction ?? 'left');
   const [rotations, setRotations] = useState(initial ? String(initial.rotations) : '1');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('circle'));
+
+  useInstructionPreview(onPreview, () => ({ id, type: 'circle', beats: Number(beats) || 0, direction, rotations: Number(rotations) || 1 }), [id, direction, rotations, beats]);
 
   function save() {
     onSave(InstructionSchema.parse({ id, type: 'circle', beats: Number(beats) || 0, direction, rotations: Number(rotations) || 1 }));
@@ -528,10 +566,12 @@ function CircleFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps
   </>);
 }
 
-function PullByFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'pull_by' }> }) {
+function PullByFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'pull_by' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
   const [hand, setHand] = useState<'left' | 'right'>(initial?.hand ?? 'right');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('pull_by'));
+
+  useInstructionPreview(onPreview, () => ({ id, type: 'pull_by', beats: Number(beats) || 0, relationship, hand }), [id, relationship, hand, beats]);
 
   function save() {
     onSave(InstructionSchema.parse({ id, type: 'pull_by', beats: Number(beats) || 0, relationship, hand }));
@@ -554,10 +594,15 @@ function PullByFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps
   </>);
 }
 
-function TurnFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'turn' }> }) {
+function TurnFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'turn' }> }) {
   const [targetText, setTargetText] = useState(initial ? directionToText(initial.target) : '');
   const [offset, setOffset] = useState(initial ? String(initial.offset) : '0');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('turn'));
+
+  useInstructionPreview(onPreview, () => {
+    const target = parseDirection(targetText) ?? { kind: 'direction' as const, value: 'up' as const };
+    return { id, type: 'turn', beats: Number(beats) || 0, target, offset: Number(offset) || 0 };
+  }, [id, targetText, offset, beats]);
 
   function save() {
     const target = parseDirection(targetText) ?? { kind: 'direction' as const, value: 'up' as const };
@@ -581,10 +626,15 @@ function TurnFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps &
   </>);
 }
 
-function StepFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'step' }> }) {
+function StepFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'step' }> }) {
   const [dirText, setDirText] = useState(initial ? directionToText(initial.direction) : '');
   const [distance, setDistance] = useState(initial ? String(initial.distance) : '0.5');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('step'));
+
+  useInstructionPreview(onPreview, () => {
+    const dir = parseDirection(dirText) ?? { kind: 'direction' as const, value: 'up' as const };
+    return { id, type: 'step', beats: Number(beats) || 0, direction: dir, distance: Number(distance) || 0 };
+  }, [id, dirText, distance, beats]);
 
   function save() {
     const dir = parseDirection(dirText) ?? { kind: 'direction' as const, value: 'up' as const };
@@ -608,10 +658,15 @@ function StepFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps &
   </>);
 }
 
-function BalanceFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'balance' }> }) {
+function BalanceFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'balance' }> }) {
   const [dirText, setDirText] = useState(initial ? directionToText(initial.direction) : '');
   const [distance, setDistance] = useState(initial ? String(initial.distance) : '0.5');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('balance'));
+
+  useInstructionPreview(onPreview, () => {
+    const dir = parseDirection(dirText) ?? { kind: 'direction' as const, value: 'across' as const };
+    return { id, type: 'balance', beats: Number(beats) || 0, direction: dir, distance: Number(distance) || 0 };
+  }, [id, dirText, distance, beats]);
 
   function save() {
     const dir = parseDirection(dirText) ?? { kind: 'direction' as const, value: 'across' as const };
@@ -635,10 +690,15 @@ function BalanceFields({ id, isEditing, initial, onSave, onCancel }: SubFormProp
   </>);
 }
 
-function SwingFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'swing' }> }) {
+function SwingFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'swing' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
   const [endFacingText, setEndFacingText] = useState(initial ? directionToText(initial.endFacing) : 'across');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('swing'));
+
+  useInstructionPreview(onPreview, () => {
+    const endFacing = parseDirection(endFacingText) ?? { kind: 'direction' as const, value: 'across' as const };
+    return { id, type: 'swing', beats: Number(beats) || 0, relationship, endFacing };
+  }, [id, relationship, endFacingText, beats]);
 
   function save() {
     const endFacing = parseDirection(endFacingText) ?? { kind: 'direction' as const, value: 'across' as const };
@@ -664,9 +724,11 @@ function SwingFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps 
 
 const ROLE_OPTIONS: Role[] = ['lark', 'robin'];
 
-function BoxTheGnatFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'box_the_gnat' }> }) {
+function BoxTheGnatFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'box_the_gnat' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('box_the_gnat'));
+
+  useInstructionPreview(onPreview, () => ({ id, type: 'box_the_gnat', beats: Number(beats) || 0, relationship }), [id, relationship, beats]);
 
   function save() {
     onSave(InstructionSchema.parse({ id, type: 'box_the_gnat', beats: Number(beats) || 0, relationship }));
@@ -685,11 +747,16 @@ function BoxTheGnatFields({ id, isEditing, initial, onSave, onCancel }: SubFormP
   </>);
 }
 
-function GiveAndTakeIntoSwingFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }> }) {
+function GiveAndTakeIntoSwingFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
   const [role, setRole] = useState<Role>(initial?.role ?? 'lark');
   const [endFacingText, setEndFacingText] = useState(initial ? directionToText(initial.endFacing) : 'across');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('give_and_take_into_swing'));
+
+  useInstructionPreview(onPreview, () => {
+    const endFacing = parseDirection(endFacingText) ?? { kind: 'direction' as const, value: 'across' as const };
+    return { id, type: 'give_and_take_into_swing', beats: Number(beats) || 0, relationship, role, endFacing };
+  }, [id, relationship, role, endFacingText, beats]);
 
   function save() {
     const endFacing = parseDirection(endFacingText) ?? { kind: 'direction' as const, value: 'across' as const };
@@ -722,11 +789,13 @@ const MAD_ROBIN_DIR_LABELS: Record<string, string> = { larks_in_middle: 'larks i
 const MAD_ROBIN_WITH_OPTIONS = ['larks_left', 'robins_left'];
 const MAD_ROBIN_WITH_LABELS: Record<string, string> = { larks_left: "larks' left", robins_left: "robins' left" };
 
-function MadRobinFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'mad_robin' }> }) {
+function MadRobinFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'mad_robin' }> }) {
   const [dir, setDir] = useState<'larks_in_middle' | 'robins_in_middle'>(initial?.dir ?? 'larks_in_middle');
   const [withDir, setWithDir] = useState<'larks_left' | 'robins_left'>(initial?.with ?? 'larks_left');
   const [rotations, setRotations] = useState(initial ? String(initial.rotations) : '1');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('mad_robin'));
+
+  useInstructionPreview(onPreview, () => ({ id, type: 'mad_robin', beats: Number(beats) || 0, dir, with: withDir, rotations: Number(rotations) || 1 }), [id, dir, withDir, rotations, beats]);
 
   function save() {
     onSave(InstructionSchema.parse({ id, type: 'mad_robin', beats: Number(beats) || 0, dir, with: withDir, rotations: Number(rotations) || 1 }));
@@ -788,11 +857,12 @@ function GroupFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps 
 
 // --- InlineForm: self-contained instruction editor ---
 
-function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
+function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPreview }: {
   initial?: Instruction;
   onSave: (instr: Instruction) => void;
   onCancel: () => void;
   allowContainers?: boolean;
+  onPreview?: (instr: Instruction | null) => void;
 }) {
   const [action, setAction] = useState<ActionType | 'split' | 'group'>(() => {
     if (!initial) return 'take_hands';
@@ -805,7 +875,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
   useEffect(() => { actionRef.current?.focus(); }, []);
   const [id] = useState(() => initial ? initial.id : makeInstructionId());
   const isEditing = !!initial;
-  const common = { id, isEditing, onSave, onCancel };
+  const common = { id, isEditing, onSave, onCancel, onPreview };
 
   const actionOptions = allowContainers
     ? ACTION_OPTIONS
@@ -844,7 +914,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onEditingStart, onEditingEnd, onPreviewInstruction }: Props) {
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -855,30 +925,77 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     [instructions, generateError],
   );
 
+  /** Compute beat offset and dancer scope for an insert position. */
+  function computeInsertInfo(instrs: Instruction[], containerId: string, index: number): EditingInfo {
+    const parsed = parseContainerId(containerId);
+    if (parsed.type === 'top') {
+      const startBeat = instrs.slice(0, index).reduce((s, i) => s + instructionDuration(i), 0);
+      return { startBeat, scope: ALL_DANCERS };
+    }
+    if (parsed.type === 'group') {
+      const groupBeat = findInstructionStartBeat(instrs, parsed.groupId) ?? 0;
+      const group = findInstructionById(instrs, parsed.groupId);
+      if (group && group.type === 'group') {
+        const offset = group.instructions.slice(0, index).reduce((s, i) => s + instructionDuration(i), 0);
+        return { startBeat: groupBeat + offset, scope: ALL_DANCERS };
+      }
+      return { startBeat: groupBeat, scope: ALL_DANCERS };
+    }
+    if (parsed.type === 'split') {
+      const splitBeat = findInstructionStartBeat(instrs, parsed.splitId) ?? 0;
+      const split = findInstructionById(instrs, parsed.splitId);
+      if (split && split.type === 'split') {
+        const [listA, listB] = splitLists(split);
+        const [groupA, groupB] = SPLIT_GROUPS[split.by];
+        const list = parsed.list === 'A' ? listA : listB;
+        const scope = parsed.list === 'A' ? groupA : groupB;
+        const offset = list.slice(0, index).reduce((s, i) => s + i.beats, 0);
+        return { startBeat: splitBeat + offset, scope };
+      }
+      return { startBeat: splitBeat, scope: ALL_DANCERS };
+    }
+    return { startBeat: 0, scope: ALL_DANCERS };
+  }
+
   function openInsert(containerId: string, index: number) {
     setInsertTarget({ containerId, index });
     setEditingId(null);
+    const info = computeInsertInfo(instructions, containerId, index);
+    onEditingStart?.(info);
   }
 
   function handleAdd(containerId: string, index: number, instr: Instruction) {
-    setInstructions(insertIntoContainer(instructions, containerId, instr, index));
-    setInsertTarget({ containerId, index: index + 1 });
+    const newInstructions = insertIntoContainer(instructions, containerId, instr, index);
+    setInstructions(newInstructions);
+    const newIndex = index + 1;
+    setInsertTarget({ containerId, index: newIndex });
+    const info = computeInsertInfo(newInstructions, containerId, newIndex);
+    onEditingStart?.(info);
   }
 
   function openEdit(id: InstructionId) {
     setEditingId(id);
     setInsertTarget(null);
+    const startBeat = findInstructionStartBeat(instructions, id) ?? 0;
+    const scope = findInstructionScope(instructions, id);
+    onEditingStart?.({ startBeat, scope });
   }
 
   function handleSave(id: InstructionId, updated: Instruction) {
     setInstructions(replaceInTree(instructions, id, updated));
     setEditingId(null);
+    onEditingEnd?.();
+    onPreviewInstruction?.(null);
   }
 
   function handleRemove(id: InstructionId) {
     const [newTree] = removeFromTree(instructions, id);
     setInstructions(newTree);
-    if (editingId === id) setEditingId(null);
+    if (editingId === id) {
+      setEditingId(null);
+      onEditingEnd?.();
+      onPreviewInstruction?.(null);
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -967,8 +1084,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
         <InlineForm
           key={`add-${containerId}-${index}`}
           onSave={instr => handleAdd(containerId, index, instr)}
-          onCancel={() => setInsertTarget(null)}
+          onCancel={() => { setInsertTarget(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
           allowContainers={allowContainers}
+          onPreview={onPreviewInstruction}
         />
       );
     }
@@ -1039,7 +1157,8 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           key={`edit-${instr.id}`}
                           initial={instr}
                           onSave={updated => handleSave(instr.id, updated)}
-                          onCancel={() => setEditingId(null)}
+                          onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
+                          onPreview={onPreviewInstruction}
                         />
                       ) : (
                         <div className={`instruction-item${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}`}>
@@ -1110,7 +1229,8 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                         key={`edit-${child.id}`}
                         initial={child}
                         onSave={updated => handleSave(child.id, updated)}
-                        onCancel={() => setEditingId(null)}
+                        onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
+                        onPreview={onPreviewInstruction}
                       />
                     ) : (
                       <div className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}${dimmedIds.has(child.id) ? ' dimmed' : ''}`}>
@@ -1162,8 +1282,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           key={`edit-${sub.id}`}
                           initial={InstructionSchema.parse(sub)}
                           onSave={updated => handleSave(sub.id, updated)}
-                          onCancel={() => setEditingId(null)}
+                          onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
                           allowContainers={false}
+                          onPreview={onPreviewInstruction}
                         />
                       ) : (
                         <div className={`instruction-item split-sub-item${sub.id === activeId ? ' active' : ''}${dimmedIds.has(sub.id) ? ' dimmed' : ''}`}>

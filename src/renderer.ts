@@ -166,6 +166,84 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
+  /** Draw ghostly preview keyframes: path lines connecting adjacent positions
+   *  and small ghost dancers at whole-beat intervals. */
+  drawPreviewKeyframes(keyframes: Keyframe[]) {
+    if (keyframes.length === 0) return;
+    const ctx = this.ctx;
+
+    // Draw path lines for each dancer
+    for (const id of ProtoDancerIdSchema.options) {
+      const color = COLORS[id];
+      ctx.strokeStyle = color.fill;
+      ctx.globalAlpha = 0.3;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      for (let i = 0; i < keyframes.length; i++) {
+        const d = keyframes[i].dancers[id];
+        const [cx, cy] = this.worldToCanvas(d.x, d.y);
+        if (i === 0) ctx.moveTo(cx, cy);
+        else ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Draw ghost dancers at whole-beat keyframes
+    const shownBeats = new Set<number>();
+    for (const kf of keyframes) {
+      const roundedBeat = Math.round(kf.beat);
+      if (Math.abs(kf.beat - roundedBeat) < 0.13 && !shownBeats.has(roundedBeat)) {
+        shownBeats.add(roundedBeat);
+        for (const id of ProtoDancerIdSchema.options) {
+          const d = kf.dancers[id];
+          this.drawGhostDancer(id, d.x, d.y, d.facing);
+        }
+      }
+    }
+
+    // Always show the final keyframe ghost
+    const last = keyframes[keyframes.length - 1];
+    for (const id of ProtoDancerIdSchema.options) {
+      const d = last.dancers[id];
+      this.drawGhostDancer(id, d.x, d.y, d.facing);
+    }
+
+    ctx.globalAlpha = 1.0;
+  }
+
+  private drawGhostDancer(id: ProtoDancerId, x: number, y: number, facing: number) {
+    const color = COLORS[id];
+    if (!color) return;
+    const ctx = this.ctx;
+    const [cx, cy] = this.worldToCanvas(x, y);
+    const r = 10; // smaller than normal dancers (14)
+
+    ctx.globalAlpha = 0.18;
+
+    // Circle body
+    ctx.fillStyle = color.fill;
+    ctx.strokeStyle = color.stroke;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Facing arrow (shorter)
+    const ax = cx + Math.sin(facing * Math.PI / 180) * (r + 4);
+    const ay = cy - Math.cos(facing * Math.PI / 180) * (r + 4);
+    ctx.strokeStyle = color.stroke;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(ax, ay);
+    ctx.stroke();
+
+    ctx.globalAlpha = 1.0;
+  }
+
   private drawDancer(id: ProtoDancerId, x: number, y: number, facing: number, alpha: number) {
     const color = COLORS[id];
     if (!color) return;

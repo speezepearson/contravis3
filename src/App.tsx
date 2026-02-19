@@ -1,9 +1,10 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
-import { generateAllKeyframes, validateHandDistances, validateProgression } from './generate';
+import { generateAllKeyframes, validateHandDistances, validateProgression, generateInstructionPreview } from './generate';
 import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
-import type { Instruction, InitFormation, InstructionId } from './types';
+import type { EditingInfo } from './CommandPane';
+import type { Instruction, InitFormation, InstructionId, Keyframe, ProtoDancerId } from './types';
 import { splitLists, instructionDuration } from './types';
 
 const DANCE_LENGTH = 64;
@@ -59,6 +60,10 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  // Editing state for pause-on-edit and keyframe preview
+  const [editInfo, setEditInfo] = useState<{ startBeat: number; scope: Set<ProtoDancerId> } | null>(null);
+  const [previewInstruction, setPreviewInstruction] = useState<Instruction | null>(null);
+
   const bpmRef = useRef(120);
   const smoothnessRef = useRef(1);
   const progressionRef = useRef(1);
@@ -70,15 +75,32 @@ export default function App() {
   const minBeat = 0;
   const maxBeat = DANCE_LENGTH;
 
+  // Compute preview keyframes when editing
+  const previewKeyframes = useMemo(() => {
+    if (!editInfo || !previewInstruction) return [];
+    // Find the keyframe at or before the start beat
+    let prevKeyframe: Keyframe | null = null;
+    for (const kf of keyframes) {
+      if (kf.beat <= editInfo.startBeat + 1e-6) prevKeyframe = kf;
+      else break;
+    }
+    if (!prevKeyframe) return [];
+    return generateInstructionPreview(previewInstruction, prevKeyframe, editInfo.scope) ?? [];
+  }, [editInfo, previewInstruction, keyframes]);
+
   // Keep a ref to keyframes for the animation loop
   const keyframesRef = useRef(keyframes);
   const minBeatRef = useRef(minBeat);
   const maxBeatRef = useRef(maxBeat);
+  const previewKeyframesRef = useRef<Keyframe[]>([]);
   useEffect(() => {
     keyframesRef.current = keyframes;
     minBeatRef.current = minBeat;
     maxBeatRef.current = maxBeat;
   }, [keyframes, minBeat, maxBeat]);
+  useEffect(() => {
+    previewKeyframesRef.current = previewKeyframes;
+  }, [previewKeyframes]);
 
   const draw = useCallback(() => {
     const renderer = rendererRef.current;
@@ -88,14 +110,18 @@ export default function App() {
       renderer.drawFrame(frame, -progressionRef.current / DANCE_LENGTH);
       setAnnotation(frame.annotation || '');
     }
+    // Draw preview keyframes overlay
+    if (previewKeyframesRef.current.length > 0) {
+      renderer.drawPreviewKeyframes(previewKeyframesRef.current);
+    }
     setBeat(beatRef.current);
   }, []);
 
-  // Redraw when keyframes change (deferred to avoid synchronous setState in effect)
+  // Redraw when keyframes or preview change (deferred to avoid synchronous setState in effect)
   useEffect(() => {
     const id = requestAnimationFrame(() => draw());
     return () => cancelAnimationFrame(id);
-  }, [keyframes, draw]);
+  }, [keyframes, previewKeyframes, draw]);
 
   // Initialize renderer + ResizeObserver
   useEffect(() => {
@@ -209,6 +235,30 @@ export default function App() {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
+  // Editing callbacks for CommandPane
+  const handleEditingStart = useCallback((info: EditingInfo) => {
+    // Pause playback
+    playingRef.current = false;
+    setPlaying(false);
+    cancelAnimationFrame(rafRef.current);
+    // Scrub to the instruction's start beat
+    beatRef.current = info.startBeat;
+    rendererRef.current?.clearTrails();
+    // Store edit info for preview generation
+    setEditInfo({ startBeat: info.startBeat, scope: info.scope });
+    setPreviewInstruction(null);
+    draw();
+  }, [draw]);
+
+  const handleEditingEnd = useCallback(() => {
+    setEditInfo(null);
+    setPreviewInstruction(null);
+  }, []);
+
+  const handlePreviewInstruction = useCallback((instr: Instruction | null) => {
+    setPreviewInstruction(instr);
+  }, []);
+
   const downloadGif = useCallback(() => {
     if (keyframes.length === 0) return;
     setExporting(true);
@@ -312,7 +362,7 @@ export default function App() {
       {/* Desktop sidebar */}
       <div className="sidebar-column">
         <div className="sidebar-instructions">
-          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} />
+          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} />
         </div>
         <div className="sidebar-controls">
           {controlsBlock}
@@ -329,7 +379,7 @@ export default function App() {
 
       {/* Mobile instruction drawer */}
       <div className={`instruction-drawer ${drawerOpen ? 'open' : ''}`}>
-        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} />
+        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} />
       </div>
     </div>
   );
