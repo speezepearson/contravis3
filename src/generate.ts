@@ -1,5 +1,5 @@
 import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId, InitFormation, InstructionId } from './types';
-import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
+import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists } from './types';
 import { assertNever } from './utils';
 
 const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
@@ -1092,9 +1092,10 @@ function sampleAtBeat(timeline: Keyframe[], beat: number): Keyframe | null {
 
 function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'split' }>): Keyframe[] {
   const [groupA, groupB] = SPLIT_GROUPS[instr.by];
+  const [listA, listB] = splitLists(instr);
 
-  const timelineA = processInstructions(prev, instr.listA, groupA);
-  const timelineB = processInstructions(prev, instr.listB, groupB);
+  const timelineA = processInstructions(prev, listA, groupA);
+  const timelineB = processInstructions(prev, listB, groupB);
 
   if (timelineA.length === 0 && timelineB.length === 0) {
     return [];
@@ -1140,11 +1141,13 @@ function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'spli
 // --- Top-level generator ---
 
 function instructionDuration(instr: Instruction): number {
-  if (instr.type === 'split')
+  if (instr.type === 'split') {
+    const [listA, listB] = splitLists(instr);
     return Math.max(
-      instr.listA.reduce((s, i) => s + i.beats, 0),
-      instr.listB.reduce((s, i) => s + i.beats, 0)
+      listA.reduce((s, i) => s + i.beats, 0),
+      listB.reduce((s, i) => s + i.beats, 0)
     );
+  }
   if (instr.type === 'group')
     return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
   return instr.beats;

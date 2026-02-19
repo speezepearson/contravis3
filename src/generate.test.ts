@@ -125,8 +125,8 @@ describe('generateAllKeyframes', () => {
       // Scoped to larks only, so robins (who have nobody on their right) are not evaluated.
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
-        listA: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' }],
-        listB: [],
+        larks: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: 'on_right', hand: 'right' }],
+        robins: [],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -634,16 +634,16 @@ describe('generateAllKeyframes', () => {
     it('split by role: larks and robins do different things', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
-        listA: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-        listB: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+        larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+        robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
       const last = kfs[kfs.length - 1];
-      // Larks (group A) step up
+      // Larks step up
       expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y + 1, 5);
       expect(last.dancers['down_lark_0'].y).toBeCloseTo(init.dancers['down_lark_0'].y + 1, 5);
-      // Robins (group B) step down
+      // Robins step down
       expect(last.dancers['up_robin_0'].y).toBeCloseTo(init.dancers['up_robin_0'].y - 1, 5);
       expect(last.dancers['down_robin_0'].y).toBeCloseTo(init.dancers['down_robin_0'].y - 1, 5);
     });
@@ -651,24 +651,24 @@ describe('generateAllKeyframes', () => {
     it('split by position: ups and downs do different things', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'position',
-        listA: [{ id: tid(10), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } }],
-        listB: [{ id: tid(11), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } }],
+        ups: [{ id: tid(10), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } }],
+        downs: [{ id: tid(11), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
-      // Ups (group A) turn to face down
+      // Ups turn to face down
       expect(last.dancers['up_lark_0'].facing).toBe(180);
       expect(last.dancers['up_robin_0'].facing).toBe(180);
-      // Downs (group B) turn to face up
+      // Downs turn to face up
       expect(last.dancers['down_lark_0'].facing).toBe(0);
       expect(last.dancers['down_robin_0'].facing).toBe(0);
     });
 
-    it('empty listA: group A dancers hold still', () => {
+    it('empty larks list: larks hold still', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
-        listA: [],
-        listB: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+        larks: [],
+        robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -680,11 +680,11 @@ describe('generateAllKeyframes', () => {
       expect(last.dancers['up_robin_0'].y).toBeCloseTo(init.dancers['up_robin_0'].y + 1, 5);
     });
 
-    it('empty listB: group B dancers hold still', () => {
+    it('empty downs list: downs hold still', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'position',
-        listA: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 }],
-        listB: [],
+        ups: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 }],
+        downs: [],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -699,8 +699,8 @@ describe('generateAllKeyframes', () => {
     it('both lists empty: no movement, 0 beats', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
-        listA: [],
-        listB: [],
+        larks: [],
+        robins: [],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       // Just the initial keyframe (no new keyframes from empty split)
@@ -710,11 +710,11 @@ describe('generateAllKeyframes', () => {
     it('split beats are computed from sub-lists', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
-        listA: [
+        larks: [
           { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
           { id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 },
         ],
-        listB: [
+        robins: [
           { id: tid(12), beats: 8, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 1 },
         ],
       }]);
@@ -725,8 +725,8 @@ describe('generateAllKeyframes', () => {
     it('split merges hands from both sub-timelines', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
-        listA: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'right' }],
-        listB: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'left' }],
+        larks: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'right' }],
+        robins: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'left' }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const last = kfs[kfs.length - 1];
@@ -740,8 +740,8 @@ describe('generateAllKeyframes', () => {
       const instructions = instr([
         {
           id: tid(1), type: 'split', by: 'role',
-          listA: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-          listB: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+          larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+          robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
         },
         { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 },
       ]);
@@ -759,8 +759,8 @@ describe('generateAllKeyframes', () => {
     it('split with allemande in one list and step in the other', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'position',
-        listA: [{ id: tid(10), beats: 8, type: 'allemande', relationship: 'partner', handedness: 'right', rotations: 1 }],
-        listB: [{ id: tid(11), beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+        ups: [{ id: tid(10), beats: 8, type: 'allemande', relationship: 'partner', handedness: 'right', rotations: 1 }],
+        downs: [{ id: tid(11), beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       const init = initialKeyframe();
@@ -1052,8 +1052,8 @@ describe('generateAllKeyframes', () => {
         id: tid(1), type: 'group', label: 'Split group',
         instructions: [{
           id: tid(10), type: 'split', by: 'role',
-          listA: [{ id: tid(100), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-          listB: [{ id: tid(101), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+          larks: [{ id: tid(100), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+          robins: [{ id: tid(101), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
         }],
       }]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
