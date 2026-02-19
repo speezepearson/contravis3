@@ -259,6 +259,12 @@ export default function App() {
     setPreviewInstruction(instr);
   }, []);
 
+  const handleBeatChange = useCallback((newBeat: number) => {
+    beatRef.current = newBeat;
+    rendererRef.current?.clearTrails();
+    draw();
+  }, [draw]);
+
   const downloadGif = useCallback(() => {
     if (keyframes.length === 0) return;
     setExporting(true);
@@ -362,7 +368,7 @@ export default function App() {
       {/* Desktop sidebar */}
       <div className="sidebar-column">
         <div className="sidebar-instructions">
-          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} />
+          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} beat={beat} onBeatChange={handleBeatChange} />
         </div>
         <div className="sidebar-controls">
           {controlsBlock}
@@ -379,7 +385,7 @@ export default function App() {
 
       {/* Mobile instruction drawer */}
       <div className={`instruction-drawer ${drawerOpen ? 'open' : ''}`}>
-        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} />
+        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} beat={beat} onBeatChange={handleBeatChange} />
       </div>
     </div>
   );

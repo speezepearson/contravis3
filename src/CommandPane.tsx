@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -314,6 +314,8 @@ interface Props {
   onEditingStart?: (info: EditingInfo) => void;
   onEditingEnd?: () => void;
   onPreviewInstruction?: (instr: Instruction | null) => void;
+  beat?: number;
+  onBeatChange?: (beat: number) => void;
 }
 
 function relLabel(r: string): string {
@@ -857,12 +859,15 @@ function GroupFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps 
 
 // --- InlineForm: self-contained instruction editor ---
 
-function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPreview }: {
+function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPreview, startBeat, beat, onBeatChange }: {
   initial?: Instruction;
   onSave: (instr: Instruction) => void;
   onCancel: () => void;
   allowContainers?: boolean;
   onPreview?: (instr: Instruction | null) => void;
+  startBeat?: number;
+  beat?: number;
+  onBeatChange?: (beat: number) => void;
 }) {
   const [action, setAction] = useState<ActionType | 'split' | 'group'>(() => {
     if (!initial) return 'take_hands';
@@ -872,17 +877,38 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
   });
 
   const actionRef = useRef<SearchableDropdownHandle>(null);
-  useEffect(() => { actionRef.current?.focus(); }, []);
+  useEffect(() => { if (!initial) actionRef.current?.focus(); }, []);
   const [id] = useState(() => initial ? initial.id : makeInstructionId());
   const isEditing = !!initial;
-  const common = { id, isEditing, onSave, onCancel, onPreview };
+
+  // Track end beat for playback slider
+  const sb = startBeat ?? 0;
+  const [endBeat, setEndBeat] = useState(() => sb + (initial ? instructionDuration(initial) : 0));
+  const wrappedOnPreview = useCallback((instr: Instruction | null) => {
+    onPreview?.(instr);
+    if (instr) setEndBeat(sb + instructionDuration(instr));
+  }, [onPreview, sb]);
+  const common = { id, isEditing, onSave, onCancel, onPreview: wrappedOnPreview };
 
   const actionOptions = allowContainers
     ? ACTION_OPTIONS
     : ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group');
 
+  const showSlider = onBeatChange && endBeat > sb;
+  const clampedBeat = Math.min(Math.max(beat ?? sb, sb), endBeat);
+
   return (
     <div className="inline-form">
+      {showSlider && (
+        <input
+          type="range"
+          className="inline-form-scrubber"
+          min={Math.round(sb * 100)}
+          max={Math.round(endBeat * 100)}
+          value={Math.round(clampedBeat * 100)}
+          onChange={e => onBeatChange!(Number(e.target.value) / 100)}
+        />
+      )}
       <label>
         Action
         <SearchableDropdown
@@ -914,7 +940,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onEditingStart, onEditingEnd, onPreviewInstruction }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onEditingStart, onEditingEnd, onPreviewInstruction, beat, onBeatChange }: Props) {
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -1080,6 +1106,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     const isOpen = insertTarget?.containerId === containerId && insertTarget.index === index;
     const allowContainers = !containerId.startsWith('split-');
     if (isOpen) {
+      const insertInfo = computeInsertInfo(instructions, containerId, index);
       return (
         <InlineForm
           key={`add-${containerId}-${index}`}
@@ -1087,6 +1114,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
           onCancel={() => { setInsertTarget(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
           allowContainers={allowContainers}
           onPreview={onPreviewInstruction}
+          startBeat={insertInfo.startBeat}
+          beat={beat}
+          onBeatChange={onBeatChange}
         />
       );
     }
@@ -1159,6 +1189,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           onSave={updated => handleSave(instr.id, updated)}
                           onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
                           onPreview={onPreviewInstruction}
+                          startBeat={findInstructionStartBeat(instructions, instr.id) ?? 0}
+                          beat={beat}
+                          onBeatChange={onBeatChange}
                         />
                       ) : (
                         <div className={`instruction-item${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}`}>
@@ -1231,6 +1264,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                         onSave={updated => handleSave(child.id, updated)}
                         onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
                         onPreview={onPreviewInstruction}
+                        startBeat={findInstructionStartBeat(instructions, child.id) ?? 0}
+                        beat={beat}
+                        onBeatChange={onBeatChange}
                       />
                     ) : (
                       <div className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}${dimmedIds.has(child.id) ? ' dimmed' : ''}`}>
@@ -1285,6 +1321,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
                           allowContainers={false}
                           onPreview={onPreviewInstruction}
+                          startBeat={findInstructionStartBeat(instructions, sub.id) ?? 0}
+                          beat={beat}
+                          onBeatChange={onBeatChange}
                         />
                       ) : (
                         <div className={`instruction-item split-sub-item${sub.id === activeId ? ' active' : ''}${dimmedIds.has(sub.id) ? ' dimmed' : ''}`}>
