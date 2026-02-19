@@ -11,10 +11,12 @@ import type { GenerateError } from './generate';
 import { z } from 'zod';
 
 const exampleDanceModules = import.meta.glob<Dance>('/example-dances/*.json', { eager: true, import: 'default' });
-const exampleDances: { name: string; dance: Dance }[] = Object.entries(exampleDanceModules).map(([path, dance]) => {
+const exampleDances: { key: string; label: string; dance: Dance }[] = Object.entries(exampleDanceModules).map(([path, dance]) => {
   const filename = path.split('/').pop()!.replace(/\.json$/, '');
-  const name = filename.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  return { name, dance };
+  const fallbackName = filename.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const displayName = dance.name || fallbackName;
+  const label = dance.author ? `${displayName} (${dance.author})` : displayName;
+  return { key: filename, label, dance };
 });
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
@@ -981,8 +983,8 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     );
   }
 
-  function loadExampleDance(name: string) {
-    const entry = exampleDances.find(d => d.name === name);
+  function loadExampleDance(key: string) {
+    const entry = exampleDances.find(d => d.key === key);
     if (!entry) return;
     const parsed = DanceSchema.safeParse(entry.dance);
     if (!parsed.success) return;
@@ -1004,7 +1006,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
           >
             <option value="">-- select --</option>
             {exampleDances.map(d => (
-              <option key={d.name} value={d.name}>{d.name}</option>
+              <option key={d.key} value={d.key}>{d.label}</option>
             ))}
           </select>
         </div>
