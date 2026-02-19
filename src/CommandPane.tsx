@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema, splitLists, splitWithLists } from './types';
+import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema, splitLists, splitWithLists, instructionDuration } from './types';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId, Role } from './types';
 import type { GenerateError } from './generate';
 import { z } from 'zod';
@@ -55,17 +55,12 @@ function parseDirection(text: string): RelativeDirection | null {
 }
 
 function directionToText(dir: RelativeDirection): string {
-  if (dir.kind === 'direction') return dir.value;
   return dir.value;
 }
 
 function splitGroupLabel(by: SplitBy['by'], list: 'A' | 'B'): string {
   if (by === 'role') return list === 'A' ? 'Larks' : 'Robins';
   return list === 'A' ? 'Ups' : 'Downs';
-}
-
-function sumBeats(instructions: AtomicInstruction[]): number {
-  return instructions.reduce((sum, i) => sum + i.beats, 0);
 }
 
 function defaultBeats(action: string): string {
@@ -255,11 +250,17 @@ interface Props {
   progressionWarning: string | null;
 }
 
+function relLabel(r: string): string {
+  if (r === 'on_right') return 'on-your-right';
+  if (r === 'on_left') return 'on-your-left';
+  if (r === 'in_front') return 'in-front';
+  return r;
+}
+
 function summarizeAtomic(instr: AtomicInstruction): string {
   switch (instr.type) {
     case 'take_hands': {
-      const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : `${r}s`;
+      const label = relLabel(instr.relationship) + (/^(partner|neighbor|opposite)$/.test(instr.relationship) ? 's' : '');
       const handLabel = instr.hand === 'both' ? 'both' : instr.hand;
       return `${label} take ${handLabel} hands`;
     }
@@ -267,59 +268,30 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       const t = instr.target;
       if (t === 'both') return 'drop all hands';
       if (t === 'left' || t === 'right') return `drop ${t} hand`;
-      const label = t === 'on_right' ? 'on-your-right' : t === 'on_left' ? 'on-your-left' : t === 'in_front' ? 'in-front' : t;
-      return `drop ${label} hands`;
+      return `drop ${relLabel(t)} hands`;
     }
-    case 'allemande': {
-      const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
-      return `${label} allemande ${instr.handedness} ${instr.rotations}x (${instr.beats}b)`;
-    }
-    case 'do_si_do': {
-      const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
-      return `${label} do-si-do ${instr.rotations}x (${instr.beats}b)`;
-    }
+    case 'allemande':
+      return `${relLabel(instr.relationship)} allemande ${instr.handedness} ${instr.rotations}x (${instr.beats}b)`;
+    case 'do_si_do':
+      return `${relLabel(instr.relationship)} do-si-do ${instr.rotations}x (${instr.beats}b)`;
     case 'circle':
       return `circle ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
-    case 'pull_by': {
-      const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
-      return `${label} pull by ${instr.hand} (${instr.beats}b)`;
-    }
+    case 'pull_by':
+      return `${relLabel(instr.relationship)} pull by ${instr.hand} (${instr.beats}b)`;
     case 'turn': {
-      const t = instr.target;
-      const desc = t.kind === 'direction' ? t.value : t.value;
       const offsetStr = instr.offset ? ` +${instr.offset}\u00B0` : '';
-      return `turn ${desc}${offsetStr} (${instr.beats}b)`;
+      return `turn ${directionToText(instr.target)}${offsetStr} (${instr.beats}b)`;
     }
-    case 'step': {
-      const t = instr.direction;
-      const desc = t.kind === 'direction' ? t.value : t.value;
-      return `step ${desc} ${instr.distance} (${instr.beats}b)`;
-    }
-    case 'balance': {
-      const t = instr.direction;
-      const desc = t.kind === 'direction' ? t.value : t.value;
-      return `balance ${desc} ${instr.distance} (${instr.beats}b)`;
-    }
-    case 'swing': {
-      const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
-      const ef = instr.endFacing.kind === 'direction' ? instr.endFacing.value : instr.endFacing.value;
-      return `${label} swing \u2192 ${ef} (${instr.beats}b)`;
-    }
-    case 'box_the_gnat': {
-      const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
-      return `${label} box the gnat (${instr.beats}b)`;
-    }
-    case 'give_and_take_into_swing': {
-      const r = instr.relationship;
-      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
-      const ef = instr.endFacing.kind === 'direction' ? instr.endFacing.value : instr.endFacing.value;
-      return `${instr.role}s give & take ${label} into swing \u2192 ${ef} (${instr.beats}b)`;
-    }
+    case 'step':
+      return `step ${directionToText(instr.direction)} ${instr.distance} (${instr.beats}b)`;
+    case 'balance':
+      return `balance ${directionToText(instr.direction)} ${instr.distance} (${instr.beats}b)`;
+    case 'swing':
+      return `${relLabel(instr.relationship)} swing \u2192 ${directionToText(instr.endFacing)} (${instr.beats}b)`;
+    case 'box_the_gnat':
+      return `${relLabel(instr.relationship)} box the gnat (${instr.beats}b)`;
+    case 'give_and_take_into_swing':
+      return `${instr.role}s give & take ${relLabel(instr.relationship)} into swing \u2192 ${directionToText(instr.endFacing)} (${instr.beats}b)`;
     case "mad_robin": {
       const dirLabel =
         instr.dir === "larks_in_middle"
@@ -332,25 +304,11 @@ function summarizeAtomic(instr: AtomicInstruction): string {
   }
 }
 
-function instrDuration(instr: Instruction): number {
-  if (instr.type === 'split') {
-    const [listA, listB] = splitLists(instr);
-    return Math.max(sumBeats(listA), sumBeats(listB));
-  }
-  if (instr.type === 'group')
-    return instr.instructions.reduce((s, i) => s + instrDuration(i), 0);
-  return instr.beats;
-}
-
 function summarize(instr: Instruction): string {
-  if (instr.type === 'split') {
-    const [listA, listB] = splitLists(instr);
-    const totalBeats = Math.max(sumBeats(listA), sumBeats(listB));
-    return `split by ${instr.by} (${totalBeats}b)`;
-  }
-  if (instr.type === 'group') {
-    const totalBeats = instrDuration(instr);
-    return `${instr.label} (${totalBeats}b)`;
+  if (instr.type === 'split' || instr.type === 'group') {
+    const totalBeats = instructionDuration(instr);
+    const prefix = instr.type === 'split' ? `split by ${instr.by}` : instr.label;
+    return `${prefix} (${totalBeats}b)`;
   }
   return summarizeAtomic(instr);
 }
