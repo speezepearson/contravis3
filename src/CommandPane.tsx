@@ -6,9 +6,16 @@ import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
 import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema, splitLists, splitWithLists, instructionDuration } from './types';
-import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId, Role } from './types';
+import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId, Role, Dance } from './types';
 import type { GenerateError } from './generate';
 import { z } from 'zod';
+
+const exampleDanceModules = import.meta.glob<Dance>('/example-dances/*.json', { eager: true, import: 'default' });
+const exampleDances: { name: string; dance: Dance }[] = Object.entries(exampleDanceModules).map(([path, dance]) => {
+  const filename = path.split('/').pop()!.replace(/\.json$/, '');
+  const name = filename.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return { name, dance };
+});
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
@@ -974,8 +981,34 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     );
   }
 
+  function loadExampleDance(name: string) {
+    const entry = exampleDances.find(d => d.name === name);
+    if (!entry) return;
+    const parsed = DanceSchema.safeParse(entry.dance);
+    if (!parsed.success) return;
+    setInitFormation(parsed.data.initFormation);
+    setProgression(parsed.data.progression);
+    setInstructions(parsed.data.instructions);
+    setEditingId(null);
+    setInsertTarget(null);
+  }
+
   return (
     <div className="command-pane">
+      {exampleDances.length > 0 && (
+        <div className="dance-loader">
+          <label>Load dance: </label>
+          <select
+            value=""
+            onChange={e => { if (e.target.value) loadExampleDance(e.target.value); }}
+          >
+            <option value="">-- select --</option>
+            {exampleDances.map(d => (
+              <option key={d.name} value={d.name}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="formation-selector">
         <label>Formation: </label>
         <SearchableDropdown
