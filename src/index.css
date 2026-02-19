@@ -240,6 +240,10 @@ input[type="range"] {
   border-left: 3px solid #a0c4ff;
 }
 
+.instruction-item.dimmed {
+  opacity: 0.35;
+}
+
 .drag-handle {
   cursor: grab;
   color: #666;
@@ -465,5 +469,20 @@ input[type="range"] {
 
   .instruction-drawer {
     display: none;
+  }
+}
+
+/* Wide screens: show split instruction lists side by side */
+
+@media (min-width: 1200px) {
+  .split-body {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+  }
+
+  .split-group {
+    flex: 1;
+    min-width: 0;
   }
 }
