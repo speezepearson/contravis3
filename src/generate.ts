@@ -3,12 +3,16 @@ import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, build
 import { assertNever } from './utils';
 
 export class KeyframeGenerationError extends Error {
+  readonly partialKeyframes: Keyframe[];
+  readonly instructionId?: InstructionId;
   constructor(
     message: string,
-    public readonly partialKeyframes: Keyframe[],
-    public readonly instructionId?: InstructionId,
+    partialKeyframes: Keyframe[],
+    instructionId?: InstructionId,
   ) {
     super(message);
+    this.partialKeyframes = partialKeyframes;
+    this.instructionId = instructionId;
   }
 }
 
