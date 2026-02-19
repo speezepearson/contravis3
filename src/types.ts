@@ -12,7 +12,9 @@ export type ProtoDancerId = z.infer<typeof ProtoDancerIdSchema>;
 export const DancerIdSchema = z.templateLiteral([ProgressionDirSchema, '_', RoleSchema, '_', z.number().int()]);
 export type DancerId = z.infer<typeof DancerIdSchema>;
 
-undefined as unknown as ProtoDancerId satisfies DancerId;  // type assertion
+// Compile-time check: every ProtoDancerId is a valid DancerId
+// (the `satisfies` will fail if ProtoDancerId is not assignable to DancerId)
+undefined as unknown as ProtoDancerId satisfies DancerId;
 
 export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
   const i = id.lastIndexOf('_');
@@ -111,6 +113,17 @@ export const InstructionSchema: z.ZodType<Instruction> = z.lazy(() => z.union([
   z.object({ id: InstructionIdSchema, type: z.literal('split'), by: z.literal('position'), ups: z.array(AtomicInstructionSchema), downs: z.array(AtomicInstructionSchema) }),
   z.object({ id: InstructionIdSchema, type: z.literal('group'), label: z.string(), instructions: z.array(InstructionSchema) }),
 ])) as unknown as z.ZodType<Instruction>;
+
+export function instructionDuration(instr: Instruction): number {
+  if (instr.type === 'split') {
+    const [listA, listB] = splitLists(instr);
+    return Math.max(listA.reduce((s, i) => s + i.beats, 0),
+                    listB.reduce((s, i) => s + i.beats, 0));
+  }
+  if (instr.type === 'group')
+    return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
+  return instr.beats;
+}
 
 export const InitFormationSchema = z.enum(['improper', 'beckett']);
 export type InitFormation = z.infer<typeof InitFormationSchema>;

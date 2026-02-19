@@ -4,20 +4,9 @@ import { generateAllKeyframes, validateHandDistances, validateProgression } from
 import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { Instruction, InitFormation, InstructionId } from './types';
-import { splitLists } from './types';
+import { splitLists, instructionDuration } from './types';
 
 const DANCE_LENGTH = 64;
-
-function instructionDuration(instr: Instruction): number {
-  if (instr.type === 'split') {
-    const [listA, listB] = splitLists(instr);
-    return Math.max(listA.reduce((s, i) => s + i.beats, 0),
-                    listB.reduce((s, i) => s + i.beats, 0));
-  }
-  if (instr.type === 'group')
-    return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
-  return instr.beats;
-}
 
 function activeInstructionId(instructions: Instruction[], beat: number): InstructionId | null {
   let currentBeat = 0;
