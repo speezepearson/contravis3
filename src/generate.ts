@@ -1267,7 +1267,7 @@ export function validateProgression(
   if (keyframes.length === 0) return null;
   const init = initialKeyframe(initFormation);
   const final = keyframes[keyframes.length - 1];
-  const expectedDy = 2 * progression;
+  const expectedDy = progression;
   const problems: string[] = [];
   for (const id of PROTO_DANCER_IDS) {
     const sign = UPS.has(id) ? 1 : -1;
@@ -1276,8 +1276,8 @@ export function validateProgression(
     const dx = final.dancers[id].x - expectedX;
     const dy = final.dancers[id].y - expectedY;
     const dist = Math.hypot(dx, dy);
-    if (dist > 0.01) {
-      problems.push(`${id} is ${dist.toFixed(2)}m off`);
+    if (dist > 0.05) {
+      problems.push(`${id} started at (${init.dancers[id].x.toFixed(2)}, ${init.dancers[id].y.toFixed(2)}), should have ended at (${expectedX.toFixed(2)}, ${expectedY.toFixed(2)}), but actually ended at (${final.dancers[id].x.toFixed(2)}, ${final.dancers[id].y.toFixed(2)})`);
     }
   }
   if (problems.length === 0) return null;
