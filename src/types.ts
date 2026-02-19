@@ -131,6 +131,8 @@ export type InitFormation = z.infer<typeof InitFormationSchema>;
 export const ProgressionSchema = z.number().int();
 
 export const DanceSchema = z.object({
+  name: z.string().optional(),
+  author: z.string().optional(),
   initFormation: InitFormationSchema,
   progression: ProgressionSchema,
   instructions: z.array(InstructionSchema),
