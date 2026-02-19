@@ -1052,6 +1052,246 @@ function generateMadRobin(
   return result;
 }
 
+function generateRobinsChain(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: 'robins_chain' }>,
+  scope: Set<ProtoDancerId>,
+): Keyframe[] {
+  // Robins chain: robins pull by right through the center, then each lark
+  // courtesy-turns the arriving robin. The `relationship` parameter specifies
+  // the lark-robin pairing for the courtesy turn (typically 'partner').
+  //
+  // Phase 1 (~25% of beats): Robins pass through center by right shoulders;
+  //   larks walk along their line to the meeting point.
+  // Phase 2 (~75% of beats): Courtesy turn — couple revolves CCW 180°
+  //   around a shared center, ending side-by-side facing across the set.
+
+  const CT_RADIUS = 0.25; // courtesy turn orbit radius
+
+  const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
+
+  type ChainPair = {
+    lark: ProtoDancerId;
+    robin: ProtoDancerId;
+    larkStart: { x: number; y: number; facing: number };
+    robinStart: { x: number; y: number; facing: number };
+  };
+
+  const pairs: ChainPair[] = [];
+  const processed = new Set<ProtoDancerId>();
+
+  for (const [id] of pairMap) {
+    if (processed.has(id)) continue;
+    const targetId = pairMap.get(id)!;
+    const { proto: targetProto } = parseDancerId(targetId);
+    const lark = isLark(id) ? id : targetProto;
+    const robin = isLark(id) ? targetProto : id;
+    processed.add(lark);
+    processed.add(robin);
+
+    const ls = prev.dancers[lark];
+    const rs = prev.dancers[robin];
+    pairs.push({
+      lark, robin,
+      larkStart: { x: ls.x, y: ls.y, facing: ls.facing },
+      robinStart: { x: rs.x, y: rs.y, facing: rs.facing },
+    });
+  }
+
+  if (pairs.length !== 2) {
+    throw new Error(`robins chain: expected 2 lark-robin pairs, got ${pairs.length}`);
+  }
+
+  // Phase timing
+  const phase1Beats = instr.beats * 0.25;
+  const phase2Beats = instr.beats * 0.75;
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
+  // For each pair, the robin crosses to the lark's line. The lark walks along
+  // their line to meet the robin. They meet at a point and then courtesy-turn.
+  //
+  // The courtesy turn ends with the couple facing across the set,
+  // lark on "their left" (e.g. facing east → lark is north of robin).
+  //
+  // We compute the desired END positions first, then work backward to find
+  // the courtesy turn center and start angles.
+
+  // otherRobinStart[i] = starting position of the robin in the OTHER pair
+  const otherRobinStart = [pairs[1].robinStart, pairs[0].robinStart];
+
+  type PairAnim = {
+    lark: ProtoDancerId;
+    robin: ProtoDancerId;
+    robinCrossStart: { x: number; y: number };
+    robinCrossEnd: { x: number; y: number };
+    larkWalkStart: { x: number; y: number };
+    larkWalkEnd: { x: number; y: number };
+    ctCx: number; ctCy: number;
+    ctLarkStartAngle: number;
+    ctRobinStartAngle: number;
+    ctEndFacing: number; // degrees
+  };
+
+  const anims: PairAnim[] = pairs.map((pair, i) => {
+    const other = otherRobinStart[i];
+
+    // Facing across: left line faces east (90°), right line faces west (270°)
+    const ctEndFacing = pair.larkStart.x < 0 ? 90 : 270;
+    const facingRad = ctEndFacing * Math.PI / 180;
+
+    // "Left of facing" direction for lark placement:
+    // Facing east (90°): left = north (+y). Facing west (270°): left = south (-y).
+    const leftDx = -Math.cos(facingRad);
+    const leftDy = Math.sin(facingRad);
+
+    // The meeting point (courtesy turn center) is on the lark's line (same x),
+    // at the y-coordinate of the other robin's starting position (where the lark
+    // "steps into where the robin on their side used to be").
+    const ctCx = pair.larkStart.x;
+    const ctCy = other.y;
+
+    // End positions: lark on the left, robin on the right, each CT_RADIUS from center
+    const larkEndX = ctCx + CT_RADIUS * leftDx;
+    const larkEndY = ctCy + CT_RADIUS * leftDy;
+    const robinEndX = ctCx - CT_RADIUS * leftDx;
+    const robinEndY = ctCy - CT_RADIUS * leftDy;
+
+    // End angles (atan2(x-cx, y-cy) convention used by the codebase)
+    const larkEndAngle = Math.atan2(larkEndX - ctCx, larkEndY - ctCy);
+    const robinEndAngle = Math.atan2(robinEndX - ctCx, robinEndY - ctCy);
+
+    // Start angles: 180° CW from end (since turn is CCW 180°, start is π ahead)
+    const larkStartAngle = larkEndAngle + Math.PI;
+    const robinStartAngle = robinEndAngle + Math.PI;
+
+    // Robin's phase 1 destination: where it will be at the START of the courtesy turn.
+    // That's at the courtesy turn start position for the robin.
+    const robinCrossEnd = {
+      x: ctCx + CT_RADIUS * Math.sin(robinStartAngle),
+      y: ctCy + CT_RADIUS * Math.cos(robinStartAngle),
+    };
+
+    // Lark's phase 1 destination: courtesy turn start position for the lark.
+    const larkWalkEnd = {
+      x: ctCx + CT_RADIUS * Math.sin(larkStartAngle),
+      y: ctCy + CT_RADIUS * Math.cos(larkStartAngle),
+    };
+
+    return {
+      lark: pair.lark,
+      robin: pair.robin,
+      robinCrossStart: { x: pair.robinStart.x, y: pair.robinStart.y },
+      robinCrossEnd,
+      larkWalkStart: { x: pair.larkStart.x, y: pair.larkStart.y },
+      larkWalkEnd,
+      ctCx, ctCy,
+      ctLarkStartAngle: larkStartAngle,
+      ctRobinStartAngle: robinStartAngle,
+      ctEndFacing,
+    };
+  });
+
+  const robin0 = anims[0].robin;
+  const robin1 = anims[1].robin;
+
+  const result: Keyframe[] = [];
+
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const elapsed = t * instr.beats;
+
+    const dancers = copyDancers(prev.dancers);
+    let hands: HandConnection[];
+
+    // Hands not involving chain participants, preserved throughout
+    const outerHands = prev.hands.filter(h =>
+      !processed.has(parseDancerId(h.a).proto) && !processed.has(parseDancerId(h.b).proto)
+    );
+
+    if (elapsed <= phase1Beats) {
+      // Phase 1: robins cross through center, larks walk to meeting point
+      const tPhase = elapsed / phase1Beats;
+      const tEased = easeInOut(tPhase);
+
+      // Robin right-right hand connection during crossing
+      hands = [...outerHands];
+      const [lo, hi] = makeDancerId(robin0, 0) < makeDancerId(robin1, 0)
+        ? [robin0, robin1] : [robin1, robin0];
+      hands.push({ a: makeDancerId(lo, 0), ha: 'right', b: makeDancerId(hi, 0), hb: 'right' });
+
+      for (const anim of anims) {
+        // Robin: elliptical path from start to end (curving through center)
+        const robinPos = ellipsePosition(
+          anim.robinCrossStart, anim.robinCrossEnd,
+          0.25,
+          Math.PI * tEased,
+        );
+        dancers[anim.robin].x = robinPos.x;
+        dancers[anim.robin].y = robinPos.y;
+        dancers[anim.robin].facing = prev.dancers[anim.robin].facing;
+
+        // Lark: linear interpolation to meeting point
+        dancers[anim.lark].x = anim.larkWalkStart.x + (anim.larkWalkEnd.x - anim.larkWalkStart.x) * tEased;
+        dancers[anim.lark].y = anim.larkWalkStart.y + (anim.larkWalkEnd.y - anim.larkWalkStart.y) * tEased;
+
+        // Lark turns gradually to face across (toward center of set)
+        const larkStartFacingRad = prev.dancers[anim.lark].facing * Math.PI / 180;
+        const larkTargetFacingRad = (anim.ctEndFacing + 180) * Math.PI / 180;
+        // ← lark initially faces TOWARD the center to receive the robin;
+        // this will transition smoothly into the courtesy turn facing
+        let angleDiff = larkTargetFacingRad - larkStartFacingRad;
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+        const facingRad = larkStartFacingRad + angleDiff * tEased;
+        dancers[anim.lark].facing = ((facingRad * 180 / Math.PI) % 360 + 360) % 360;
+      }
+    } else {
+      // Phase 2: Courtesy turn (CCW 180° orbit)
+      const tPhase = (elapsed - phase1Beats) / phase2Beats;
+      const tEased = easeInOut(tPhase);
+      const angleOffset = -Math.PI * tEased; // CCW = negative
+
+      // Left-left hand connection for courtesy turn
+      hands = [...outerHands];
+      for (const anim of anims) {
+        const a = makeDancerId(anim.lark, 0);
+        const b = makeDancerId(anim.robin, 0);
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        const [loH, hiH]: ['left', 'left'] = ['left', 'left'];
+        hands.push({ a: lo, ha: loH, b: hi, hb: hiH });
+      }
+
+      for (const anim of anims) {
+        const larkAngle = anim.ctLarkStartAngle + angleOffset;
+        const robinAngle = anim.ctRobinStartAngle + angleOffset;
+
+        dancers[anim.lark].x = anim.ctCx + CT_RADIUS * Math.sin(larkAngle);
+        dancers[anim.lark].y = anim.ctCy + CT_RADIUS * Math.cos(larkAngle);
+        dancers[anim.robin].x = anim.ctCx + CT_RADIUS * Math.sin(robinAngle);
+        dancers[anim.robin].y = anim.ctCy + CT_RADIUS * Math.cos(robinAngle);
+
+        // During the courtesy turn, both dancers face the same direction.
+        // The couple's facing rotates from (ctEndFacing - 180) to ctEndFacing,
+        // sweeping 180° in the same direction as the orbit.
+        const startFacing = anim.ctEndFacing - 180;
+        const coupleFacingDeg = ((startFacing + 180 * tEased) % 360 + 360) % 360;
+        dancers[anim.lark].facing = coupleFacingDeg;
+        dancers[anim.robin].facing = coupleFacingDeg;
+      }
+    }
+
+    // Drop hands on the final frame
+    if (i === nFrames) {
+      hands = [...outerHands];
+    }
+
+    result.push({ beat, dancers, hands });
+  }
+
+  return result;
+}
+
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
@@ -1069,6 +1309,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
     case 'mad_robin':                return generateMadRobin(prev, instr, scope);
+    case 'robins_chain':             return generateRobinsChain(prev, instr, scope);
   }
 }
 

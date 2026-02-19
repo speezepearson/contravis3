@@ -1620,4 +1620,125 @@ describe('generateAllKeyframes with initFormation', () => {
       expect(last.dancers['up_robin_0'].y).not.toBeCloseTo(init.dancers['up_robin_0'].y, 5);
     });
   });
+
+  describe('robins_chain', () => {
+    it('generates keyframes spanning the correct number of beats', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      expect(kfs.length).toBeGreaterThan(2);
+      expect(kfs[kfs.length - 1].beat).toBeCloseTo(8, 5);
+    });
+
+    it('robins swap sides of the set', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // up_robin started at x=0.5, should end at x=-0.5 (other line)
+      expect(last.dancers['up_robin_0'].x).toBeCloseTo(-init.dancers['up_robin_0'].x, 1);
+      // down_robin started at x=-0.5, should end at x=0.5 (other line)
+      expect(last.dancers['down_robin_0'].x).toBeCloseTo(-init.dancers['down_robin_0'].x, 1);
+    });
+
+    it('larks stay on the same line', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const init = initialKeyframe();
+      const last = kfs[kfs.length - 1];
+      // Larks stay on their original line (same x)
+      expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x, 1);
+      expect(last.dancers['down_lark_0'].x).toBeCloseTo(init.dancers['down_lark_0'].x, 1);
+    });
+
+    it('has right-hand connections during the crossing phase', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      // Early frame (during phase 1 / crossing) should have right-right hand connection
+      // Phase 1 is ~25% of 8 beats = 2 beats. Check at beat ~1.
+      const earlyFrame = kfs.find(kf => kf.beat >= 0.5 && kf.beat <= 1.5);
+      expect(earlyFrame).toBeDefined();
+      const rightHands = earlyFrame!.hands.filter(h => h.ha === 'right' && h.hb === 'right');
+      expect(rightHands.length).toBeGreaterThan(0);
+    });
+
+    it('has left-hand connections during the courtesy turn phase', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      // Mid-late frame (during phase 2 / courtesy turn) should have left-left connections
+      // Phase 2 starts at ~2 beats. Check around beat 5.
+      const midFrame = kfs.find(kf => kf.beat >= 4.5 && kf.beat <= 5.5);
+      expect(midFrame).toBeDefined();
+      const leftHands = midFrame!.hands.filter(h => h.ha === 'left' && h.hb === 'left');
+      expect(leftHands.length).toBeGreaterThan(0);
+    });
+
+    it('drops all hands on the final frame', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      const last = kfs[kfs.length - 1];
+      expect(last.hands).toHaveLength(0);
+    });
+
+    it('both dancers in each couple face across the set at the end', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      // Left line (x=-0.5) should face east (90°)
+      expect(last.dancers['up_lark_0'].facing).toBeCloseTo(90, 0);
+      expect(last.dancers['up_robin_0'].facing).toBeCloseTo(90, 0);
+      // Right line (x=0.5) should face west (270°)
+      expect(last.dancers['down_lark_0'].facing).toBeCloseTo(270, 0);
+      expect(last.dancers['down_robin_0'].facing).toBeCloseTo(270, 0);
+    });
+
+    it('lark ends on the left side of the couple (north when facing east)', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      // Left line pair: facing east, lark should be at higher y (north = left)
+      expect(last.dancers['up_lark_0'].y).toBeGreaterThan(last.dancers['up_robin_0'].y);
+      // Right line pair: facing west, lark should be at lower y (south = left)
+      expect(last.dancers['down_lark_0'].y).toBeLessThan(last.dancers['down_robin_0'].y);
+    });
+
+    it('ends approximately in improper formation', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 8, type: 'robins_chain', relationship: 'partner' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      const init = initialKeyframe();
+
+      // After a half robins chain from improper, dancers should be approximately
+      // at their original positions but with robins swapped across the set.
+      // up_lark should be near (-0.5, y) on the left line
+      // down_lark should be near (0.5, y) on the right line
+      // up_robin should be near (-0.5, y) on the left line (swapped from right)
+      // down_robin should be near (0.5, y) on the right line (swapped from left)
+      expect(Math.abs(last.dancers['up_lark_0'].x - init.dancers['up_lark_0'].x)).toBeLessThan(0.1);
+      expect(Math.abs(last.dancers['down_lark_0'].x - init.dancers['down_lark_0'].x)).toBeLessThan(0.1);
+    });
+  });
 });

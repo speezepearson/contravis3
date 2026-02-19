@@ -12,13 +12,13 @@ import { z } from 'zod';
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'split', 'group'];
+const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'robins_chain', 'split', 'group'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
   turn: 'turn', step: 'step', balance: 'balance',
   box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
-  mad_robin: 'mad robin',
+  mad_robin: 'mad robin', robins_chain: 'robins chain',
   split: 'split', group: 'group',
 };
 
@@ -80,6 +80,7 @@ function defaultBeats(action: string): string {
     case 'box_the_gnat': return '4';
     case 'give_and_take_into_swing': return '16';
     case 'mad_robin':  return '8';
+    case 'robins_chain': return '8';
     default:          return '0';
   }
 }
@@ -328,6 +329,11 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       const withLabel =
         instr.with === "larks_left" ? "larks' left" : "robins' left";
       return `mad robin ${dirLabel}, ${withLabel} ${instr.rotations}x (${instr.beats}b)`;
+    }
+    case 'robins_chain': {
+      const r = instr.relationship;
+      const label = r === 'on_right' ? 'on-your-right' : r === 'on_left' ? 'on-your-left' : r === 'in_front' ? 'in-front' : r;
+      return `${label} robins chain (${instr.beats}b)`;
     }
   }
 }
@@ -739,6 +745,27 @@ function MadRobinFields({ id, isEditing, initial, onSave, onCancel }: SubFormPro
   </>);
 }
 
+function RobinsChainFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'robins_chain' }> }) {
+  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'partner');
+  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('robins_chain'));
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'robins_chain', beats: Number(beats) || 0, relationship }));
+  }
+
+  return (<>
+    <label>
+      With
+      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => v} />
+    </label>
+    <label>
+      Beats
+      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
 function SplitFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'split' }> }) {
   const [splitBy, setSplitBy] = useState<SplitBy['by']>(initial?.by ?? 'role');
 
@@ -822,6 +849,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true }: {
       {action === 'box_the_gnat' && <BoxTheGnatFields {...common} initial={initial?.type === 'box_the_gnat' ? initial : undefined} />}
       {action === 'give_and_take_into_swing' && <GiveAndTakeIntoSwingFields {...common} initial={initial?.type === 'give_and_take_into_swing' ? initial : undefined} />}
       {action === 'mad_robin' && <MadRobinFields {...common} initial={initial?.type === 'mad_robin' ? initial : undefined} />}
+      {action === 'robins_chain' && <RobinsChainFields {...common} initial={initial?.type === 'robins_chain' ? initial : undefined} />}
       {action === 'split' && <SplitFields {...common} initial={initial?.type === 'split' ? initial : undefined} />}
       {action === 'group' && <GroupFields {...common} initial={initial?.type === 'group' ? initial : undefined} />}
     </div>
