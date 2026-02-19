@@ -2,6 +2,12 @@ import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDi
 import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
 import { assertNever } from './utils';
 
+export class KeyframeGenerationError extends Error {
+  constructor(message: string, public readonly partialKeyframes: Keyframe[]) {
+    super(message);
+  }
+}
+
 const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
 const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 
@@ -1066,10 +1072,19 @@ function processInstructions(prev: Keyframe, instructions: AtomicInstruction[], 
   const result: Keyframe[] = [];
   let current = prev;
   for (const instr of instructions) {
-    const newFrames = processAtomicInstruction(current, instr, scope);
-    result.push(...newFrames);
-    if (newFrames.length > 0) {
-      current = newFrames[newFrames.length - 1];
+    try {
+      const newFrames = processAtomicInstruction(current, instr, scope);
+      result.push(...newFrames);
+      if (newFrames.length > 0) {
+        current = newFrames[newFrames.length - 1];
+      }
+    } catch (e) {
+      const partial = e instanceof KeyframeGenerationError ? e.partialKeyframes : [];
+      result.push(...partial);
+      throw new KeyframeGenerationError(
+        e instanceof Error ? e.message : String(e),
+        result,
+      );
     }
   }
   return result;
@@ -1090,12 +1105,12 @@ function sampleAtBeat(timeline: Keyframe[], beat: number): Keyframe | null {
   return best;
 }
 
-function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'split' }>): Keyframe[] {
-  const [groupA, groupB] = SPLIT_GROUPS[instr.by];
-
-  const timelineA = processInstructions(prev, instr.listA, groupA);
-  const timelineB = processInstructions(prev, instr.listB, groupB);
-
+function mergeSplitTimelines(
+  prev: Keyframe,
+  groupA: Set<ProtoDancerId>,
+  timelineA: Keyframe[],
+  timelineB: Keyframe[],
+): Keyframe[] {
   if (timelineA.length === 0 && timelineB.length === 0) {
     return [];
   }
@@ -1132,6 +1147,37 @@ function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'spli
     }
 
     merged.push({ beat, dancers, hands: [...handMap.values()] });
+  }
+
+  return merged;
+}
+
+function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'split' }>): Keyframe[] {
+  const [groupA, groupB] = SPLIT_GROUPS[instr.by];
+
+  let timelineA: Keyframe[];
+  let errorA: Error | null = null;
+  try {
+    timelineA = processInstructions(prev, instr.listA, groupA);
+  } catch (e) {
+    timelineA = e instanceof KeyframeGenerationError ? e.partialKeyframes : [];
+    errorA = e instanceof Error ? e : new Error(String(e));
+  }
+
+  let timelineB: Keyframe[];
+  let errorB: Error | null = null;
+  try {
+    timelineB = processInstructions(prev, instr.listB, groupB);
+  } catch (e) {
+    timelineB = e instanceof KeyframeGenerationError ? e.partialKeyframes : [];
+    errorB = e instanceof Error ? e : new Error(String(e));
+  }
+
+  const merged = mergeSplitTimelines(prev, groupA, timelineA, timelineB);
+
+  if (errorA || errorB) {
+    const message = (errorA ?? errorB)!.message;
+    throw new KeyframeGenerationError(message, merged);
   }
 
   return merged;
@@ -1232,10 +1278,19 @@ function processTopLevelInstruction(prev: Keyframe, instr: Instruction): Keyfram
     const result: Keyframe[] = [];
     let current = prev;
     for (const child of instr.instructions) {
-      const childFrames = processTopLevelInstruction(current, child);
-      result.push(...childFrames);
-      if (childFrames.length > 0) {
-        current = childFrames[childFrames.length - 1];
+      try {
+        const childFrames = processTopLevelInstruction(current, child);
+        result.push(...childFrames);
+        if (childFrames.length > 0) {
+          current = childFrames[childFrames.length - 1];
+        }
+      } catch (e) {
+        const partial = e instanceof KeyframeGenerationError ? e.partialKeyframes : [];
+        result.push(...partial);
+        throw new KeyframeGenerationError(
+          e instanceof Error ? e.message : String(e),
+          result,
+        );
       }
     }
     return result;
@@ -1263,6 +1318,9 @@ export function generateAllKeyframes(instructions: Instruction[], initFormation?
       const newFrames = processTopLevelInstruction(prev, instr);
       keyframes.push(...newFrames);
     } catch (e) {
+      if (e instanceof KeyframeGenerationError) {
+        keyframes.push(...e.partialKeyframes);
+      }
       return {
         keyframes,
         error: { instructionId: instr.id, message: e instanceof Error ? e.message : String(e) },

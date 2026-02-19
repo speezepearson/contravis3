@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes, validateHandDistances, validateProgression } from './generate';
+import { generateAllKeyframes, validateHandDistances, validateProgression, KeyframeGenerationError } from './generate';
 import type { Instruction, Keyframe } from './types';
 import { parseDancerId, InstructionSchema, DanceSchema, ProtoDancerIdSchema } from './types';
 import { z } from 'zod';
@@ -1539,6 +1539,84 @@ describe('generateAllKeyframes with initFormation', () => {
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       expect(validateProgression(keyframes, 'improper', 0)).toBeNull();
+    });
+  });
+
+  describe('partial keyframe preservation on error', () => {
+    it('preserves keyframes from earlier instructions in a group when a later child fails', () => {
+      // A group with a successful step followed by a failing take_hands (inside hand with neighbor
+      // in improper formation → error because neighbor is directly in front).
+      const instructions = instr([{
+        id: tid(1), type: 'group', label: 'test group',
+        instructions: [
+          { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+          { id: tid(11), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+        ],
+      }]);
+      const { keyframes, error } = generateAllKeyframes(instructions);
+      expect(error).not.toBeNull();
+      expect(error!.instructionId).toBe(tid(1));
+      // Should have the initial keyframe PLUS keyframes from the successful step
+      expect(keyframes.length).toBeGreaterThan(1);
+      expect(keyframes[keyframes.length - 1].beat).toBeCloseTo(4, 5);
+    });
+
+    it('preserves keyframes from the successful branch of a split when the other branch fails', () => {
+      // Split by role: larks do a step (succeeds), robins try inside-hand take with neighbor (fails).
+      // In improper formation, robins at (0.5,-0.5) and (-0.5,0.5) face 0° and 180° respectively.
+      // Their neighbor is directly in front → inside hand fails.
+      const instructions = instr([{
+        id: tid(1), type: 'split', by: 'role',
+        listA: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 }],
+        listB: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' }],
+      }]);
+      const { keyframes, error } = generateAllKeyframes(instructions);
+      expect(error).not.toBeNull();
+      // Should have the initial keyframe plus merged partial frames from the successful lark branch
+      expect(keyframes.length).toBeGreaterThan(1);
+      // The larks should have moved forward in the partial result
+      const last = keyframes[keyframes.length - 1];
+      const init = initialKeyframe();
+      expect(last.dancers['up_lark_0'].y).not.toBeCloseTo(init.dancers['up_lark_0'].y, 5);
+    });
+
+    it('preserves keyframes from a successful first instruction when the second top-level instruction fails', () => {
+      const instructions = instr([
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+        { id: tid(2), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+      ]);
+      const { keyframes, error } = generateAllKeyframes(instructions);
+      expect(error).not.toBeNull();
+      expect(error!.instructionId).toBe(tid(2));
+      // Should have the initial keyframe plus keyframes from the successful step
+      expect(keyframes.length).toBeGreaterThan(1);
+      expect(keyframes[keyframes.length - 1].beat).toBeCloseTo(4, 5);
+    });
+
+    it('KeyframeGenerationError includes partial keyframes from within a split branch sequence', () => {
+      // Split by role: larks do two steps (both succeed), robins do a step then a failing take_hands.
+      // The robin branch should preserve keyframes from its successful first step.
+      const instructions = instr([{
+        id: tid(1), type: 'split', by: 'role',
+        listA: [
+          { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+          { id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+        ],
+        listB: [
+          { id: tid(20), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+          { id: tid(21), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+        ],
+      }]);
+      const { keyframes, error } = generateAllKeyframes(instructions);
+      expect(error).not.toBeNull();
+      // Partial result should contain merged keyframes up to beat 4
+      // (the successful first step from both branches)
+      expect(keyframes.length).toBeGreaterThan(1);
+      const last = keyframes[keyframes.length - 1];
+      const init = initialKeyframe();
+      // Both larks and robins should have moved from their initial positions in the partial result
+      expect(last.dancers['up_lark_0'].y).not.toBeCloseTo(init.dancers['up_lark_0'].y, 5);
+      expect(last.dancers['up_robin_0'].y).not.toBeCloseTo(init.dancers['up_robin_0'].y, 5);
     });
   });
 });
