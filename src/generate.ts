@@ -1,5 +1,5 @@
 import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId, InitFormation, InstructionId } from './types';
-import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
+import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists } from './types';
 import { assertNever } from './utils';
 
 export class KeyframeGenerationError extends Error {
@@ -1159,11 +1159,12 @@ function mergeSplitTimelines(
 
 function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'split' }>): Keyframe[] {
   const [groupA, groupB] = SPLIT_GROUPS[instr.by];
+  const [listA, listB] = splitLists(instr);
 
   let timelineA: Keyframe[];
   let errorA: Error | null = null;
   try {
-    timelineA = processInstructions(prev, instr.listA, groupA);
+    timelineA = processInstructions(prev, listA, groupA);
   } catch (e) {
     timelineA = e instanceof KeyframeGenerationError ? e.partialKeyframes : [];
     errorA = e instanceof Error ? e : new Error(String(e));
@@ -1172,7 +1173,7 @@ function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'spli
   let timelineB: Keyframe[];
   let errorB: Error | null = null;
   try {
-    timelineB = processInstructions(prev, instr.listB, groupB);
+    timelineB = processInstructions(prev, listB, groupB);
   } catch (e) {
     timelineB = e instanceof KeyframeGenerationError ? e.partialKeyframes : [];
     errorB = e instanceof Error ? e : new Error(String(e));
@@ -1192,11 +1193,13 @@ function generateSplit(prev: Keyframe, instr: Extract<Instruction, { type: 'spli
 // --- Top-level generator ---
 
 function instructionDuration(instr: Instruction): number {
-  if (instr.type === 'split')
+  if (instr.type === 'split') {
+    const [listA, listB] = splitLists(instr);
     return Math.max(
-      instr.listA.reduce((s, i) => s + i.beats, 0),
-      instr.listB.reduce((s, i) => s + i.beats, 0)
+      listA.reduce((s, i) => s + i.beats, 0),
+      listB.reduce((s, i) => s + i.beats, 0)
     );
+  }
   if (instr.type === 'group')
     return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
   return instr.beats;

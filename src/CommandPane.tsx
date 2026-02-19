@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, SplitBySchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema } from './types';
+import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema, splitLists, splitWithLists } from './types';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId, Role } from './types';
 import type { GenerateError } from './generate';
 import { z } from 'zod';
@@ -59,7 +59,7 @@ function directionToText(dir: RelativeDirection): string {
   return dir.value;
 }
 
-function splitGroupLabel(by: SplitBy, list: 'A' | 'B'): string {
+function splitGroupLabel(by: SplitBy['by'], list: 'A' | 'B'): string {
   if (by === 'role') return list === 'A' ? 'Larks' : 'Robins';
   return list === 'A' ? 'Ups' : 'Downs';
 }
@@ -113,7 +113,8 @@ function findInstructionById(instrs: Instruction[], id: InstructionId): Instruct
       if (found) return found;
     }
     if (i.type === 'split') {
-      for (const s of [...i.listA, ...i.listB]) {
+      const [listA, listB] = splitLists(i);
+      for (const s of [...listA, ...listB]) {
         if (s.id === id) return InstructionSchema.parse(s);
       }
     }
@@ -124,7 +125,7 @@ function findInstructionById(instrs: Instruction[], id: InstructionId): Instruct
 function instructionContainsId(instr: Instruction, id: InstructionId): boolean {
   if (instr.id === id) return true;
   if (instr.type === 'group') return instr.instructions.some(c => instructionContainsId(c, id));
-  if (instr.type === 'split') return [...instr.listA, ...instr.listB].some(c => c.id === id);
+  if (instr.type === 'split') { const [listA, listB] = splitLists(instr); return [...listA, ...listB].some(c => c.id === id); }
   return false;
 }
 
@@ -137,10 +138,11 @@ function removeFromTree(instrs: Instruction[], targetId: InstructionId): [Instru
   const mapped = instrs.map(i => {
     if (removed) return i;
     if (i.type === 'split') {
-      const aIdx = i.listA.findIndex(s => s.id === targetId);
-      if (aIdx !== -1) { removed = InstructionSchema.parse(i.listA[aIdx]); return InstructionSchema.parse({ ...i, listA: [...i.listA.slice(0, aIdx), ...i.listA.slice(aIdx + 1)] }); }
-      const bIdx = i.listB.findIndex(s => s.id === targetId);
-      if (bIdx !== -1) { removed = InstructionSchema.parse(i.listB[bIdx]); return InstructionSchema.parse({ ...i, listB: [...i.listB.slice(0, bIdx), ...i.listB.slice(bIdx + 1)] }); }
+      const [listA, listB] = splitLists(i);
+      const aIdx = listA.findIndex(s => s.id === targetId);
+      if (aIdx !== -1) { removed = InstructionSchema.parse(listA[aIdx]); return InstructionSchema.parse({ ...i, ...splitWithLists(i.by, [...listA.slice(0, aIdx), ...listA.slice(aIdx + 1)], listB) }); }
+      const bIdx = listB.findIndex(s => s.id === targetId);
+      if (bIdx !== -1) { removed = InstructionSchema.parse(listB[bIdx]); return InstructionSchema.parse({ ...i, ...splitWithLists(i.by, listA, [...listB.slice(0, bIdx), ...listB.slice(bIdx + 1)]) }); }
     }
     if (i.type === 'group') {
       const [newChildren, r] = removeFromTree(i.instructions, targetId);
@@ -165,10 +167,12 @@ function insertIntoContainer(instrs: Instruction[], containerId: string, item: I
       return { ...i, instructions: copy };
     }
     if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
-      const key = parsed.list === 'A' ? 'listA' : 'listB';
-      const copy = [...i[key]];
+      const [listA, listB] = splitLists(i);
+      const list = parsed.list === 'A' ? listA : listB;
+      const copy = [...list];
       copy.splice(index, 0, AtomicInstructionSchema.parse(item));
-      return { ...i, [key]: copy };
+      const newLists = parsed.list === 'A' ? splitWithLists(i.by, copy, listB) : splitWithLists(i.by, listA, copy);
+      return { ...i, ...newLists };
     }
     if (i.type === 'group') {
       return { ...i, instructions: insertIntoContainer(i.instructions, containerId, item, index) };
@@ -185,8 +189,11 @@ function reorderInContainer(instrs: Instruction[], containerId: string, oldIndex
       return { ...i, instructions: arrayMove(i.instructions, oldIndex, newIndex) };
     }
     if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
-      const key = parsed.list === 'A' ? 'listA' : 'listB';
-      return { ...i, [key]: arrayMove(i[key], oldIndex, newIndex) };
+      const [listA, listB] = splitLists(i);
+      const newLists = parsed.list === 'A'
+        ? splitWithLists(i.by, arrayMove(listA, oldIndex, newIndex), listB)
+        : splitWithLists(i.by, listA, arrayMove(listB, oldIndex, newIndex));
+      return { ...i, ...newLists };
     }
     if (i.type === 'group') {
       return { ...i, instructions: reorderInContainer(i.instructions, containerId, oldIndex, newIndex) };
@@ -201,7 +208,8 @@ function getContainerItems(instrs: Instruction[], containerId: string): Instruct
   for (const i of instrs) {
     if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) return i.instructions;
     if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
-      return z.array(InstructionSchema).parse(parsed.list === 'A' ? i.listA : i.listB);
+      const [listA, listB] = splitLists(i);
+      return z.array(InstructionSchema).parse(parsed.list === 'A' ? listA : listB);
     }
     if (i.type === 'group') {
       const found = getContainerItems(i.instructions, containerId);
@@ -215,11 +223,15 @@ function replaceInTree(instrs: Instruction[], id: InstructionId, replacement: In
   return instrs.map(i => {
     if (i.id === id) return replacement;
     if (i.type === 'split') {
-      if (!i.listA.some(s => s.id === id) && !i.listB.some(s => s.id === id)) return i;
+      const [listA, listB] = splitLists(i);
+      if (!listA.some(s => s.id === id) && !listB.some(s => s.id === id)) return i;
       return InstructionSchema.parse({
         ...i,
-        listA: i.listA.map(sub => sub.id === id ? AtomicInstructionSchema.parse(replacement) : sub),
-        listB: i.listB.map(sub => sub.id === id ? AtomicInstructionSchema.parse(replacement) : sub),
+        ...splitWithLists(
+          i.by,
+          listA.map(sub => sub.id === id ? AtomicInstructionSchema.parse(replacement) : sub),
+          listB.map(sub => sub.id === id ? AtomicInstructionSchema.parse(replacement) : sub),
+        ),
       });
     }
     if (i.type === 'group') {
@@ -321,8 +333,10 @@ function summarizeAtomic(instr: AtomicInstruction): string {
 }
 
 function instrDuration(instr: Instruction): number {
-  if (instr.type === 'split')
-    return Math.max(sumBeats(instr.listA), sumBeats(instr.listB));
+  if (instr.type === 'split') {
+    const [listA, listB] = splitLists(instr);
+    return Math.max(sumBeats(listA), sumBeats(listB));
+  }
   if (instr.type === 'group')
     return instr.instructions.reduce((s, i) => s + instrDuration(i), 0);
   return instr.beats;
@@ -330,7 +344,8 @@ function instrDuration(instr: Instruction): number {
 
 function summarize(instr: Instruction): string {
   if (instr.type === 'split') {
-    const totalBeats = Math.max(sumBeats(instr.listA), sumBeats(instr.listB));
+    const [listA, listB] = splitLists(instr);
+    const totalBeats = Math.max(sumBeats(listA), sumBeats(listB));
     return `split by ${instr.by} (${totalBeats}b)`;
   }
   if (instr.type === 'group') {
@@ -725,16 +740,17 @@ function MadRobinFields({ id, isEditing, initial, onSave, onCancel }: SubFormPro
 }
 
 function SplitFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'split' }> }) {
-  const [splitBy, setSplitBy] = useState<SplitBy>(initial?.by ?? 'role');
+  const [splitBy, setSplitBy] = useState<SplitBy['by']>(initial?.by ?? 'role');
 
   function save() {
-    onSave(InstructionSchema.parse({ id, type: 'split', by: splitBy, listA: initial?.listA ?? [], listB: initial?.listB ?? [] }));
+    const [listA, listB] = initial ? splitLists(initial) : [[], []];
+    onSave(InstructionSchema.parse({ id, type: 'split', ...splitWithLists(splitBy, listA, listB) }));
   }
 
   return (<>
     <label>
       Split by
-      <SearchableDropdown options={SPLIT_BY_OPTIONS} value={splitBy} onChange={v => setSplitBy(SplitBySchema.parse(v))} getLabel={v => SPLIT_BY_LABELS[v] ?? v} />
+      <SearchableDropdown options={SPLIT_BY_OPTIONS} value={splitBy} onChange={v => setSplitBy(z.enum(['role', 'position']).parse(v))} getLabel={v => SPLIT_BY_LABELS[v] ?? v} />
     </label>
     <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
   </>);
@@ -1082,10 +1098,11 @@ export default function CommandPane({ instructions, setInstructions, initFormati
   }
 
   function renderSplitBody(split: Extract<Instruction, { type: 'split' }>) {
+    const [splitListA, splitListB] = splitLists(split);
     return (
       <div className="split-body">
         {(['A', 'B'] as const).map(list => {
-          const subList = list === 'A' ? split.listA : split.listB;
+          const subList = list === 'A' ? splitListA : splitListB;
           const label = splitGroupLabel(split.by, list);
           const containerId = `split-${split.id}-${list}`;
           return (

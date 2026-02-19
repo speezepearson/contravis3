@@ -4,13 +4,16 @@ import { generateAllKeyframes, validateHandDistances, validateProgression } from
 import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { Instruction, InitFormation, InstructionId } from './types';
+import { splitLists } from './types';
 
 const DANCE_LENGTH = 64;
 
 function instructionDuration(instr: Instruction): number {
-  if (instr.type === 'split')
-    return Math.max(instr.listA.reduce((s, i) => s + i.beats, 0),
-                    instr.listB.reduce((s, i) => s + i.beats, 0));
+  if (instr.type === 'split') {
+    const [listA, listB] = splitLists(instr);
+    return Math.max(listA.reduce((s, i) => s + i.beats, 0),
+                    listB.reduce((s, i) => s + i.beats, 0));
+  }
   if (instr.type === 'group')
     return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
   return instr.beats;
@@ -26,14 +29,15 @@ function activeInstructionId(instructions: Instruction[], beat: number): Instruc
       if (childId !== null) activeId = childId;
     } else if (instr.type === 'split') {
       const rel = beat - currentBeat;
+      const [listA, listB] = splitLists(instr);
       let b = 0;
-      for (const sub of instr.listA) {
+      for (const sub of listA) {
         if (b > rel + 1e-9) break;
         activeId = sub.id;
         b += sub.beats;
       }
       b = 0;
-      for (const sub of instr.listB) {
+      for (const sub of listB) {
         if (b > rel + 1e-9) break;
         activeId = sub.id;
         b += sub.beats;

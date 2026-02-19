@@ -74,14 +74,30 @@ export type AtomicInstruction = z.infer<typeof AtomicInstructionSchema>;
 export const ActionTypeSchema = z.enum(['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'turn', 'step', 'balance', 'swing', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin']);
 export type ActionType = z.infer<typeof ActionTypeSchema>;
 
-export const SplitBySchema = z.enum(['role', 'position']);
+export const SplitBySchema = z.discriminatedUnion('by', [
+  z.object({ by: z.literal('role'), larks: z.array(AtomicInstructionSchema), robins: z.array(AtomicInstructionSchema) }),
+  z.object({ by: z.literal('position'), ups: z.array(AtomicInstructionSchema), downs: z.array(AtomicInstructionSchema) }),
+]);
 export type SplitBy = z.infer<typeof SplitBySchema>;
+
+/** Get the two sub-instruction lists from a split, in [groupA, groupB] order.
+ *  role → [larks, robins], position → [ups, downs]. */
+export function splitLists(split: SplitBy): [AtomicInstruction[], AtomicInstruction[]] {
+  if (split.by === 'role') return [split.larks, split.robins];
+  return [split.ups, split.downs];
+}
+
+/** Build a SplitBy with updated sub-instruction lists, preserving the discriminator. */
+export function splitWithLists(by: SplitBy['by'], listA: AtomicInstruction[], listB: AtomicInstruction[]): SplitBy {
+  if (by === 'role') return { by: 'role', larks: listA, robins: listB };
+  return { by: 'position', ups: listA, downs: listB };
+}
 
 // Instruction is recursive (group contains Instruction[]), so we define the
 // type manually with the brand baked in and annotate the schema accordingly.
 export type Instruction = (
   | AtomicInstruction
-  | { id: InstructionId; type: 'split'; by: SplitBy; listA: AtomicInstruction[]; listB: AtomicInstruction[] }
+  | { id: InstructionId; type: 'split' } & SplitBy
   | { id: InstructionId; type: 'group'; label: string; instructions: Instruction[] }
 ) & z.BRAND<'Instruction'>;
 
@@ -91,7 +107,8 @@ export type Instruction = (
 // compile-time type so that parse() returns branded Instructions.
 export const InstructionSchema: z.ZodType<Instruction> = z.lazy(() => z.union([
   AtomicInstructionSchema,
-  z.object({ id: InstructionIdSchema, type: z.literal('split'), by: SplitBySchema, listA: z.array(AtomicInstructionSchema), listB: z.array(AtomicInstructionSchema) }),
+  z.object({ id: InstructionIdSchema, type: z.literal('split'), by: z.literal('role'), larks: z.array(AtomicInstructionSchema), robins: z.array(AtomicInstructionSchema) }),
+  z.object({ id: InstructionIdSchema, type: z.literal('split'), by: z.literal('position'), ups: z.array(AtomicInstructionSchema), downs: z.array(AtomicInstructionSchema) }),
   z.object({ id: InstructionIdSchema, type: z.literal('group'), label: z.string(), instructions: z.array(InstructionSchema) }),
 ])) as unknown as z.ZodType<Instruction>;
 
