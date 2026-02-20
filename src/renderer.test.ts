@@ -224,4 +224,60 @@ describe('getFrameAtBeat', () => {
       expect(progressed.dancers.down_lark_0.y).toBeCloseTo(base.dancers.down_lark_0.y - 2);
     });
   });
+
+  describe('wrap=false', () => {
+    it('negative beats clamp to first keyframe instead of wrapping', () => {
+      const kfs = uniformKeyframes();
+      const frame = getFrameAtBeat(kfs, -1, 0, 64, 0, false)!;
+      // Should clamp to first keyframe (beat 0, x=0), not wrap to beat 63
+      expect(frame.dancers.up_lark_0.x).toBeCloseTo(0);
+      expect(frame.dancers.up_lark_0.y).toBeCloseTo(0);
+    });
+
+    it('beats beyond dance length clamp to last keyframe instead of wrapping', () => {
+      const kfs = uniformKeyframes();
+      const frame = getFrameAtBeat(kfs, 66, 0, 64, 0, false)!;
+      // Should clamp to last keyframe (beat 12, x=3), not wrap to beat 2
+      expect(frame.dancers.up_lark_0.x).toBeCloseTo(3);
+    });
+
+    it('no progression applied when clamped', () => {
+      const kfs = uniformKeyframes();
+      const frame = getFrameAtBeat(kfs, -1, 0, 64, 1, false)!;
+      // With wrap=true, t=-1 applies cycle=-1 progression; with wrap=false, no progression
+      const first = kfs[0];
+      expect(frame.dancers.up_lark_0.y).toBeCloseTo(first.dancers.up_lark_0.y);
+      expect(frame.dancers.down_lark_0.y).toBeCloseTo(first.dancers.down_lark_0.y);
+    });
+
+    it('interpolation within keyframe range is unchanged', () => {
+      const kfs = uniformKeyframes();
+      const wrapped = getFrameAtBeat(kfs, 6, 0, 64, 0, true)!;
+      const noWrap = getFrameAtBeat(kfs, 6, 0, 64, 0, false)!;
+      // Within range, wrap makes no difference
+      expect(noWrap.dancers.up_lark_0.x).toBeCloseTo(wrapped.dancers.up_lark_0.x);
+      expect(noWrap.dancers.up_lark_0.y).toBeCloseTo(wrapped.dancers.up_lark_0.y);
+    });
+
+    it('smoothing near beat 0 does not pull in values from end of dance', () => {
+      // Create keyframes where start and end positions differ significantly
+      const pos = (v: number): [number, number, number] => [v, 0, 0];
+      const z: [number, number, number] = [0, 0, 0];
+      const kfs = [
+        makeKeyframe(0,  { up_lark_0: pos(0), up_robin_0: z, down_lark_0: z, down_robin_0: z }),
+        makeKeyframe(4,  { up_lark_0: pos(0), up_robin_0: z, down_lark_0: z, down_robin_0: z }),
+        makeKeyframe(8,  { up_lark_0: pos(5), up_robin_0: z, down_lark_0: z, down_robin_0: z }),
+        makeKeyframe(12, { up_lark_0: pos(5), up_robin_0: z, down_lark_0: z, down_robin_0: z }),
+      ];
+      // Smoothing with window=4 around beat 0: samples from [-2, 2]
+      // wrap=true: negative samples wrap to ~62, hitting the last kf (x=5), inflating average
+      // wrap=false: negative samples clamp to first kf (x=0), average stays near 0
+      const smoothedWrap = getFrameAtBeat(kfs, 0, 4, 64, 0, true)!;
+      const smoothedNoWrap = getFrameAtBeat(kfs, 0, 4, 64, 0, false)!;
+      // With wrap, the average gets pulled toward x=5
+      expect(smoothedWrap.dancers.up_lark_0.x).toBeGreaterThan(1);
+      // Without wrap, the average stays near x=0
+      expect(smoothedNoWrap.dancers.up_lark_0.x).toBeCloseTo(0);
+    });
+  });
 });

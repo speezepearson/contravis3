@@ -310,15 +310,22 @@ function unwrapAngle(angle: number, ref: number): number {
 }
 
 /** Linear interpolation between keyframes (no smoothing). */
-function rawFrameAtBeat(keyframes: Keyframe[], beat: number, danceLength: number = 64, progression: number = 0): Keyframe | null {
+function rawFrameAtBeat(keyframes: Keyframe[], beat: number, danceLength: number = 64, progression: number = 0, wrap: boolean = true): Keyframe | null {
   if (keyframes.length === 0) return null;
 
-  // Compute cycle count before wrapping (negative beats go the other way)
-  const cycle = Math.floor(beat / danceLength);
-  beat = ((beat % danceLength) + danceLength) % danceLength;
+  let cycle = 0;
+  if (wrap) {
+    // Compute cycle count before wrapping (negative beats go the other way)
+    cycle = Math.floor(beat / danceLength);
+    beat = ((beat % danceLength) + danceLength) % danceLength;
 
-  if (beat <= keyframes[0].beat) return applyProgression(keyframes[0], cycle, progression);
-  if (beat >= keyframes[keyframes.length - 1].beat) return applyProgression(keyframes[keyframes.length - 1], cycle, progression);
+    if (beat <= keyframes[0].beat) return applyProgression(keyframes[0], cycle, progression);
+    if (beat >= keyframes[keyframes.length - 1].beat) return applyProgression(keyframes[keyframes.length - 1], cycle, progression);
+  } else {
+    // No wrapping: clamp to keyframe range, no cycle progression
+    if (beat <= keyframes[0].beat) return keyframes[0];
+    if (beat >= keyframes[keyframes.length - 1].beat) return keyframes[keyframes.length - 1];
+  }
 
   // Binary search for surrounding frames
   let lo = 0, hi = keyframes.length - 1;
@@ -367,11 +374,11 @@ const SMOOTH_SAMPLES = 10;
  * Get an interpolated frame at `beat`.
  * `smoothness` is the width of a moving-average window in beats (0 = raw linear).
  */
-export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: number = 0, danceLength: number = 64, progression: number = 0): Keyframe | null {
+export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: number = 0, danceLength: number = 64, progression: number = 0, wrap: boolean = true): Keyframe | null {
   if (keyframes.length === 0) return null;
 
   if (smoothness === 0) {
-    return rawFrameAtBeat(keyframes, beat, danceLength, progression);
+    return rawFrameAtBeat(keyframes, beat, danceLength, progression, wrap);
   }
 
   // Sample raw interpolation at evenly spaced points across the window
@@ -382,7 +389,7 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
   // Collect all samples
   const samples: Keyframe[] = [];
   for (let i = 0; i < SMOOTH_SAMPLES; i++) {
-    const s = rawFrameAtBeat(keyframes, start + i * step, danceLength, progression);
+    const s = rawFrameAtBeat(keyframes, start + i * step, danceLength, progression, wrap);
     if (!s) return null;
     samples.push(s);
   }

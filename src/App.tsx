@@ -67,10 +67,12 @@ export default function App() {
   const bpmRef = useRef(120);
   const smoothnessRef = useRef(1);
   const progressionRef = useRef(1);
+  const wrapRef = useRef(true);
 
   const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
   const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
+  wrapRef.current = !progressionWarning;
 
   const minBeat = 0;
   const maxBeat = DANCE_LENGTH;
@@ -105,7 +107,7 @@ export default function App() {
   const draw = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    const frame = getFrameAtBeat(keyframesRef.current, beatRef.current, smoothnessRef.current, DANCE_LENGTH, progressionRef.current);
+    const frame = getFrameAtBeat(keyframesRef.current, beatRef.current, smoothnessRef.current, DANCE_LENGTH, progressionRef.current, wrapRef.current);
     if (frame) {
       renderer.drawFrame(frame, -progressionRef.current / DANCE_LENGTH);
       setAnnotation(frame.annotation || '');
@@ -283,6 +285,7 @@ export default function App() {
         smoothness: smoothnessRef.current,
         progressionRate: -progressionRef.current / DANCE_LENGTH,
         progression: progressionRef.current,
+        wrap: wrapRef.current,
       });
       const blob = new Blob([gifBytes.buffer as ArrayBuffer], { type: 'image/gif' });
       const url = URL.createObjectURL(blob);
