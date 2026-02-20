@@ -139,6 +139,72 @@ export const DanceSchema = z.object({
 });
 export type Dance = z.infer<typeof DanceSchema>;
 
+/**
+ * Format a ZodError from DanceSchema.safeParse into a detailed, human-friendly
+ * error message.  For issues inside instructions[i], the message identifies the
+ * instruction index, its type, its beat-range, and the specific field problem.
+ */
+export function formatDanceParseError(error: z.ZodError, raw: unknown): string {
+  const lines: string[] = [];
+  const rawObj = (typeof raw === 'object' && raw !== null) ? raw as Record<string, unknown> : null;
+  const rawInstructions = Array.isArray(rawObj?.instructions) ? rawObj.instructions as unknown[] : null;
+
+  // Compute cumulative beat offsets for raw instructions so we can report beat ranges
+  function instrBeats(rawInstr: unknown): number {
+    if (typeof rawInstr !== 'object' || rawInstr === null) return 0;
+    const obj = rawInstr as Record<string, unknown>;
+    if (typeof obj.beats === 'number') return obj.beats;
+    // groups / splits: sum children
+    if (obj.type === 'group' && Array.isArray(obj.instructions)) {
+      return (obj.instructions as unknown[]).reduce((s: number, c) => s + instrBeats(c), 0);
+    }
+    if (obj.type === 'split') {
+      const listA = Array.isArray(obj.larks) ? obj.larks : Array.isArray(obj.ups) ? obj.ups : [];
+      const listB = Array.isArray(obj.robins) ? obj.robins : Array.isArray(obj.downs) ? obj.downs : [];
+      const sumA = (listA as unknown[]).reduce((s: number, c) => s + instrBeats(c), 0);
+      const sumB = (listB as unknown[]).reduce((s: number, c) => s + instrBeats(c), 0);
+      return Math.max(sumA, sumB);
+    }
+    return 0;
+  }
+
+  function instrLabel(rawInstr: unknown, index: number): string {
+    if (typeof rawInstr !== 'object' || rawInstr === null) return `instruction #${index + 1}`;
+    const obj = rawInstr as Record<string, unknown>;
+    const typePart = typeof obj.type === 'string' ? ` (${obj.type})` : '';
+    return `instruction #${index + 1}${typePart}`;
+  }
+
+  // Group issues by instruction index for better readability
+  for (const issue of error.issues) {
+    const path = issue.path;
+    if (path.length >= 2 && path[0] === 'instructions' && typeof path[1] === 'number') {
+      const idx = path[1];
+      const rawInstr = rawInstructions?.[idx];
+      const label = instrLabel(rawInstr, idx);
+
+      // Compute beat range
+      let startBeat = 0;
+      if (rawInstructions) {
+        for (let j = 0; j < idx; j++) startBeat += instrBeats(rawInstructions[j]);
+      }
+      const duration = rawInstr ? instrBeats(rawInstr) : 0;
+      const endBeat = startBeat + duration;
+      const beatRange = `beats ${startBeat}\u2013${endBeat}`;
+
+      const fieldPath = path.slice(2).join('.');
+      const fieldPart = fieldPath ? ` at field "${fieldPath}"` : '';
+      lines.push(`${label} (${beatRange})${fieldPart}: ${issue.message}`);
+    } else {
+      // Top-level field (initFormation, progression, etc.)
+      const fieldPath = path.join('.');
+      lines.push(`${fieldPath ? `"${fieldPath}"` : 'root'}: ${issue.message}`);
+    }
+  }
+
+  return lines.length > 0 ? lines.join('\n') : 'Unknown validation error';
+}
+
 export const DancerStateSchema = z.object({
   x: z.number(),
   y: z.number(),
