@@ -314,6 +314,7 @@ interface Props {
   onEditingStart?: (info: EditingInfo) => void;
   onEditingEnd?: () => void;
   onPreviewInstruction?: (instr: Instruction | null) => void;
+  onHoverInstruction?: (id: InstructionId | null) => void;
   beat?: number;
   onBeatChange?: (beat: number) => void;
 }
@@ -943,7 +944,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onEditingStart, onEditingEnd, onPreviewInstruction, beat, onBeatChange }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onEditingStart, onEditingEnd, onPreviewInstruction, onHoverInstruction, beat, onBeatChange }: Props) {
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -1197,13 +1198,17 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           onBeatChange={onBeatChange}
                         />
                       ) : (
-                        <div className={`instruction-item${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}`}>
-                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                          <span className="instruction-summary">{summarize(instr)}</span>
+                        <div
+                          className={`instruction-item${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}`}
+                          onMouseEnter={() => onHoverInstruction?.(instr.id)}
+                          onMouseLeave={() => onHoverInstruction?.(null)}
+                        >
                           <div className="instruction-actions">
                             <button onClick={() => openEdit(instr.id)} title="Edit">{'\u270E'}</button>
                             <button onClick={() => handleRemove(instr.id)} title="Delete">{'\u00D7'}</button>
                           </div>
+                          <span className="instruction-summary">{summarize(instr)}</span>
+                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
                         </div>
                       )}
                       {warnings.get(instr.id) && (
@@ -1272,13 +1277,17 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                         onBeatChange={onBeatChange}
                       />
                     ) : (
-                      <div className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}${dimmedIds.has(child.id) ? ' dimmed' : ''}`}>
-                        <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                        <span className="instruction-summary">{summarize(child)}</span>
+                      <div
+                        className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}${dimmedIds.has(child.id) ? ' dimmed' : ''}`}
+                        onMouseEnter={() => onHoverInstruction?.(child.id)}
+                        onMouseLeave={() => onHoverInstruction?.(null)}
+                      >
                         <div className="instruction-actions">
                           <button onClick={() => openEdit(child.id)} title="Edit">{'\u270E'}</button>
                           <button onClick={() => handleRemove(child.id)} title="Delete">{'\u00D7'}</button>
                         </div>
+                        <span className="instruction-summary">{summarize(child)}</span>
+                        <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
                       </div>
                     )}
                     {warnings.get(child.id) && (
@@ -1329,13 +1338,17 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           onBeatChange={onBeatChange}
                         />
                       ) : (
-                        <div className={`instruction-item split-sub-item${sub.id === activeId ? ' active' : ''}${dimmedIds.has(sub.id) ? ' dimmed' : ''}`}>
-                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                          <span className="instruction-summary">{summarizeAtomic(sub)}</span>
+                        <div
+                          className={`instruction-item split-sub-item${sub.id === activeId ? ' active' : ''}${dimmedIds.has(sub.id) ? ' dimmed' : ''}`}
+                          onMouseEnter={() => onHoverInstruction?.(sub.id)}
+                          onMouseLeave={() => onHoverInstruction?.(null)}
+                        >
                           <div className="instruction-actions">
                             <button onClick={() => openEdit(sub.id)} title="Edit">{'\u270E'}</button>
                             <button onClick={() => handleRemove(sub.id)} title="Delete">{'\u00D7'}</button>
                           </div>
+                          <span className="instruction-summary">{summarizeAtomic(sub)}</span>
+                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
                         </div>
                       )
                     )}
