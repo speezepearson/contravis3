@@ -255,7 +255,7 @@ input[type="range"] {
   cursor: grab;
   color: #666;
   padding: 0 4px;
-  margin-right: 4px;
+  margin-left: 4px;
   user-select: none;
   font-size: 12px;
 }
@@ -264,7 +264,7 @@ input[type="range"] {
 
 .instruction-summary {
   flex: 1;
-  margin-right: 8px;
+  margin-left: 8px;
 }
 
 .instruction-actions {
