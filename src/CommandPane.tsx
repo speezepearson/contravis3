@@ -348,7 +348,7 @@ function summarizeAtomic(instr: AtomicInstruction): string {
     case 'pull_by':
       return `${relLabel(instr.relationship)} pull by ${instr.hand} (${instr.beats}b)`;
     case 'turn': {
-      const offsetStr = instr.offset ? ` +${instr.offset}\u00B0` : '';
+      const offsetStr = instr.offset ? ` +${(instr.offset / (2 * Math.PI)).toFixed(2)} rot` : '';
       return `turn ${directionToText(instr.target)}${offsetStr} (${instr.beats}b)`;
     }
     case 'step':
@@ -599,17 +599,20 @@ function PullByFields({ id, isEditing, initial, onSave, onCancel, onPreview }: S
 
 function TurnFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'turn' }> }) {
   const [targetText, setTargetText] = useState(initial ? directionToText(initial.target) : '');
-  const [offset, setOffset] = useState(initial ? String(initial.offset) : '0');
+  // UI shows rotations (1 = full turn); internally stored as radians
+  const [offsetRot, setOffsetRot] = useState(initial ? String(initial.offset / (2 * Math.PI)) : '0');
   const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('turn'));
+
+  const offsetRad = (Number(offsetRot) || 0) * 2 * Math.PI;
 
   useInstructionPreview(onPreview, () => {
     const target = parseDirection(targetText) ?? { kind: 'direction' as const, value: 'up' as const };
-    return { id, type: 'turn', beats: Number(beats) || 0, target, offset: Number(offset) || 0 };
-  }, [id, targetText, offset, beats]);
+    return { id, type: 'turn', beats: Number(beats) || 0, target, offset: offsetRad };
+  }, [id, targetText, offsetRot, beats]);
 
   function save() {
     const target = parseDirection(targetText) ?? { kind: 'direction' as const, value: 'up' as const };
-    onSave(InstructionSchema.parse({ id, type: 'turn', beats: Number(beats) || 0, target, offset: Number(offset) || 0 }));
+    onSave(InstructionSchema.parse({ id, type: 'turn', beats: Number(beats) || 0, target, offset: offsetRad }));
   }
 
   return (<>
@@ -618,8 +621,8 @@ function TurnFields({ id, isEditing, initial, onSave, onCancel, onPreview }: Sub
       <SearchableDropdown options={DIR_OPTIONS} value={targetText} onChange={setTargetText} placeholder="e.g. across, partner" />
     </label>
     <label>
-      Offset
-      <input type="text" inputMode="decimal" value={offset} onChange={e => setOffset(e.target.value)} />
+      Offset (rot)
+      <input type="text" inputMode="decimal" value={offsetRot} onChange={e => setOffsetRot(e.target.value)} />
     </label>
     <label>
       Beats

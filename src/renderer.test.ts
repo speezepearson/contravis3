@@ -161,19 +161,20 @@ describe('getFrameAtBeat', () => {
       expect(large).toBeGreaterThan(small + 0.05);
     });
 
-    it('smoothing handles facing angles near 0/360 boundary', () => {
-      // Facing goes from 350 to 10 (crossing 0)
+    it('smoothing handles facing angles near 0/2π boundary', () => {
+      // Facing goes from ~350° to ~10° (crossing 0), in radians
+      const deg2rad = (d: number) => d * Math.PI / 180;
       const z: [number, number, number] = [0, 0, 0];
       const kfs = [
-        makeKeyframe(0, { up_lark_0: [0, 0, 350], up_robin_0: z, down_lark_0: z, down_robin_0: z }),
-        makeKeyframe(2, { up_lark_0: [0, 0, 350], up_robin_0: z, down_lark_0: z, down_robin_0: z }),
-        makeKeyframe(4, { up_lark_0: [0, 0, 10],  up_robin_0: z, down_lark_0: z, down_robin_0: z }),
-        makeKeyframe(6, { up_lark_0: [0, 0, 10],  up_robin_0: z, down_lark_0: z, down_robin_0: z }),
+        makeKeyframe(0, { up_lark_0: [0, 0, deg2rad(350)], up_robin_0: z, down_lark_0: z, down_robin_0: z }),
+        makeKeyframe(2, { up_lark_0: [0, 0, deg2rad(350)], up_robin_0: z, down_lark_0: z, down_robin_0: z }),
+        makeKeyframe(4, { up_lark_0: [0, 0, deg2rad(10)],  up_robin_0: z, down_lark_0: z, down_robin_0: z }),
+        makeKeyframe(6, { up_lark_0: [0, 0, deg2rad(10)],  up_robin_0: z, down_lark_0: z, down_robin_0: z }),
       ];
       const frame = getFrameAtBeat(kfs, 3, 2)!;
       const f = frame.dancers.up_lark_0.facing;
-      // Should be near 0 (between 350 and 10), not near 180
-      expect(f > 340 || f < 20).toBe(true);
+      // Should be near 0 (between 350° and 10°), not near π
+      expect(f > deg2rad(340) || f < deg2rad(20)).toBe(true);
     });
   });
 

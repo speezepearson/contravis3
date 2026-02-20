@@ -1,5 +1,5 @@
 import type { Instruction, AtomicInstruction, Keyframe, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId, InitFormation, InstructionId } from './types';
-import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists } from './types';
+import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists, NORTH, EAST, SOUTH, WEST, QUARTER_CW, HALF_CW, FULL_CW, QUARTER_CCW, normalizeBearing } from './types';
 import { assertNever } from './utils';
 
 export class KeyframeGenerationError extends Error {
@@ -37,10 +37,10 @@ function initialKeyframe(initFormation: InitFormation = 'improper'): Keyframe {
     return {
       beat: 0,
       dancers: {
-        up_lark_0:    { x: -0.5, y:  0.5, facing: 90 },
-        up_robin_0:   { x: -0.5, y: -0.5, facing: 90 },
-        down_lark_0:  { x:  0.5, y: -0.5, facing: 270 },
-        down_robin_0: { x:  0.5, y:  0.5, facing: 270 },
+        up_lark_0:    { x: -0.5, y:  0.5, facing: EAST },
+        up_robin_0:   { x: -0.5, y: -0.5, facing: EAST },
+        down_lark_0:  { x:  0.5, y: -0.5, facing: WEST },
+        down_robin_0: { x:  0.5, y:  0.5, facing: WEST },
       },
       hands: [],
     };
@@ -48,10 +48,10 @@ function initialKeyframe(initFormation: InitFormation = 'improper'): Keyframe {
   return {
     beat: 0,
     dancers: {
-      up_lark_0:    { x: -0.5, y: -0.5, facing: 0 },
-      up_robin_0:   { x:  0.5, y: -0.5, facing: 0 },
-      down_lark_0:  { x:  0.5, y:  0.5, facing: 180 },
-      down_robin_0: { x: -0.5, y:  0.5, facing: 180 },
+      up_lark_0:    { x: -0.5, y: -0.5, facing: NORTH },
+      up_robin_0:   { x:  0.5, y: -0.5, facing: NORTH },
+      down_lark_0:  { x:  0.5, y:  0.5, facing: SOUTH },
+      down_robin_0: { x: -0.5, y:  0.5, facing: SOUTH },
     },
     hands: [],
   };
@@ -76,14 +76,14 @@ function resolveRelationship(relationship: Relationship, id: ProtoDancerId, danc
       // since those loom larger in their attention.
       const isLark = SPLIT_GROUPS.role[0].has(id);
       const angleOffset =
-        relationship === 'on_right' ? 70 :
-        relationship === 'on_left' ? -70 :
+        relationship === 'on_right' ? 70 * Math.PI / 180 :
+        relationship === 'on_left' ? -70 * Math.PI / 180 :
         relationship === 'in_front' ? 0 :
-        relationship === 'larks_left_robins_right' ? (isLark ? -70 : 70) :
-        relationship === 'larks_right_robins_left' ? (isLark ? 70 : -70) :
+        relationship === 'larks_left_robins_right' ? (isLark ? -70 * Math.PI / 180 : 70 * Math.PI / 180) :
+        relationship === 'larks_right_robins_left' ? (isLark ? 70 * Math.PI / 180 : -70 * Math.PI / 180) :
         assertNever(relationship);
       const d = dancers[id];
-      const headingRad = (d.facing + angleOffset) * Math.PI / 180;
+      const headingRad = d.facing + angleOffset;
       const ux = Math.sin(headingRad);
       const uy = Math.cos(headingRad);
 
@@ -211,15 +211,15 @@ function ellipsePosition(
 function resolveHeading(dir: RelativeDirection, d: DancerState, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): number {
   if (dir.kind === 'direction') {
     switch (dir.value) {
-      case 'up':               return 0;
-      case 'down':             return Math.PI;
-      case 'across':           return d.x < 0 ? Math.PI / 2 : -Math.PI / 2;
-      case 'out':              return d.x < 0 ? -Math.PI / 2 : Math.PI / 2;
-      case 'progression':      return UPS.has(id) ? 0 : Math.PI;
-      case 'forward':          return d.facing * Math.PI / 180;
-      case 'back':             return (d.facing + 180) * Math.PI / 180;
-      case 'right':            return (d.facing + 90) * Math.PI / 180;
-      case 'left':             return (d.facing - 90) * Math.PI / 180;
+      case 'up':               return NORTH;
+      case 'down':             return SOUTH;
+      case 'across':           return d.x < 0 ? EAST : -EAST;
+      case 'out':              return d.x < 0 ? -EAST : EAST;
+      case 'progression':      return UPS.has(id) ? NORTH : SOUTH;
+      case 'forward':          return d.facing;
+      case 'back':             return d.facing + HALF_CW;
+      case 'right':            return d.facing + QUARTER_CW;
+      case 'left':             return d.facing + QUARTER_CCW;
     }
   }
   // relationship: toward the matched partner
@@ -228,10 +228,9 @@ function resolveHeading(dir: RelativeDirection, d: DancerState, id: ProtoDancerI
   return Math.atan2(t.x - d.x, t.y - d.y);
 }
 
-/** Resolve a RelativeDirection to an absolute facing in degrees. */
+/** Resolve a RelativeDirection to an absolute facing in radians. */
 function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): number {
-  const heading = resolveHeading(dir, d, id, dancers);
-  return ((heading * 180 / Math.PI) % 360 + 360) % 360;
+  return normalizeBearing(resolveHeading(dir, d, id, dancers));
 }
 
 // --- Per-instruction generators ---
@@ -239,9 +238,9 @@ function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoDancerId
 /** Determine a dancer's inside hand (the hand closer to the target).
  *  Throws if the target is directly in front of or behind the dancer. */
 function resolveInsideHand(dancer: DancerState, target: DancerState): 'left' | 'right' {
-  const heading = Math.atan2(target.x - dancer.x, target.y - dancer.y) * 180 / Math.PI;
-  const rel = ((heading - dancer.facing + 540) % 360) - 180;
-  if (Math.abs(rel) < 1e-9 || Math.abs(Math.abs(rel) - 180) < 1e-9) {
+  const heading = Math.atan2(target.x - dancer.x, target.y - dancer.y);
+  const rel = ((heading - dancer.facing + 3 * Math.PI) % FULL_CW) - Math.PI;
+  if (Math.abs(rel) < 1e-9 || Math.abs(Math.abs(rel) - Math.PI) < 1e-9) {
     throw new Error('Cannot determine inside hand: target is neither to the left nor to the right');
   }
   return rel > 0 ? 'right' : 'left';
@@ -323,11 +322,10 @@ function generateDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { t
 
 function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   // right = CW, left = CCW
-  const totalAngleDeg = instr.rotations * 360 * (instr.handedness === 'right' ? 1 : -1);
-  const totalAngleRad = totalAngleDeg * Math.PI / 180;
+  const totalAngleRad = instr.rotations * FULL_CW * (instr.handedness === 'right' ? 1 : -1);
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
   // Shoulder offset: right hand → face 90° CCW from partner; left → 90° CW
-  const shoulderOffset = instr.handedness === 'right' ? -90 : 90;
+  const shoulderOffset = instr.handedness === 'right' ? QUARTER_CCW : QUARTER_CW;
 
   const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
 
@@ -369,8 +367,8 @@ function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { t
       const angle = od.startAngle + angleOffset;
       dancers[od.protoId].x = od.cx + od.radius * Math.sin(angle);
       dancers[od.protoId].y = od.cy + od.radius * Math.cos(angle);
-      const dirToCenter = Math.atan2(od.cx - dancers[od.protoId].x, od.cy - dancers[od.protoId].y) * 180 / Math.PI;
-      dancers[od.protoId].facing = ((dirToCenter + shoulderOffset) % 360 + 360) % 360;
+      const dirToCenter = Math.atan2(od.cx - dancers[od.protoId].x, od.cy - dancers[od.protoId].y);
+      dancers[od.protoId].facing = normalizeBearing(dirToCenter + shoulderOffset);
     }
 
     result.push({ beat, dancers, hands });
@@ -385,7 +383,7 @@ function generateTurn(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const base = resolveFacing(instr.target, prev.dancers[id], id, prev.dancers);
-    dancers[id].facing = ((base + instr.offset) % 360 + 360) % 360;
+    dancers[id].facing = normalizeBearing(base + instr.offset);
   }
 
   return [{
@@ -484,9 +482,8 @@ function generateDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { type
  *  Uses the cross product of facing direction and direction to target.
  *  Falls back on angular ordering when they are directly in front/behind. */
 function insideHandInRing(dancer: DancerState, target: DancerState, dancerAngle: number, targetAngle: number): 'left' | 'right' {
-  const facingRad = dancer.facing * Math.PI / 180;
-  const fx = Math.sin(facingRad);
-  const fy = Math.cos(facingRad);
+  const fx = Math.sin(dancer.facing);
+  const fy = Math.cos(dancer.facing);
   const dx = target.x - dancer.x;
   const dy = target.y - dancer.y;
   const cross = fx * dy - fy * dx;
@@ -565,8 +562,7 @@ function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type
       dancers[od.protoId].x = cx + od.radius * Math.sin(angle);
       dancers[od.protoId].y = cy + od.radius * Math.cos(angle);
       // Face center
-      const facingRad = Math.atan2(cx - dancers[od.protoId].x, cy - dancers[od.protoId].y);
-      dancers[od.protoId].facing = ((facingRad * 180 / Math.PI) % 360 + 360) % 360;
+      dancers[od.protoId].facing = normalizeBearing(Math.atan2(cx - dancers[od.protoId].x, cy - dancers[od.protoId].y));
     }
     result.push({ beat, dancers, hands });
   }
@@ -677,8 +673,7 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
     const f0 = thetaLark - PHASE_OFFSET;
 
     // Resolve end facing for the lark
-    const endFacingDeg = resolveFacing(instr.endFacing, larkState, lark, prev.dancers);
-    const endFacingRad = endFacingDeg * Math.PI / 180;
+    const endFacingRad = resolveFacing(instr.endFacing, larkState, lark, prev.dancers);
 
     // Compute total rotation: closest to baseRotation that ends at endFacing
     const baseRotation = (Math.PI / 2) * instr.beats; // ~90° per beat
@@ -715,20 +710,18 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
       const { lark, robin, cx, cy, f0, omega, endFacingRad, phase2Start, phase2Duration } = pair;
 
       const larkFacingRad = f0 + omega * elapsed;
-      const larkFacingDeg = ((larkFacingRad * 180 / Math.PI) % 360 + 360) % 360;
 
       if (elapsed <= phase2Start) {
         // Phase 1: regular swing orbit
         dancers[lark].x = cx - FRONT * Math.sin(larkFacingRad) - RIGHT * Math.cos(larkFacingRad);
         dancers[lark].y = cy - FRONT * Math.cos(larkFacingRad) + RIGHT * Math.sin(larkFacingRad);
-        dancers[lark].facing = larkFacingDeg;
+        dancers[lark].facing = normalizeBearing(larkFacingRad);
 
         // Robin faces opposite
         const robinFacingRad = larkFacingRad + Math.PI;
-        const robinFacingDeg = ((robinFacingRad * 180 / Math.PI) % 360 + 360) % 360;
         dancers[robin].x = cx + FRONT * Math.sin(larkFacingRad) + RIGHT * Math.cos(larkFacingRad);
         dancers[robin].y = cy + FRONT * Math.cos(larkFacingRad) - RIGHT * Math.sin(larkFacingRad);
-        dancers[robin].facing = robinFacingDeg;
+        dancers[robin].facing = normalizeBearing(robinFacingRad);
       } else {
         // Phase 2: lark has 90° of rotation left
         const tLocal = (elapsed - phase2Start) / phase2Duration; // 0 to 1
@@ -744,13 +737,12 @@ function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type:
 
         dancers[lark].x = larkP1EndX + (larkFinalX - larkP1EndX) * tLocal;
         dancers[lark].y = larkP1EndY + (larkFinalY - larkP1EndY) * tLocal;
-        dancers[lark].facing = larkFacingDeg;
+        dancers[lark].facing = normalizeBearing(larkFacingRad);
 
         // Robin facing: extra 180° CW over phase 2
         // At tLocal=0: lark+180°, at tLocal=1: lark+360°=lark
         const robinFacingRad = larkFacingRad + Math.PI * (1 + tLocal);
-        const robinFacingDeg = ((robinFacingRad * 180 / Math.PI) % 360 + 360) % 360;
-        dancers[robin].facing = robinFacingDeg;
+        dancers[robin].facing = normalizeBearing(robinFacingRad);
 
         // Robin position: in lark's reference frame
         // Starts at (0.3 front, 0.2 right), ends at (0.0 front, 1.0 right)
@@ -845,8 +837,8 @@ function generateBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction, { 
       // Lark turns CW 180°, robin turns CCW 180°
       const larkFacing = p.larkStartFacing + Math.PI * tEased;
       const robinFacing = p.robinStartFacing - Math.PI * tEased;
-      dancers[p.lark].facing = ((larkFacing * 180 / Math.PI) % 360 + 360) % 360;
-      dancers[p.robin].facing = ((robinFacing * 180 / Math.PI) % 360 + 360) % 360;
+      dancers[p.lark].facing = normalizeBearing(larkFacing);
+      dancers[p.robin].facing = normalizeBearing(robinFacing);
     }
 
     // Drop hands on the final frame
@@ -903,8 +895,8 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   for (const { drawer, drawee } of pairs) {
     const drawerState = prev.dancers[drawer];
     const draweeState = prev.dancers[drawee];
-    walkStartDancers[drawer].facing = ((Math.atan2(draweeState.x - drawerState.x, draweeState.y - drawerState.y) * 180 / Math.PI) % 360 + 360) % 360;
-    walkStartDancers[drawee].facing = ((Math.atan2(drawerState.x - draweeState.x, drawerState.y - draweeState.y) * 180 / Math.PI) % 360 + 360) % 360;
+    walkStartDancers[drawer].facing = normalizeBearing(Math.atan2(draweeState.x - drawerState.x, draweeState.y - drawerState.y));
+    walkStartDancers[drawee].facing = normalizeBearing(Math.atan2(drawerState.x - draweeState.x, drawerState.y - draweeState.y));
   }
   const walkStart: Keyframe = { beat: prev.beat, dancers: walkStartDancers, hands: prev.hands };
 
@@ -950,7 +942,7 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   const driftData: { lark: ProtoDancerId; robin: ProtoDancerId; finalCx: number; finalCy: number; startCx: number; startCy: number }[] = [];
   for (const { drawer, lark, robin } of pairs) {
     const drawerState = prev.dancers[drawer];
-    const drawerFacing = walkStart.dancers[drawer].facing * Math.PI / 180;
+    const drawerFacing = walkStart.dancers[drawer].facing;
     // "Right" if drawer is lark, "left" if drawer is robin
     const sign = isLark(drawer) ? 1 : -1;
     // CW rotation of facing vector gives "right": (sin(f), cos(f)) → (cos(f), -sin(f))
@@ -1035,7 +1027,7 @@ function generateMadRobin(
       protoId: id,
       startPos: { x: da.x, y: da.y },
       partnerPos: { x: targetPos.x, y: targetPos.y },
-      acrossFacing: da.x < 0 ? 90 : 270,
+      acrossFacing: da.x < 0 ? EAST : WEST,
     });
   }
 
