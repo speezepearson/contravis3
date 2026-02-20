@@ -210,7 +210,8 @@ function ellipsePosition(
  *  Uses atan2(dx,dy) convention: 0 = +y (north/up on screen). */
 function resolveHeading(dir: RelativeDirection, d: DancerState, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): number {
   if (dir.kind === 'direction') {
-    switch (dir.value) {
+    const v = dir.value;
+    switch (v) {
       case 'up':               return NORTH;
       case 'down':             return SOUTH;
       case 'across':           return d.x < 0 ? EAST : -EAST;
@@ -220,6 +221,7 @@ function resolveHeading(dir: RelativeDirection, d: DancerState, id: ProtoDancerI
       case 'back':             return d.facing + HALF_CW;
       case 'right':            return d.facing + QUARTER_CW;
       case 'left':             return d.facing + QUARTER_CCW;
+      default:                 return assertNever(v);
     }
   }
   // relationship: toward the matched partner
@@ -1065,6 +1067,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
     case 'mad_robin':                return generateMadRobin(prev, instr, scope);
+    default: return assertNever(instr);
   }
 }
 

@@ -11,6 +11,7 @@ import type { GenerateError } from './generate';
 import { findInstructionStartBeat, findInstructionScope, ALL_DANCERS, SPLIT_GROUPS } from './generate';
 import type { ProtoDancerId } from './types';
 import { z } from 'zod';
+import { assertNever } from './utils';
 
 const exampleDanceModules = import.meta.glob<Dance>('/example-dances/*.json', { eager: true, import: 'default' });
 const exampleDances: { key: string; label: string; dance: Dance }[] = Object.entries(exampleDanceModules).map(([path, dance]) => {
@@ -370,6 +371,7 @@ function summarizeAtomic(instr: AtomicInstruction): string {
         instr.with === "larks_left" ? "larks' left" : "robins' left";
       return `mad robin ${dirLabel}, ${withLabel} ${instr.rotations}x (${instr.beats}b)`;
     }
+    default: return assertNever(instr);
   }
 }
 
@@ -923,21 +925,24 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
           getLabel={v => ACTION_LABELS[v] ?? v}
         />
       </label>
-      {action === 'take_hands' && <TakeHandsFields {...common} initial={initial?.type === 'take_hands' ? initial : undefined} />}
-      {action === 'drop_hands' && <DropHandsFields {...common} initial={initial?.type === 'drop_hands' ? initial : undefined} />}
-      {action === 'allemande' && <AllemandeFields {...common} initial={initial?.type === 'allemande' ? initial : undefined} />}
-      {action === 'do_si_do' && <DoSiDoFields {...common} initial={initial?.type === 'do_si_do' ? initial : undefined} />}
-      {action === 'circle' && <CircleFields {...common} initial={initial?.type === 'circle' ? initial : undefined} />}
-      {action === 'pull_by' && <PullByFields {...common} initial={initial?.type === 'pull_by' ? initial : undefined} />}
-      {action === 'turn' && <TurnFields {...common} initial={initial?.type === 'turn' ? initial : undefined} />}
-      {action === 'step' && <StepFields {...common} initial={initial?.type === 'step' ? initial : undefined} />}
-      {action === 'balance' && <BalanceFields {...common} initial={initial?.type === 'balance' ? initial : undefined} />}
-      {action === 'swing' && <SwingFields {...common} initial={initial?.type === 'swing' ? initial : undefined} />}
-      {action === 'box_the_gnat' && <BoxTheGnatFields {...common} initial={initial?.type === 'box_the_gnat' ? initial : undefined} />}
-      {action === 'give_and_take_into_swing' && <GiveAndTakeIntoSwingFields {...common} initial={initial?.type === 'give_and_take_into_swing' ? initial : undefined} />}
-      {action === 'mad_robin' && <MadRobinFields {...common} initial={initial?.type === 'mad_robin' ? initial : undefined} />}
-      {action === 'split' && <SplitFields {...common} initial={initial?.type === 'split' ? initial : undefined} />}
-      {action === 'group' && <GroupFields {...common} initial={initial?.type === 'group' ? initial : undefined} />}
+      {(() => { switch (action) {
+        case 'take_hands': return <TakeHandsFields {...common} initial={initial?.type === 'take_hands' ? initial : undefined} />;
+        case 'drop_hands': return <DropHandsFields {...common} initial={initial?.type === 'drop_hands' ? initial : undefined} />;
+        case 'allemande': return <AllemandeFields {...common} initial={initial?.type === 'allemande' ? initial : undefined} />;
+        case 'do_si_do': return <DoSiDoFields {...common} initial={initial?.type === 'do_si_do' ? initial : undefined} />;
+        case 'circle': return <CircleFields {...common} initial={initial?.type === 'circle' ? initial : undefined} />;
+        case 'pull_by': return <PullByFields {...common} initial={initial?.type === 'pull_by' ? initial : undefined} />;
+        case 'turn': return <TurnFields {...common} initial={initial?.type === 'turn' ? initial : undefined} />;
+        case 'step': return <StepFields {...common} initial={initial?.type === 'step' ? initial : undefined} />;
+        case 'balance': return <BalanceFields {...common} initial={initial?.type === 'balance' ? initial : undefined} />;
+        case 'swing': return <SwingFields {...common} initial={initial?.type === 'swing' ? initial : undefined} />;
+        case 'box_the_gnat': return <BoxTheGnatFields {...common} initial={initial?.type === 'box_the_gnat' ? initial : undefined} />;
+        case 'give_and_take_into_swing': return <GiveAndTakeIntoSwingFields {...common} initial={initial?.type === 'give_and_take_into_swing' ? initial : undefined} />;
+        case 'mad_robin': return <MadRobinFields {...common} initial={initial?.type === 'mad_robin' ? initial : undefined} />;
+        case 'split': return <SplitFields {...common} initial={initial?.type === 'split' ? initial : undefined} />;
+        case 'group': return <GroupFields {...common} initial={initial?.type === 'group' ? initial : undefined} />;
+        default: assertNever(action);
+      }})()}
     </div>
   );
 }
