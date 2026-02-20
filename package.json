@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "gif": "tsx scripts/dance-to-gif.ts",
-    "choreo": "tsx scripts/choreo.ts"
+    "choreo": "tsx scripts/choreo.ts",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

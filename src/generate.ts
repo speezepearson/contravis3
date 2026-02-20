@@ -1063,7 +1063,6 @@ function generateLongLines(
 ): Keyframe[] {
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
   const halfBeat = instr.beats / 2;
-  const halfFrame = Math.round(nFrames / 2);
 
   // Phase 1 target: everybody at x=+/-0.2 (step across to center)
   // Phase 2 target: everybody at x=+/-0.5 (step back out)
@@ -1087,7 +1086,6 @@ function generateLongLines(
     if (!scope.has(id)) continue;
     // Find neighbors on left and right by trying the on_left and on_right relationships
     // from the phase1 facing position
-    const d = phase1Targets[id]!;
     for (const rel of ['on_left', 'on_right'] as const) {
       try {
         // Use phase1 targets for resolution since dancers are now facing across
@@ -1352,7 +1350,6 @@ function generateLongLines(
             // New connection: swap hands. If mover was holding anchor's hand
             // with their left (keepHand=left), now they hold with their right
             const newMoverHand: 'left' | 'right' = rp.dropHand; // was the dropped hand, now becomes the new connection hand
-            const newAnchorHand: 'left' | 'right' = rp.dropHand === 'left' ? 'right' : 'left';
             // Actually re-reading: "if she started holding his right in her left,
             // she changes to holding his left in her right"
             // So the mover's new hand = opposite of keepHand = dropHand
