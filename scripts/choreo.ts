@@ -1,12 +1,6 @@
 /**
  * CLI tool for building contra dance JSON files.
- *
- * Usage:
- *   npx tsx scripts/choreo.ts init PATH --initFormation FORM --progression N [--name NAME] [--author AUTHOR]
- *   npx tsx scripts/choreo.ts insert PATH '{...instruction json...}' [--before ID | --after ID]
- *   npx tsx scripts/choreo.ts inspect PATH [--before ID | --after ID | --time BEATS]
- *   npx tsx scripts/choreo.ts validate PATH
- *   npx tsx scripts/choreo.ts list PATH
+ * Run with --help for usage information.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -470,9 +464,116 @@ function summarizeInstruction(instr: Instruction): string {
   }
 }
 
+// ─── Help ───────────────────────────────────────────────────────────────────
+
+const HELP_TEXT = `\
+choreo - Build and manage contra dance JSON files.
+
+Choreo is a CLI tool for constructing contra dances as structured JSON. You
+build a dance by initializing a file and then inserting instructions one at a
+time. At any point you can inspect the dancer positions, list the instruction
+tree, or validate the dance for errors.
+
+Usage:
+  choreo <command> [options]
+
+Commands:
+  init       Create a new dance file
+  insert     Add an instruction to a dance
+  inspect    Show dancer positions at a point in the dance
+  validate   Check a dance for errors and warnings
+  list       Print the instruction tree
+
+Global Options:
+  --help, -h   Show this help message (also works after a command name)
+
+init:
+  choreo init <file> [options]
+
+  Create a new empty dance JSON file.
+
+  Options:
+    --initFormation <form>   Starting formation: "improper" or "beckett"
+                             (default: improper)
+    --progression <n>        Progression number (default: 1)
+    --name <name>            Dance name
+    --author <author>        Choreographer name
+
+  Example:
+    choreo init my_dance.json --initFormation improper --progression 1 \\
+      --name "Monday Night Special" --author "Traditional"
+
+insert:
+  choreo insert <file> '<json>' [options]
+
+  Insert an instruction into the dance. The instruction is a JSON object with
+  at minimum a "type" and "beats" field. An "id" (UUID) is auto-generated if
+  omitted. After inserting, the resulting dancer state is printed.
+
+  Instruction types:
+    take_hands, drop_hands, allemande, do_si_do, circle, pull_by, turn,
+    step, balance, swing, box_the_gnat, give_and_take_into_swing, mad_robin
+
+  Positioning Options:
+    --before <id>   Insert before the instruction with this ID
+    --after <id>    Insert after the instruction with this ID
+                    (default: append to end)
+
+  Examples:
+    choreo insert my_dance.json '{"type":"circle","beats":8,"direction":"left","rotations":1}'
+    choreo insert my_dance.json '{"type":"swing","beats":8,"relationship":"neighbor","endFacing":{"kind":"direction","value":"across"}}' --after 550e8400-e29b-41d4-a716-446655440000
+
+inspect:
+  choreo inspect <file> [options]
+
+  Generate keyframes and display the dancer positions, facing directions,
+  hand connections, and nearby dancers at a specific point in the dance.
+  With no positioning option, shows the state after the last instruction.
+
+  Options:
+    --before <id>    Show state just before this instruction
+    --after <id>     Show state just after this instruction
+    --time <beats>   Show state at a specific beat number
+
+  Example:
+    choreo inspect my_dance.json --time 16
+
+validate:
+  choreo validate <file>
+
+  Check the dance for generation errors, hand-distance warnings, and
+  progression correctness. Prints a summary of total beats and instruction
+  count.
+
+  Example:
+    choreo validate my_dance.json
+
+list:
+  choreo list <file>
+
+  Print a hierarchical listing of all instructions with their beat offsets,
+  durations, and IDs.
+
+  Example:
+    choreo list my_dance.json`;
+
+function showHelp(): void {
+  console.log(HELP_TEXT);
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 const [subcommand, ...subArgs] = process.argv.slice(2);
+
+if (!subcommand || subcommand === '--help' || subcommand === '-h') {
+  showHelp();
+  process.exit(0);
+}
+
+if (subArgs.includes('--help') || subArgs.includes('-h')) {
+  showHelp();
+  process.exit(0);
+}
 
 switch (subcommand) {
   case 'init':     cmdInit(subArgs); break;
@@ -481,6 +582,7 @@ switch (subcommand) {
   case 'validate': cmdValidate(subArgs); break;
   case 'list':     cmdList(subArgs); break;
   default:
-    console.error('Usage: choreo <init|insert|inspect|validate|list> [args...]');
+    console.error(`Unknown command: ${subcommand}\n`);
+    showHelp();
     process.exit(1);
 }
