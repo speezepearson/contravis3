@@ -1513,11 +1513,76 @@ describe('generateAllKeyframes with initFormation', () => {
     });
   });
 
+
+  describe('long_lines', () => {
+    function faceAcross() {
+      return { id: tid(90), beats: 0, type: 'turn' as const, offset: 0, target: { kind: 'direction' as const, value: 'across' as const } };
+    }
+
+    it('without rollaway: everyone ends at x=+/-0.5 and keeps facing across', () => {
+      const instructions = instr([
+        faceAcross(),
+        { id: tid(1), beats: 8, type: 'long_lines' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers.up_lark_0.x).toBeCloseTo(-0.5, 3);
+      expect(last.dancers.down_robin_0.x).toBeCloseTo(-0.5, 3);
+      expect(last.dancers.up_robin_0.x).toBeCloseTo(0.5, 3);
+      expect(last.dancers.down_lark_0.x).toBeCloseTo(0.5, 3);
+      expect(last.dancers.up_lark_0.facing).toBeCloseTo(90, 0);
+      expect(last.dancers.up_robin_0.facing).toBeCloseTo(270, 0);
+    });
+
+    it('in first half everybody reaches x=+/-0.2', () => {
+      const instructions = instr([
+        faceAcross(),
+        { id: tid(1), beats: 8, type: 'long_lines' },
+      ]);
+      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      const mid = kfs.reduce((best, kf) =>
+        Math.abs(kf.beat - 4) < Math.abs(best.beat - 4) ? kf : best
+      );
+      expect(mid.dancers.up_lark_0.x).toBeCloseTo(-0.2, 2);
+      expect(mid.dancers.up_robin_0.x).toBeCloseTo(0.2, 2);
+    });
+
+    it('lark ltr rollaway spins larks 360 CW and places robin 0.5m to lark left', () => {
+      const instructions = instr([
+        faceAcross(),
+        { id: tid(1), beats: 8, type: 'long_lines', rollaway: 'lark ltr' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers.up_lark_0.facing).toBeCloseTo(90, 0);
+      expect(last.dancers.down_lark_0.facing).toBeCloseTo(270, 0);
+      expect(last.dancers.up_robin_0.x - last.dancers.up_lark_0.x).toBeCloseTo(-0.5, 2);
+      expect(last.dancers.down_robin_0.x - last.dancers.down_lark_0.x).toBeCloseTo(-0.5, 2);
+    });
+
+    it('robin rtl rollaway spins robins 360 CCW and places lark 0.5m to robin left', () => {
+      const instructions = instr([
+        faceAcross(),
+        { id: tid(1), beats: 8, type: 'long_lines', rollaway: 'robin rtl' },
+      ]);
+      const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+      expect(error).toBeNull();
+      const last = kfs[kfs.length - 1];
+      expect(last.dancers.up_robin_0.facing).toBeCloseTo(270, 0);
+      expect(last.dancers.down_robin_0.facing).toBeCloseTo(90, 0);
+      expect(last.dancers.up_lark_0.x - last.dancers.up_robin_0.x).toBeCloseTo(-0.5, 2);
+      expect(last.dancers.down_lark_0.x - last.dancers.down_robin_0.x).toBeCloseTo(-0.5, 2);
+    });
+  });
+
+
   describe('validateProgression', () => {
     it('returns null when dancers end at expected progression positions', () => {
-      // Move each dancer 2m in their progression direction (progression=1)
+      // Move each dancer 1m in their progression direction (progression=1)
       const instructions = instr([
-        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 2.0 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 1.0 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       expect(validateProgression(keyframes, 'improper', 1)).toBeNull();

@@ -23,13 +23,14 @@ const exampleDances: { key: string; label: string; dance: Dance }[] = Object.ent
 
 const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'split', 'group'];
+const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'long_lines', 'split', 'group'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
   turn: 'turn', step: 'step', balance: 'balance',
   box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
   mad_robin: 'mad robin',
+  long_lines: 'long lines',
   split: 'split', group: 'group',
 };
 
@@ -86,6 +87,7 @@ function defaultBeats(action: string): string {
     case 'box_the_gnat': return '4';
     case 'give_and_take_into_swing': return '16';
     case 'mad_robin':  return '8';
+    case 'long_lines': return '8';
     default:          return '0';
   }
 }
@@ -369,6 +371,8 @@ function summarizeAtomic(instr: AtomicInstruction): string {
         instr.with === "larks_left" ? "larks' left" : "robins' left";
       return `mad robin ${dirLabel}, ${withLabel} ${instr.rotations}x (${instr.beats}b)`;
     }
+    case 'long_lines':
+      return instr.rollaway ? `long lines (${instr.rollaway}) (8b)` : 'long lines (8b)';
   }
 }
 
@@ -824,6 +828,34 @@ function MadRobinFields({ id, isEditing, initial, onSave, onCancel, onPreview }:
   </>);
 }
 
+
+const LONG_LINES_ROLLAWAY_OPTIONS = ['none', 'lark rtl', 'lark ltr', 'robin rtl', 'robin ltr'] as const;
+const LONG_LINES_ROLLAWAY_LABELS: Record<string, string> = {
+  none: 'none',
+  'lark rtl': 'lark rollaway RTL',
+  'lark ltr': 'lark rollaway LTR',
+  'robin rtl': 'robin rollaway RTL',
+  'robin ltr': 'robin rollaway LTR',
+};
+
+function LongLinesFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'long_lines' }> }) {
+  const [rollaway, setRollaway] = useState<(typeof LONG_LINES_ROLLAWAY_OPTIONS)[number]>(initial?.rollaway ?? 'none');
+
+  useInstructionPreview(onPreview, () => ({ id, type: 'long_lines', beats: 8, rollaway: rollaway === 'none' ? undefined : rollaway }), [id, rollaway]);
+
+  function save() {
+    onSave(InstructionSchema.parse({ id, type: 'long_lines', beats: 8, rollaway: rollaway === 'none' ? undefined : rollaway }));
+  }
+
+  return (<>
+    <label>
+      Rollaway
+      <SearchableDropdown options={LONG_LINES_ROLLAWAY_OPTIONS as unknown as string[]} value={rollaway} onChange={v => setRollaway(z.enum(LONG_LINES_ROLLAWAY_OPTIONS).parse(v))} getLabel={v => LONG_LINES_ROLLAWAY_LABELS[v] ?? v} />
+    </label>
+    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+  </>);
+}
+
 function SplitFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'split' }> }) {
   const [splitBy, setSplitBy] = useState<SplitBy['by']>(initial?.by ?? 'role');
 
@@ -932,6 +964,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
       {action === 'box_the_gnat' && <BoxTheGnatFields {...common} initial={initial?.type === 'box_the_gnat' ? initial : undefined} />}
       {action === 'give_and_take_into_swing' && <GiveAndTakeIntoSwingFields {...common} initial={initial?.type === 'give_and_take_into_swing' ? initial : undefined} />}
       {action === 'mad_robin' && <MadRobinFields {...common} initial={initial?.type === 'mad_robin' ? initial : undefined} />}
+      {action === 'long_lines' && <LongLinesFields {...common} initial={initial?.type === 'long_lines' ? initial : undefined} />}
       {action === 'split' && <SplitFields {...common} initial={initial?.type === 'split' ? initial : undefined} />}
       {action === 'group' && <GroupFields {...common} initial={initial?.type === 'group' ? initial : undefined} />}
     </div>

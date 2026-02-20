@@ -989,6 +989,186 @@ function generateGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicInstr
   return [...walkFrames, ...shiftedSwingFrames];
 }
 
+function generateLongLines(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: 'long_lines' }>,
+  scope: Set<ProtoDancerId>,
+): Keyframe[] {
+  if (instr.beats !== 8) {
+    throw new Error(`long lines must be 8 beats, got ${instr.beats}`);
+  }
+
+  const [larks, robins] = SPLIT_GROUPS.role;
+  const start = copyDancers(prev.dancers);
+
+  const handsByPair = new Set<string>();
+  const insideHands: HandConnection[] = [];
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    for (const relationship of ['on_left', 'on_right'] as const) {
+      const targetId = resolveRelationship(relationship, id, start);
+      const { proto: targetProto } = parseDancerId(targetId);
+      if (!scope.has(targetProto)) {
+        throw new Error(`long lines: ${id}'s ${relationship} is out of scope`);
+      }
+      const a = makeDancerId(id, 0);
+      const b = makeDancerId(targetProto, 0);
+      const pairKey = a < b ? `${a}:${b}` : `${b}:${a}`;
+      if (handsByPair.has(pairKey)) continue;
+      handsByPair.add(pairKey);
+      const aState = start[id];
+      const bState = start[targetProto];
+      const ha = resolveInsideHand(aState, bState);
+      const hb = resolveInsideHand(bState, aState);
+      insideHands.push({ a, ha, b, hb });
+    }
+  }
+
+  const baseHands = [...prev.hands, ...insideHands];
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+  const result: Keyframe[] = [];
+
+  type RollawayData = {
+    roller: ProtoDancerId;
+    anchor: ProtoDancerId;
+    cw: boolean;
+    keepHand: 'left' | 'right';
+    startX: number;
+    startY: number;
+    anchorMidX: number;
+    anchorMidY: number;
+    rollerFinalX: number;
+    rollerFinalY: number;
+    anchorFinalX: number;
+    anchorFinalY: number;
+    rollerStartFacing: number;
+    anchorFacing: number;
+  };
+
+  const rollawayByPair = new Map<string, RollawayData>();
+  if (instr.rollaway !== undefined) {
+    const [role, dir] = instr.rollaway.split(' ') as ['lark' | 'robin', 'ltr' | 'rtl'];
+    const rollers = role === 'lark' ? larks : robins;
+    const anchors = role === 'lark' ? robins : larks;
+    const keepHand: 'left' | 'right' = dir === 'ltr' ? 'left' : 'right';
+    const cw = dir === 'ltr';
+
+    const rollerIds = PROTO_DANCER_IDS.filter(id => scope.has(id) && rollers.has(id));
+
+    for (const roller of rollerIds) {
+      const anchor = parseDancerId(resolveRelationship('partner', roller, start)).proto;
+      if (!scope.has(anchor) || !anchors.has(anchor)) {
+        throw new Error(`long lines rollaway: could not find opposite-role partner for ${roller}`);
+      }
+
+      const anchorMidX = Math.sign(start[anchor].x) * 0.2;
+      const anchorMidY = start[anchor].y;
+      const anchorFinalX = Math.sign(start[anchor].x) * 0.5;
+      const anchorFinalY = start[anchor].y;
+      const rollerMidX = Math.sign(start[roller].x) * 0.2;
+      const rollerMidY = start[roller].y;
+      const rollerFinalX = anchorFinalX + 0.5;
+      const rollerFinalY = anchorFinalY;
+
+      rollawayByPair.set([anchor, roller].sort().join(':'), {
+        roller,
+        anchor,
+        cw,
+        keepHand,
+        startX: rollerMidX,
+        startY: rollerMidY,
+        anchorMidX,
+        anchorMidY,
+        rollerFinalX,
+        rollerFinalY,
+        anchorFinalX,
+        anchorFinalY,
+        rollerStartFacing: start[roller].facing,
+        anchorFacing: start[anchor].facing,
+      });
+    }
+  }
+
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * 8;
+    const dancers = copyDancers(start);
+
+    if (t <= 0.5) {
+      const t1 = t / 0.5;
+      const te = easeInOut(t1);
+      for (const id of PROTO_DANCER_IDS) {
+        if (!scope.has(id)) continue;
+        const sx = start[id].x;
+        dancers[id].x = sx + (Math.sign(sx) * 0.2 - sx) * te;
+      }
+    } else {
+      const t2 = (t - 0.5) / 0.5;
+      for (const id of PROTO_DANCER_IDS) {
+        if (!scope.has(id)) continue;
+        const sx = Math.sign(start[id].x) * 0.2;
+        let progress = t2;
+
+        if (instr.rollaway !== undefined) {
+          const [role] = instr.rollaway.split(' ') as ['lark' | 'robin'];
+          const isRoller = role === 'lark' ? larks.has(id) : robins.has(id);
+          if (!isRoller) {
+            progress = t2 < 0.5 ? (2 / 3) * (t2 / 0.5) : 2 / 3 + (1 / 3) * ((t2 - 0.5) / 0.5);
+          }
+        }
+
+        dancers[id].x = sx + (Math.sign(sx) * 0.5 - sx) * progress;
+      }
+
+      if (instr.rollaway !== undefined) {
+        for (const data of rollawayByPair.values()) {
+          const tSpin = t2;
+          dancers[data.anchor].x = data.anchorMidX + (data.anchorFinalX - data.anchorMidX) * (tSpin < 0.5 ? (2 / 3) * (tSpin / 0.5) : 2 / 3 + (1 / 3) * ((tSpin - 0.5) / 0.5));
+          dancers[data.anchor].y = data.anchorMidY + (data.anchorFinalY - data.anchorMidY) * (tSpin < 0.5 ? (2 / 3) * (tSpin / 0.5) : 2 / 3 + (1 / 3) * ((tSpin - 0.5) / 0.5));
+
+          const p = easeInOut(tSpin);
+          dancers[data.roller].x = data.startX + (data.rollerFinalX - data.startX) * p;
+          dancers[data.roller].y = data.startY + (data.rollerFinalY - data.startY) * p;
+
+          const spin = (data.cw ? 1 : -1) * 360 * p;
+          dancers[data.roller].facing = ((data.rollerStartFacing + spin) % 360 + 360) % 360;
+          dancers[data.anchor].facing = data.anchorFacing;
+        }
+      }
+    }
+
+    let hands = baseHands;
+    if (instr.rollaway !== undefined && t > 0.5) {
+      const [, dir] = instr.rollaway.split(' ') as ['lark' | 'robin', 'ltr' | 'rtl'];
+      const dropHand: 'left' | 'right' = dir === 'ltr' ? 'right' : 'left';
+      hands = hands.filter(h => !(h.ha === dropHand && h.hb === dropHand));
+
+      if (t >= 0.75) {
+        const switched: HandConnection[] = [];
+        for (const data of rollawayByPair.values()) {
+          if (data.keepHand === 'left') {
+            switched.push({ a: makeDancerId(data.anchor, 0), ha: 'right', b: makeDancerId(data.roller, 0), hb: 'left' });
+          } else {
+            switched.push({ a: makeDancerId(data.anchor, 0), ha: 'left', b: makeDancerId(data.roller, 0), hb: 'right' });
+          }
+        }
+        hands = [...hands.filter(h => {
+          for (const data of rollawayByPair.values()) {
+            const a = makeDancerId(data.anchor, 0);
+            const b = makeDancerId(data.roller, 0);
+            if ((h.a === a && h.b === b) || (h.a === b && h.b === a)) return false;
+          }
+          return true;
+        }), ...switched];
+      }
+    }
+
+    result.push({ beat, dancers, hands });
+  }
+
+  return result;
+}
+
 function generateMadRobin(
   prev: Keyframe,
   instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
@@ -1073,6 +1253,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
     case 'mad_robin':                return generateMadRobin(prev, instr, scope);
+    case 'long_lines':               return generateLongLines(prev, instr, scope);
   }
 }
 
