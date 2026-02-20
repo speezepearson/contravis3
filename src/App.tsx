@@ -5,7 +5,7 @@ import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { EditingInfo } from './CommandPane';
 import type { Instruction, InitFormation, InstructionId, Keyframe, ProtoDancerId } from './types';
-import { splitLists, instructionDuration } from './types';
+import { splitLists, instructionDuration, InstructionSchema } from './types';
 
 const DANCE_LENGTH = 64;
 
@@ -19,7 +19,7 @@ function findInstructionById(instrs: Instruction[], id: InstructionId): Instruct
     if (i.type === 'split') {
       const [listA, listB] = splitLists(i);
       for (const s of [...listA, ...listB]) {
-        if (s.id === id) return s;
+        if (s.id === id) return InstructionSchema.parse(s);
       }
     }
   }
