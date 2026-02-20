@@ -1056,6 +1056,347 @@ function generateMadRobin(
   return result;
 }
 
+function generateLongLines(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: 'long_lines' }>,
+  scope: Set<ProtoDancerId>,
+): Keyframe[] {
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+  const halfBeat = instr.beats / 2;
+  const halfFrame = Math.round(nFrames / 2);
+
+  // Phase 1 target: everybody at x=+/-0.2 (step across to center)
+  // Phase 2 target: everybody at x=+/-0.5 (step back out)
+  // Facing: across the set throughout
+  const phase1Targets: Partial<Record<ProtoDancerId, { x: number; y: number; facing: number }>> = {};
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    const d = prev.dancers[id];
+    const acrossFacing = d.x < 0 ? 90 : (d.x > 0 ? 270 : d.facing);
+    const targetX = d.x < 0 ? -0.2 : (d.x > 0 ? 0.2 : d.x);
+    phase1Targets[id] = { x: targetX, y: d.y, facing: acrossFacing };
+  }
+
+  // Take inside hands with on_left and on_right (the people to your left and right
+  // once facing across). We build these connections manually: each dancer holds
+  // hands with the dancers on their left and right in the line.
+  // When facing across, "left" and "right" are along the set.
+  const lineHands: HandConnection[] = [];
+  const handsSeen = new Set<string>();
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    // Find neighbors on left and right by trying the on_left and on_right relationships
+    // from the phase1 facing position
+    const d = phase1Targets[id]!;
+    for (const rel of ['on_left', 'on_right'] as const) {
+      try {
+        // Use phase1 targets for resolution since dancers are now facing across
+        const tempDancers = copyDancers(prev.dancers);
+        for (const tid of PROTO_DANCER_IDS) {
+          const t = phase1Targets[tid];
+          if (t) tempDancers[tid] = { ...t };
+        }
+        const target = resolveRelationship(rel, id, tempDancers);
+        const aId = makeDancerId(id, 0);
+        const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
+        if (!handsSeen.has(key)) {
+          handsSeen.add(key);
+          const aState = tempDancers[id];
+          const bState = dancerPosition(target, tempDancers);
+          const ha = resolveInsideHand(aState, bState);
+          const hb = resolveInsideHand(bState, aState);
+          lineHands.push({ a: aId, ha, b: target, hb });
+        }
+      } catch {
+        // No neighbor in that direction — skip
+      }
+    }
+  }
+
+  const rollaway = instr.rollaway;
+  // Determine rollaway role and direction if applicable
+  const rollRole: 'lark' | 'robin' | null = rollaway
+    ? (rollaway.startsWith('lark') ? 'lark' : 'robin')
+    : null;
+  const rollDir: 'ltr' | 'rtl' | null = rollaway
+    ? (rollaway.endsWith('ltr') ? 'ltr' : 'rtl')
+    : null;
+  // The moving role (the one being rolled away) is the opposite of rollRole
+  const movingRole: 'lark' | 'robin' | null = rollRole === 'lark' ? 'robin' : rollRole === 'robin' ? 'lark' : null;
+
+  // Phase 1 end positions (used as start of phase 2)
+  const phase1End: Record<ProtoDancerId, DancerState> = copyDancers(prev.dancers);
+  for (const id of PROTO_DANCER_IDS) {
+    const t = phase1Targets[id];
+    if (t) {
+      phase1End[id] = { x: t.x, y: t.y, facing: t.facing };
+    }
+  }
+
+  // Phase 2 final positions
+  const phase2Final: Partial<Record<ProtoDancerId, { x: number; y: number; facing: number }>> = {};
+  for (const id of PROTO_DANCER_IDS) {
+    if (!scope.has(id)) continue;
+    const d = prev.dancers[id];
+    const side = d.x < 0 ? -1 : 1;
+    const acrossFacing = side < 0 ? 90 : 270;
+    phase2Final[id] = { x: side * 0.5, y: d.y, facing: acrossFacing };
+  }
+
+  // For rollaway: identify pairs (each moving-role dancer paired with their
+  // stationary-role dancer they're still holding hands with)
+  type RollPair = {
+    mover: ProtoDancerId;         // the dancer being rolled away
+    anchor: ProtoDancerId;        // the dancer standing still (relatively)
+    anchorOffset: number;         // offset of the anchor DancerId
+    dropHand: 'left' | 'right';   // which hand the mover drops initially
+    turnSign: number;             // +1 for CW, -1 for CCW
+  };
+  const rollPairs: RollPair[] = [];
+
+  if (movingRole && rollDir) {
+    for (const id of PROTO_DANCER_IDS) {
+      if (!scope.has(id)) continue;
+      const idIsMovingRole = movingRole === 'lark' ? isLark(id) : !isLark(id);
+      if (!idIsMovingRole) continue;
+
+      // Find which hands the mover is holding
+      // The mover should have an anchor-role dancer in each hand
+      // Drop the one on the [right if ltr, left if rtl] hand
+      const dropHand: 'left' | 'right' = rollDir === 'ltr' ? 'right' : 'left';
+      const keepHand: 'left' | 'right' = rollDir === 'ltr' ? 'left' : 'right';
+
+      // Find the anchor dancer connected via the keep hand
+      let anchorProto: ProtoDancerId | null = null;
+      let anchorOff = 0;
+      for (const h of lineHands) {
+        const aProto = parseDancerId(h.a).proto;
+        const bProto = parseDancerId(h.b).proto;
+        if (aProto === id && h.ha === keepHand) {
+          anchorProto = bProto;
+          anchorOff = parseDancerId(h.b).offset;
+        } else if (bProto === id && h.hb === keepHand) {
+          anchorProto = aProto;
+          anchorOff = parseDancerId(h.a).offset;
+        }
+      }
+
+      if (!anchorProto) continue;
+
+      // Turn direction: ltr = CW (+1), rtl = CCW (-1)
+      const turnSign = rollDir === 'ltr' ? 1 : -1;
+
+      rollPairs.push({
+        mover: id,
+        anchor: anchorProto,
+        anchorOffset: anchorOff,
+        dropHand,
+        turnSign,
+      });
+    }
+  }
+
+  const result: Keyframe[] = [];
+
+  for (let i = 1; i <= nFrames; i++) {
+    const t = i / nFrames;
+    const beat = prev.beat + t * instr.beats;
+    const elapsed = t * instr.beats;
+    const dancers = copyDancers(prev.dancers);
+    let hands = [...prev.hands, ...lineHands];
+
+    if (elapsed <= halfBeat) {
+      // Phase 1: step across to x=+/-0.2
+      const tPhase = elapsed / halfBeat;
+      const tEased = easeInOut(tPhase);
+      for (const id of PROTO_DANCER_IDS) {
+        const target = phase1Targets[id];
+        if (!target) continue;
+        dancers[id].x = prev.dancers[id].x + (target.x - prev.dancers[id].x) * tEased;
+        dancers[id].y = prev.dancers[id].y + (target.y - prev.dancers[id].y) * tEased;
+        dancers[id].facing = target.facing;
+      }
+    } else {
+      // Phase 2: step back out to x=+/-0.5 (with or without rollaway)
+      const tPhase = (elapsed - halfBeat) / halfBeat; // 0 to 1
+
+      if (!rollaway) {
+        // Simple: everybody steps back out
+        const tEased = easeInOut(tPhase);
+        for (const id of PROTO_DANCER_IDS) {
+          const start = phase1End[id];
+          const final = phase2Final[id];
+          if (!final) continue;
+          dancers[id].x = start.x + (final.x - start.x) * tEased;
+          dancers[id].y = start.y + (final.y - start.y) * tEased;
+          dancers[id].facing = start.facing;
+        }
+      } else {
+        // Rollaway: anchors step back out with front-loaded timing (2/3 in first half, 1/3 in second)
+        // Movers rotate around their paired anchor
+        const anchorSet = new Set(rollPairs.map(rp => rp.anchor));
+        const moverSet = new Set(rollPairs.map(rp => rp.mover));
+
+        // Anchor motion: cover 2/3 of distance in first half of phase 2, 1/3 in second half
+        for (const id of PROTO_DANCER_IDS) {
+          if (!scope.has(id)) continue;
+          if (moverSet.has(id)) continue; // movers handled separately
+
+          const start = phase1End[id];
+          const final = phase2Final[id];
+          if (!final) continue;
+
+          let progress: number;
+          if (anchorSet.has(id)) {
+            // Front-loaded: 2/3 in first half, 1/3 in second half
+            if (tPhase <= 0.5) {
+              progress = easeInOut(tPhase * 2) * (2 / 3);
+            } else {
+              progress = (2 / 3) + easeInOut((tPhase - 0.5) * 2) * (1 / 3);
+            }
+          } else {
+            progress = easeInOut(tPhase);
+          }
+
+          dancers[id].x = start.x + (final.x - start.x) * progress;
+          dancers[id].y = start.y + (final.y - start.y) * progress;
+          dancers[id].facing = start.facing;
+        }
+
+        // Mover motion: interpolate position and rotate
+        for (const rp of rollPairs) {
+          const moverStart = phase1End[rp.mover];
+          // Anchor's current position
+          const anchorCurrent = dancers[rp.anchor];
+          // Mover's final position: 0.5m to the left of the anchor (in the anchor's
+          // reference frame at the final position). Since anchor faces across,
+          // "left" means along the set direction.
+          const anchorFinal = phase2Final[rp.anchor]!;
+          // The mover ends up where they would be in the line, which is their
+          // own phase2Final position, but on the other side of the anchor from
+          // where they started. Actually, "0.5m to the left of paired lark" means
+          // the mover ends at the anchor's final position offset along the set.
+          // The anchor faces across (90 or 270). Left of someone facing 90 is up (+y),
+          // left of someone facing 270 is down (-y).
+          // But more precisely: the mover should end up in the position that is
+          // their own final x=+/-0.5, with y adjusted to be on the other side of
+          // the anchor from where they started.
+          // Actually re-reading the spec: "her final position 0.5m to the left of
+          // her paired lark". In the line, dancers are ~1m apart along y. So the
+          // mover should end 0.5 (half a dancer spacing?) to the appropriate side.
+          // Let me think about this differently: in long lines, the mover starts
+          // between two anchors. She drops one anchor's hand and rolls around the
+          // other, ending up on the other side of that anchor. So her final y should
+          // swap across the anchor.
+
+          // Compute "left" direction relative to the anchor's facing
+          const anchorFacingRad = anchorFinal.facing * Math.PI / 180;
+          // Left = -90 from facing: facing=90 -> left heading=0 (up), facing=270 -> left heading=180 (down)
+          const leftDx = -Math.cos(anchorFacingRad);
+          const leftDy = Math.sin(anchorFacingRad);
+
+          // Mover final position: same x as anchor (both at the edge), offset in y
+          const moverFinalX = anchorFinal.x + leftDx * 0.5;
+          const moverFinalY = anchorFinal.y + leftDy * 0.5;
+
+          // Linear interpolation of position from moverStart to moverFinal,
+          // but relative to the moving anchor
+          const tEased = easeInOut(tPhase);
+
+          // Interpolate in anchor-relative coordinates
+          // At t=0: mover is at moverStart, anchor is at phase1End[anchor]
+          // At t=1: mover is at moverFinal, anchor is at anchorFinal
+          const anchorStart = phase1End[rp.anchor];
+          const relStartX = moverStart.x - anchorStart.x;
+          const relStartY = moverStart.y - anchorStart.y;
+          const relFinalX = moverFinalX - anchorFinal.x;
+          const relFinalY = moverFinalY - anchorFinal.y;
+          const relX = relStartX + (relFinalX - relStartX) * tEased;
+          const relY = relStartY + (relFinalY - relStartY) * tEased;
+
+          dancers[rp.mover].x = anchorCurrent.x + relX;
+          dancers[rp.mover].y = anchorCurrent.y + relY;
+
+          // Rotation: 360 degrees over the 4 beats of phase 2
+          const rotationDeg = rp.turnSign * 360 * tPhase;
+          dancers[rp.mover].facing = ((moverStart.facing + rotationDeg) % 360 + 360) % 360;
+        }
+
+        // Hand adjustments for rollaway
+        // Drop the released hand connections and manage the hand swap at halfway
+        const moverIds = new Set(rollPairs.map(rp => makeDancerId(rp.mover, 0)));
+        hands = hands.filter(h => {
+          // Keep all non-mover hands
+          if (!moverIds.has(h.a) && !moverIds.has(h.b)) return true;
+
+          // For mover hands: check if this is a dropped connection
+          for (const rp of rollPairs) {
+            const moverId = makeDancerId(rp.mover, 0);
+            if (h.a === moverId && h.ha === rp.dropHand) return false;
+            if (h.b === moverId && h.hb === rp.dropHand) return false;
+          }
+          return true;
+        });
+
+        // At halfway through phase 2, swap hands with the anchor
+        if (tPhase >= 0.5) {
+          // Remove old kept-hand connection, add new swapped connection
+          const newHands: HandConnection[] = [];
+          const removePairs = new Set<string>();
+          for (const rp of rollPairs) {
+            const moverId = makeDancerId(rp.mover, 0);
+            const anchorId = makeDancerId(rp.anchor, rp.anchorOffset);
+            const key = moverId < anchorId ? `${moverId}:${anchorId}` : `${anchorId}:${moverId}`;
+            removePairs.add(key);
+
+            // New connection: swap hands. If mover was holding anchor's hand
+            // with their left (keepHand=left), now they hold with their right
+            const newMoverHand: 'left' | 'right' = rp.dropHand; // was the dropped hand, now becomes the new connection hand
+            const newAnchorHand: 'left' | 'right' = rp.dropHand === 'left' ? 'right' : 'left';
+            // Actually re-reading: "if she started holding his right in her left,
+            // she changes to holding his left in her right"
+            // So the mover's new hand = opposite of keepHand = dropHand
+            // And the anchor's new hand = opposite of what it was
+            // Find what hand the anchor was using in the original connection
+            let origAnchorHand: 'left' | 'right' = 'right';
+            for (const h of lineHands) {
+              if (h.a === anchorId && (h.b === moverId)) {
+                origAnchorHand = h.ha;
+                break;
+              }
+              if (h.b === anchorId && (h.a === moverId)) {
+                origAnchorHand = h.hb;
+                break;
+              }
+            }
+            const swappedAnchorHand: 'left' | 'right' = origAnchorHand === 'left' ? 'right' : 'left';
+
+            if (moverId < anchorId) {
+              newHands.push({ a: moverId, ha: newMoverHand, b: anchorId, hb: swappedAnchorHand });
+            } else {
+              newHands.push({ a: anchorId, ha: swappedAnchorHand, b: moverId, hb: newMoverHand });
+            }
+          }
+          hands = hands.filter(h => {
+            const key = h.a < h.b ? `${h.a}:${h.b}` : `${h.b}:${h.a}`;
+            return !removePairs.has(key);
+          });
+          hands.push(...newHands);
+        }
+      }
+    }
+
+    // Drop all hands on the final frame
+    if (i === nFrames) {
+      hands = [];
+    }
+
+    result.push({ beat, dancers, hands });
+  }
+
+  return result;
+}
+
 // --- Process a list of atomic instructions with a given scope ---
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
@@ -1073,6 +1414,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
     case 'mad_robin':                return generateMadRobin(prev, instr, scope);
+    case 'long_lines':               return generateLongLines(prev, instr, scope);
   }
 }
 
