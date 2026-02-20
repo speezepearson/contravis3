@@ -419,6 +419,36 @@ input[type="range"] {
 .paste-error {
   color: #ff6b6b;
   font-size: 12px;
+  white-space: pre-wrap;
+}
+
+/* localStorage error banner */
+
+.localstorage-error {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #3a1a1a;
+  border-bottom: 2px solid #ff6b6b;
+  padding: 12px 16px;
+  color: #ffaaaa;
+  font-size: 13px;
+}
+
+.localstorage-error strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #ff6b6b;
+}
+
+.localstorage-error pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: #ffcccc;
+  font-family: monospace;
 }
 
 /* Mobile layout */

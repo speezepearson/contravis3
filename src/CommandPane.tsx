@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema, splitLists, splitWithLists, instructionDuration } from './types';
+import { InstructionSchema, DanceSchema, RelativeDirectionSchema, RelationshipSchema, DropHandsTargetSchema, HandSchema, TakeHandSchema, ActionTypeSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, RoleSchema, splitLists, splitWithLists, instructionDuration, formatDanceParseError } from './types';
 import type { Instruction, AtomicInstruction, Relationship, RelativeDirection, SplitBy, DropHandsTarget, ActionType, InitFormation, TakeHand, InstructionId, Role, Dance } from './types';
 import type { GenerateError } from './generate';
 import { findInstructionStartBeat, findInstructionScope, ALL_DANCERS, SPLIT_GROUPS } from './generate';
@@ -1091,8 +1091,8 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     }
     const result = DanceSchema.safeParse(raw);
     if (!result.success) {
-      setPasteFeedback(`Invalid dance: ${result.error.issues.map(i => i.message).join(', ')}`);
-      setTimeout(() => setPasteFeedback(''), 3000);
+      setPasteFeedback(`Invalid dance:\n${formatDanceParseError(result.error, raw)}`);
+      setTimeout(() => setPasteFeedback(''), 10000);
       return;
     }
     const parsed = result.data;

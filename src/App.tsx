@@ -4,10 +4,28 @@ import { generateAllKeyframes, validateHandDistances, validateProgression, gener
 import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { EditingInfo } from './CommandPane';
-import type { Instruction, InitFormation, InstructionId, Keyframe, ProtoDancerId } from './types';
-import { splitLists, instructionDuration, InstructionSchema } from './types';
+import type { Instruction, InitFormation, InstructionId, Keyframe, ProtoDancerId, Dance } from './types';
+import { splitLists, instructionDuration, InstructionSchema, DanceSchema, formatDanceParseError } from './types';
 
 const DANCE_LENGTH = 64;
+const LOCALSTORAGE_KEY = 'contravis3-dance';
+
+function loadDanceFromLocalStorage(): { dance: Dance } | { error: string } | null {
+  let raw: string | null;
+  try { raw = localStorage.getItem(LOCALSTORAGE_KEY); } catch { return null; }
+  if (raw === null) return null;
+
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch (e) {
+    return { error: `Saved dance JSON is malformed: ${e instanceof SyntaxError ? e.message : String(e)}` };
+  }
+
+  const result = DanceSchema.safeParse(parsed);
+  if (!result.success) {
+    return { error: formatDanceParseError(result.error, parsed) };
+  }
+  return { dance: result.data };
+}
 
 function findInstructionById(instrs: Instruction[], id: InstructionId): Instruction | null {
   for (const i of instrs) {
@@ -66,16 +84,35 @@ export default function App() {
   const lastTimestampRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
 
+  const [initialLoadResult] = useState(() => loadDanceFromLocalStorage());
+  const [localStorageError, setLocalStorageError] = useState<string | null>(
+    () => initialLoadResult && 'error' in initialLoadResult ? initialLoadResult.error : null,
+  );
+
   const [playing, setPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [beat, setBeat] = useState(0);
   const [annotation, setAnnotation] = useState('');
-  const [instructions, setInstructions] = useState<Instruction[]>([]);
-  const [initFormation, setInitFormation] = useState<InitFormation>('improper');
-  const [progression, setProgression] = useState(1);
+  const [instructions, setInstructions] = useState<Instruction[]>(
+    () => initialLoadResult && 'dance' in initialLoadResult ? initialLoadResult.dance.instructions : [],
+  );
+  const [initFormation, setInitFormation] = useState<InitFormation>(
+    () => initialLoadResult && 'dance' in initialLoadResult ? initialLoadResult.dance.initFormation : 'improper',
+  );
+  const [progression, setProgression] = useState(
+    () => initialLoadResult && 'dance' in initialLoadResult ? initialLoadResult.dance.progression : 1,
+  );
   const [smoothness, setSmoothness] = useState(100);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // Persist dance to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      const dance = { initFormation, progression, instructions };
+      localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(dance));
+    } catch { /* quota exceeded or private browsing – silently ignore */ }
+  }, [instructions, initFormation, progression]);
 
   // Editing state for pause-on-edit and keyframe preview
   const [editInfo, setEditInfo] = useState<{ startBeat: number; scope: Set<ProtoDancerId> } | null>(null);
@@ -402,6 +439,13 @@ export default function App() {
 
   return (
     <div className="app-layout">
+      {localStorageError && (
+        <div className="localstorage-error">
+          <strong>Could not load saved dance from localStorage:</strong>
+          <pre>{localStorageError}</pre>
+          <button onClick={() => setLocalStorageError(null)}>Dismiss</button>
+        </div>
+      )}
       <div className="vis-column">
         <div className="canvas-container" ref={canvasContainerRef}>
           <canvas ref={canvasRef} />
