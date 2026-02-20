@@ -2,7 +2,8 @@ import { useState } from 'react';
 import SearchableDropdown from '../SearchableDropdown';
 import { InstructionSchema, DropHandsTargetSchema } from '../types';
 import type { DropHandsTarget, AtomicInstruction } from '../types';
-import { SubFormProps, SaveCancelButtons, useInstructionPreview, DROP_TARGET_OPTIONS, DROP_TARGET_LABELS } from '../fieldUtils';
+import type { SubFormProps } from '../fieldUtils';
+import { SaveCancelButtons, useInstructionPreview, DROP_TARGET_OPTIONS, DROP_TARGET_LABELS } from '../fieldUtils';
 
 export function DropHandsFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'drop_hands' }> }) {
   const [dropTarget, setDropTarget] = useState<DropHandsTarget>(initial?.target ?? 'neighbor');

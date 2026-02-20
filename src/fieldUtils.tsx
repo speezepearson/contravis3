@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { InstructionSchema, RelativeDirectionSchema } from './types';
-import type { Instruction, Relationship, RelativeDirection, DropHandsTarget, TakeHand, Role, InstructionId } from './types';
+import type { Instruction, Relationship, RelativeDirection, DropHandsTarget, Role, InstructionId } from './types';
 
 // --- Shared sub-form types and components ---
 

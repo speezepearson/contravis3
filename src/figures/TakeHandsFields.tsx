@@ -2,7 +2,8 @@ import { useState } from 'react';
 import SearchableDropdown from '../SearchableDropdown';
 import { InstructionSchema, RelationshipSchema, TakeHandSchema } from '../types';
 import type { Relationship, TakeHand, AtomicInstruction } from '../types';
-import { SubFormProps, SaveCancelButtons, useInstructionPreview, RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS, TAKE_HAND_OPTIONS } from '../fieldUtils';
+import type { SubFormProps } from '../fieldUtils';
+import { SaveCancelButtons, useInstructionPreview, RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS, TAKE_HAND_OPTIONS } from '../fieldUtils';
 
 export function TakeHandsFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'take_hands' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');

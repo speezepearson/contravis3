@@ -1,6 +1,6 @@
 import type { Keyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
 import { makeDancerId, dancerPosition, normalizeBearing, QUARTER_CW, QUARTER_CCW, FULL_CW } from '../types';
-import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolvePairs } from '../generateUtils';
+import { copyDancers, easeInOut, resolvePairs } from '../generateUtils';
 
 export function generateAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   // right = CW, left = CCW

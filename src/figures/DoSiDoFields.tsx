@@ -2,7 +2,8 @@ import { useState } from 'react';
 import SearchableDropdown from '../SearchableDropdown';
 import { InstructionSchema, RelationshipSchema } from '../types';
 import type { Relationship, AtomicInstruction } from '../types';
-import { SubFormProps, SaveCancelButtons, useInstructionPreview, defaultBeats, RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../fieldUtils';
+import type { SubFormProps } from '../fieldUtils';
+import { SaveCancelButtons, useInstructionPreview, defaultBeats, RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../fieldUtils';
 
 export function DoSiDoFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'do_si_do' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');

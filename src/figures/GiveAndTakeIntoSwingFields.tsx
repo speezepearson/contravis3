@@ -2,7 +2,8 @@ import { useState } from 'react';
 import SearchableDropdown from '../SearchableDropdown';
 import { InstructionSchema, RelationshipSchema, RoleSchema } from '../types';
 import type { Relationship, Role, AtomicInstruction } from '../types';
-import { SubFormProps, SaveCancelButtons, useInstructionPreview, defaultBeats, parseDirection, directionToText, RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS, DIR_OPTIONS, ROLE_OPTIONS } from '../fieldUtils';
+import type { SubFormProps } from '../fieldUtils';
+import { SaveCancelButtons, useInstructionPreview, defaultBeats, parseDirection, directionToText, RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS, DIR_OPTIONS, ROLE_OPTIONS } from '../fieldUtils';
 
 export function GiveAndTakeIntoSwingFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }> }) {
   const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');

@@ -3,7 +3,8 @@ import SearchableDropdown from '../SearchableDropdown';
 import { InstructionSchema, splitWithLists, splitLists } from '../types';
 import type { Instruction, SplitBy } from '../types';
 import { z } from 'zod';
-import { SubFormProps, SaveCancelButtons, SPLIT_BY_OPTIONS, SPLIT_BY_LABELS } from '../fieldUtils';
+import type { SubFormProps } from '../fieldUtils';
+import { SaveCancelButtons, SPLIT_BY_OPTIONS, SPLIT_BY_LABELS } from '../fieldUtils';
 
 export function SplitFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'split' }> }) {
   const [splitBy, setSplitBy] = useState<SplitBy['by']>(initial?.by ?? 'role');

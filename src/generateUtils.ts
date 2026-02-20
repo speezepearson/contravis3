@@ -1,5 +1,5 @@
-import type { Keyframe, AtomicInstruction, Relationship, RelativeDirection, DancerState, HandConnection, ProtoDancerId, DancerId } from './types';
-import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, QUARTER_CW, HALF_CW, FULL_CW, QUARTER_CCW, normalizeBearing } from './types';
+import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId } from './types';
+import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, QUARTER_CW, HALF_CW, FULL_CW, QUARTER_CCW, normalizeBearing } from './types';
 import { assertNever } from './utils';
 
 export const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;

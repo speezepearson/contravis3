@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { InstructionSchema } from '../types';
 import type { Instruction } from '../types';
-import { SubFormProps, SaveCancelButtons } from '../fieldUtils';
+import type { SubFormProps } from '../fieldUtils';
+import { SaveCancelButtons } from '../fieldUtils';
 
 export function GroupFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'group' }> }) {
   const [label, setLabel] = useState(initial?.label ?? '');

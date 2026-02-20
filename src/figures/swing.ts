@@ -1,6 +1,6 @@
 import type { Keyframe, AtomicInstruction, ProtoDancerId } from '../types';
 import { makeDancerId, parseDancerId, normalizeBearing } from '../types';
-import { PROTO_DANCER_IDS, copyDancers, resolveFacing, resolvePairs, isLark } from '../generateUtils';
+import { copyDancers, resolveFacing, resolvePairs, isLark } from '../generateUtils';
 
 export function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const FRONT = 0.15;

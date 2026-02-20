@@ -2,7 +2,8 @@ import { useState } from 'react';
 import SearchableDropdown from '../SearchableDropdown';
 import { InstructionSchema, HandSchema } from '../types';
 import type { AtomicInstruction } from '../types';
-import { SubFormProps, SaveCancelButtons, useInstructionPreview, defaultBeats, CIRCLE_DIR_OPTIONS } from '../fieldUtils';
+import type { SubFormProps } from '../fieldUtils';
+import { SaveCancelButtons, useInstructionPreview, defaultBeats, CIRCLE_DIR_OPTIONS } from '../fieldUtils';
 
 export function CircleFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'circle' }> }) {
   const [direction, setDirection] = useState<'left' | 'right'>(initial?.direction ?? 'left');

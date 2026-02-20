@@ -3,7 +3,8 @@ import SearchableDropdown from '../SearchableDropdown';
 import { InstructionSchema } from '../types';
 import type { AtomicInstruction } from '../types';
 import { z } from 'zod';
-import { SubFormProps, SaveCancelButtons, useInstructionPreview, defaultBeats } from '../fieldUtils';
+import type { SubFormProps } from '../fieldUtils';
+import { SaveCancelButtons, useInstructionPreview, defaultBeats } from '../fieldUtils';
 
 const MAD_ROBIN_DIR_OPTIONS = ['larks_in_middle', 'robins_in_middle'];
 const MAD_ROBIN_DIR_LABELS: Record<string, string> = { larks_in_middle: 'larks in middle', robins_in_middle: 'robins in middle' };
