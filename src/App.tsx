@@ -1,13 +1,30 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
-import { generateAllKeyframes, validateHandDistances, validateProgression, generateInstructionPreview } from './generate';
+import { generateAllKeyframes, validateHandDistances, validateProgression, generateInstructionPreview, findInstructionStartBeat, findInstructionScope } from './generate';
 import { exportGif } from './exportGif';
 import CommandPane, { insertIntoContainer } from './CommandPane';
 import type { EditingInfo } from './CommandPane';
 import type { Instruction, InitFormation, InstructionId, Keyframe, ProtoDancerId } from './types';
-import { splitLists, instructionDuration } from './types';
+import { splitLists, instructionDuration, InstructionSchema } from './types';
 
 const DANCE_LENGTH = 64;
+
+function findInstructionById(instrs: Instruction[], id: InstructionId): Instruction | null {
+  for (const i of instrs) {
+    if (i.id === id) return i;
+    if (i.type === 'group') {
+      const found = findInstructionById(i.instructions, id);
+      if (found) return found;
+    }
+    if (i.type === 'split') {
+      const [listA, listB] = splitLists(i);
+      for (const s of [...listA, ...listB]) {
+        if (s.id === id) return InstructionSchema.parse(s);
+      }
+    }
+  }
+  return null;
+}
 
 function activeInstructionId(instructions: Instruction[], beat: number): InstructionId | null {
   let currentBeat = 0;
@@ -63,6 +80,7 @@ export default function App() {
   // Editing state for pause-on-edit and keyframe preview
   const [editInfo, setEditInfo] = useState<{ startBeat: number; scope: Set<ProtoDancerId>; insertAt?: { containerId: string; index: number } } | null>(null);
   const [previewInstruction, setPreviewInstruction] = useState<Instruction | null>(null);
+  const [hoveredInstructionId, setHoveredInstructionId] = useState<InstructionId | null>(null);
 
   const bpmRef = useRef(120);
   const smoothnessRef = useRef(1);
@@ -74,19 +92,37 @@ export default function App() {
   const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
   wrapRef.current = !progressionWarning;
 
-  // Compute preview keyframes when editing (not adding)
+  // Compute preview keyframes when editing or hovering (not when adding)
   const previewKeyframes = useMemo(() => {
-    if (!editInfo || !previewInstruction) return [];
-    if (editInfo.insertAt) return []; // In add mode, use addModeKeyframes instead
+    let startBeat: number;
+    let scope: Set<ProtoDancerId>;
+    let instr: Instruction | null;
+
+    if (editInfo && previewInstruction) {
+      if (editInfo.insertAt) return []; // In add mode, use addModeKeyframes instead
+      // Editing: use the edit info and preview instruction
+      startBeat = editInfo.startBeat;
+      scope = editInfo.scope;
+      instr = previewInstruction;
+    } else if (hoveredInstructionId && !editInfo) {
+      // Hovering (not during edit): compute from the hovered instruction
+      instr = findInstructionById(instructions, hoveredInstructionId);
+      if (!instr) return [];
+      startBeat = findInstructionStartBeat(instructions, hoveredInstructionId) ?? 0;
+      scope = findInstructionScope(instructions, hoveredInstructionId);
+    } else {
+      return [];
+    }
+
     // Find the keyframe at or before the start beat
     let prevKeyframe: Keyframe | null = null;
     for (const kf of keyframes) {
-      if (kf.beat <= editInfo.startBeat + 1e-6) prevKeyframe = kf;
+      if (kf.beat <= startBeat + 1e-6) prevKeyframe = kf;
       else break;
     }
     if (!prevKeyframe) return [];
-    return generateInstructionPreview(previewInstruction, prevKeyframe, editInfo.scope) ?? [];
-  }, [editInfo, previewInstruction, keyframes]);
+    return generateInstructionPreview(instr, prevKeyframe, scope) ?? [];
+  }, [editInfo, previewInstruction, hoveredInstructionId, instructions, keyframes]);
 
   // When adding, compute keyframes for the hypothetical dance (current dance + new instruction inserted)
   const addModeKeyframes = useMemo(() => {
@@ -273,6 +309,10 @@ export default function App() {
     setPreviewInstruction(instr);
   }, []);
 
+  const handleHoverInstruction = useCallback((id: InstructionId | null) => {
+    setHoveredInstructionId(id);
+  }, []);
+
   const handleBeatChange = useCallback((newBeat: number) => {
     beatRef.current = newBeat;
     rendererRef.current?.clearTrails();
@@ -383,7 +423,7 @@ export default function App() {
       {/* Desktop sidebar */}
       <div className="sidebar-column">
         <div className="sidebar-instructions">
-          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} beat={beat} onBeatChange={handleBeatChange} />
+          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} onHoverInstruction={handleHoverInstruction} beat={beat} onBeatChange={handleBeatChange} />
         </div>
         <div className="sidebar-controls">
           {controlsBlock}
@@ -400,7 +440,7 @@ export default function App() {
 
       {/* Mobile instruction drawer */}
       <div className={`instruction-drawer ${drawerOpen ? 'open' : ''}`}>
-        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} beat={beat} onBeatChange={handleBeatChange} />
+        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} onHoverInstruction={handleHoverInstruction} beat={beat} onBeatChange={handleBeatChange} />
       </div>
     </div>
   );
