@@ -159,7 +159,7 @@ function removeFromTree(instrs: Instruction[], targetId: InstructionId): [Instru
   return [mapped, removed];
 }
 
-function insertIntoContainer(instrs: Instruction[], containerId: string, item: Instruction, index: number): Instruction[] {
+export function insertIntoContainer(instrs: Instruction[], containerId: string, item: Instruction, index: number): Instruction[] {
   const parsed = parseContainerId(containerId);
   if (parsed.type === 'top') {
     const copy = [...instrs];
@@ -298,6 +298,7 @@ function computeDimmedIds(instructions: Instruction[], errorId: InstructionId | 
 export interface EditingInfo {
   startBeat: number;
   scope: Set<ProtoDancerId>;
+  insertAt?: { containerId: string; index: number };
 }
 
 interface Props {
@@ -894,8 +895,9 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
     ? ACTION_OPTIONS
     : ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group');
 
-  const showSlider = onBeatChange && endBeat > sb;
-  const clampedBeat = Math.min(Math.max(beat ?? sb, sb), endBeat);
+  const scrubMin = initial ? sb : 0;
+  const showSlider = onBeatChange && endBeat > scrubMin;
+  const clampedBeat = Math.min(Math.max(beat ?? sb, scrubMin), endBeat);
 
   return (
     <div className="inline-form">
@@ -903,7 +905,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
         <input
           type="range"
           className="inline-form-scrubber"
-          min={Math.round(sb * 100)}
+          min={Math.round(scrubMin * 100)}
           max={Math.round(endBeat * 100)}
           value={Math.round(clampedBeat * 100)}
           onChange={e => onBeatChange!(Number(e.target.value) / 100)}
@@ -987,7 +989,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     setInsertTarget({ containerId, index });
     setEditingId(null);
     const info = computeInsertInfo(instructions, containerId, index);
-    onEditingStart?.(info);
+    onEditingStart?.({ ...info, insertAt: { containerId, index } });
   }
 
   function handleAdd(containerId: string, index: number, instr: Instruction) {
@@ -996,7 +998,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     const newIndex = index + 1;
     setInsertTarget({ containerId, index: newIndex });
     const info = computeInsertInfo(newInstructions, containerId, newIndex);
-    onEditingStart?.(info);
+    onEditingStart?.({ ...info, insertAt: { containerId, index: newIndex } });
   }
 
   function openEdit(id: InstructionId) {

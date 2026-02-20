@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Renderer, getFrameAtBeat } from './renderer';
 import { generateAllKeyframes, validateHandDistances, validateProgression, generateInstructionPreview } from './generate';
 import { exportGif } from './exportGif';
-import CommandPane from './CommandPane';
+import CommandPane, { insertIntoContainer } from './CommandPane';
 import type { EditingInfo } from './CommandPane';
 import type { Instruction, InitFormation, InstructionId, Keyframe, ProtoDancerId } from './types';
 import { splitLists, instructionDuration } from './types';
@@ -61,7 +61,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
 
   // Editing state for pause-on-edit and keyframe preview
-  const [editInfo, setEditInfo] = useState<{ startBeat: number; scope: Set<ProtoDancerId> } | null>(null);
+  const [editInfo, setEditInfo] = useState<{ startBeat: number; scope: Set<ProtoDancerId>; insertAt?: { containerId: string; index: number } } | null>(null);
   const [previewInstruction, setPreviewInstruction] = useState<Instruction | null>(null);
 
   const bpmRef = useRef(120);
@@ -74,12 +74,10 @@ export default function App() {
   const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
   wrapRef.current = !progressionWarning;
 
-  const minBeat = 0;
-  const maxBeat = DANCE_LENGTH;
-
-  // Compute preview keyframes when editing
+  // Compute preview keyframes when editing (not adding)
   const previewKeyframes = useMemo(() => {
     if (!editInfo || !previewInstruction) return [];
+    if (editInfo.insertAt) return []; // In add mode, use addModeKeyframes instead
     // Find the keyframe at or before the start beat
     let prevKeyframe: Keyframe | null = null;
     for (const kf of keyframes) {
@@ -90,16 +88,30 @@ export default function App() {
     return generateInstructionPreview(previewInstruction, prevKeyframe, editInfo.scope) ?? [];
   }, [editInfo, previewInstruction, keyframes]);
 
+  // When adding, compute keyframes for the hypothetical dance (current dance + new instruction inserted)
+  const addModeKeyframes = useMemo(() => {
+    if (!editInfo?.insertAt || !previewInstruction) return null;
+    const { containerId, index } = editInfo.insertAt;
+    const hypothetical = insertIntoContainer(instructions, containerId, previewInstruction, index);
+    return generateAllKeyframes(hypothetical, initFormation).keyframes;
+  }, [editInfo, previewInstruction, instructions, initFormation]);
+
+  const effectiveKeyframes = addModeKeyframes ?? keyframes;
+  const minBeat = 0;
+  const maxBeat = (addModeKeyframes && editInfo && previewInstruction)
+    ? editInfo.startBeat + instructionDuration(previewInstruction)
+    : DANCE_LENGTH;
+
   // Keep a ref to keyframes for the animation loop
   const keyframesRef = useRef(keyframes);
   const minBeatRef = useRef(minBeat);
   const maxBeatRef = useRef(maxBeat);
   const previewKeyframesRef = useRef<Keyframe[]>([]);
   useEffect(() => {
-    keyframesRef.current = keyframes;
+    keyframesRef.current = effectiveKeyframes;
     minBeatRef.current = minBeat;
     maxBeatRef.current = maxBeat;
-  }, [keyframes, minBeat, maxBeat]);
+  }, [effectiveKeyframes, minBeat, maxBeat]);
   useEffect(() => {
     previewKeyframesRef.current = previewKeyframes;
   }, [previewKeyframes]);
@@ -123,7 +135,7 @@ export default function App() {
   useEffect(() => {
     const id = requestAnimationFrame(() => draw());
     return () => cancelAnimationFrame(id);
-  }, [keyframes, previewKeyframes, draw]);
+  }, [keyframes, previewKeyframes, addModeKeyframes, draw]);
 
   // Initialize renderer + ResizeObserver
   useEffect(() => {
@@ -247,7 +259,7 @@ export default function App() {
     beatRef.current = info.startBeat;
     rendererRef.current?.clearTrails();
     // Store edit info for preview generation
-    setEditInfo({ startBeat: info.startBeat, scope: info.scope });
+    setEditInfo({ startBeat: info.startBeat, scope: info.scope, insertAt: info.insertAt });
     setPreviewInstruction(null);
     draw();
   }, [draw]);
