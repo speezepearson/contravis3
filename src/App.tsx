@@ -123,12 +123,15 @@ export default function App() {
     return generateInstructionPreview(instr, prevKeyframe, scope) ?? [];
   }, [editInfo, previewInstruction, hoveredInstructionId, instructions, keyframes]);
 
-  // When adding, compute keyframes for the hypothetical dance (current dance + new instruction inserted)
+  // When adding, compute keyframes for the hypothetical dance (current dance + new instruction inserted),
+  // truncated to exclude instructions after the insert point so they don't leak via smoothing.
   const addModeKeyframes = useMemo(() => {
     if (!editInfo?.insertAt || !previewInstruction) return null;
     const { containerId, index } = editInfo.insertAt;
     const hypothetical = insertIntoContainer(instructions, containerId, previewInstruction, index);
-    return generateAllKeyframes(hypothetical, initFormation).keyframes;
+    const allKfs = generateAllKeyframes(hypothetical, initFormation).keyframes;
+    const endBeat = editInfo.startBeat + instructionDuration(previewInstruction);
+    return allKfs.filter(kf => kf.beat <= endBeat + 1e-6);
   }, [editInfo, previewInstruction, instructions, initFormation]);
 
   const effectiveKeyframes = addModeKeyframes ?? keyframes;
