@@ -1,5 +1,5 @@
 import type { DancerState, Keyframe, ProtoDancerId } from './types';
-import { dancerPosition, ProtoDancerIdSchema, buildDancerRecord } from './types';
+import { dancerPosition, ProtoDancerIdSchema, buildDancerRecord, FULL_CW, normalizeBearing } from './types';
 
 const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark_0:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
@@ -140,9 +140,8 @@ export class Renderer {
   }
 
   private handAnchorOffset(facing: number, hand: 'left' | 'right', r: number): [number, number] {
-    const fRad = facing * Math.PI / 180;
     const sign = hand === 'right' ? 1 : -1;
-    return [Math.cos(fRad) * sign * r, Math.sin(fRad) * sign * r];
+    return [Math.cos(facing) * sign * r, Math.sin(facing) * sign * r];
   }
 
   private drawHandsForAllCopies(da: DancerState, handA: 'left' | 'right', db: DancerState, handB: 'left' | 'right') {
@@ -218,8 +217,8 @@ export class Renderer {
     ctx.stroke();
 
     // Facing arrow (shorter)
-    const ax = cx + Math.sin(facing * Math.PI / 180) * (r + 4);
-    const ay = cy - Math.cos(facing * Math.PI / 180) * (r + 4);
+    const ax = cx + Math.sin(facing) * (r + 4);
+    const ay = cy - Math.cos(facing) * (r + 4);
     ctx.strokeStyle = color.stroke;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -249,8 +248,8 @@ export class Renderer {
     ctx.stroke();
 
     // Facing arrow
-    const ax = cx + Math.sin(facing * Math.PI / 180) * (r + 6);
-    const ay = cy - Math.cos(facing * Math.PI / 180) * (r + 6);
+    const ax = cx + Math.sin(facing) * (r + 6);
+    const ay = cy - Math.cos(facing) * (r + 6);
     ctx.strokeStyle = color.stroke;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -283,15 +282,15 @@ export class Renderer {
 // --- Keyframe interpolation ---
 
 function lerpAngle(a: number, b: number, t: number): number {
-  let diff = ((b - a + 180) % 360) - 180;
-  if (diff < -180) diff += 360;
-  return (a + diff * t + 360) % 360;
+  let diff = ((b - a + Math.PI) % FULL_CW) - Math.PI;
+  if (diff < -Math.PI) diff += FULL_CW;
+  return (a + diff * t + FULL_CW) % FULL_CW;
 }
 
-/** Unwrap an angle relative to a reference so the difference is in (-180, 180]. */
+/** Unwrap an angle relative to a reference so the difference is in (-π, π]. */
 function unwrapAngle(angle: number, ref: number): number {
-  let diff = ((angle - ref + 180) % 360) - 180;
-  if (diff < -180) diff += 360;
+  let diff = ((angle - ref + Math.PI) % FULL_CW) - Math.PI;
+  if (diff < -Math.PI) diff += FULL_CW;
   return ref + diff;
 }
 
@@ -400,7 +399,7 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
     return {
       x: sumX / n,
       y: sumY / n,
-      facing: ((sumFacing / n % 360) + 360) % 360,
+      facing: ((sumFacing / n % FULL_CW) + FULL_CW) % FULL_CW,
     };
   });
 

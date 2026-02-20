@@ -142,9 +142,30 @@ export type Dance = z.infer<typeof DanceSchema>;
 export const DancerStateSchema = z.object({
   x: z.number(),
   y: z.number(),
-  facing: z.number(), // degrees: 0=north, 90=east, 180=south, 270=west
+  facing: z.number(), // radians: 0=north, π/2=east, π=south, 3π/2=west
 });
 export type DancerState = z.infer<typeof DancerStateSchema>;
+
+// --- Angle constants (radians) ---
+
+/** Cardinal bearings (absolute directions). */
+export const NORTH = 0;
+export const EAST = Math.PI / 2;
+export const SOUTH = Math.PI;
+export const WEST = 3 * Math.PI / 2;
+
+/** Rotation amounts. */
+export const QUARTER_CW = Math.PI / 2;
+export const HALF_CW = Math.PI;
+export const FULL_CW = 2 * Math.PI;
+export const QUARTER_CCW = -Math.PI / 2;
+export const HALF_CCW = -Math.PI;
+export const FULL_CCW = -2 * Math.PI;
+
+/** Normalize a bearing into [0, 2π). */
+export function normalizeBearing(bearing: number): number {
+  return ((bearing % FULL_CW) + FULL_CW) % FULL_CW;
+}
 
 export const HandConnectionSchema = z.object({
   a: DancerIdSchema,
