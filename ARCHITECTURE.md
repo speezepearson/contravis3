@@ -55,8 +55,10 @@ Dancers interact via **relationships**: `partner` (same direction, other role), 
 Instructions are the units of choreography. The `Instruction` type is a recursive discriminated union:
 
 - **Atomic instructions** (`AtomicInstruction`): a single dance figure with a `type`, `beats`, and figure-specific parameters. Types include `allemande`, `swing`, `do_si_do`, `pull_by`, `circle`, `balance`, `step`, `turn`, `take_hands`, `drop_hands`, `box_the_gnat`, `give_and_take_into_swing`, and `mad_robin`.
-- **Split**: two parallel sub-sequences executed simultaneously by different groups, split either by `role` (larks do X, robins do Y) or by `position` (ups do X, downs do Y). Sub-instructions inside a split must be atomic.
+- **Split**: two parallel sub-sequences executed simultaneously by different groups, split either by `role` (larks do X, robins do Y) or by `position` (ups do X, downs do Y). Sub-instructions inside a split must be atomic — no nested splits or groups. This constraint is enforced by the Zod schema (the split fields are typed as `AtomicInstruction[]`, not `Instruction[]`).
 - **Group**: a labeled container of child `Instruction`s (which can themselves be splits, groups, or atomics). Used for organizational purposes (e.g. "A1: long lines forward & back").
+
+The `Instruction` type is recursive (groups contain `Instruction[]`), so it can't be expressed as a simple Zod schema. It's defined with `z.lazy()` and a `z.BRAND<'Instruction'>` cast to bridge the gap between the unbranded schema output and the branded TypeScript type.
 
 Each instruction has a UUID `id` used for referencing it in the UI, error reporting, and validation.
 
@@ -103,7 +105,7 @@ This is the core engine. `generateAllKeyframes()` takes an instruction list and 
 
 ### Relationship resolution
 
-`resolveRelationship()` maps a `Relationship` to the target `DancerId`. Static relationships (partner, neighbor, opposite) are hardcoded lookup tables. Spatial relationships (on_right, on_left, in_front) use a scoring function based on angular proximity to the dancer's facing direction, searching nearby proto-dancers at various offsets.
+`resolveRelationship()` maps a `Relationship` to the target `DancerId`. Static relationships (partner, neighbor, opposite) are hardcoded lookup tables. Spatial relationships (`on_right`, `on_left`, `in_front`, `larks_left_robins_right`, `larks_right_robins_left`) use a scoring function that searches nearby proto-dancers at 5 tiling offsets around the expected position. The scoring function biases the dancer's heading by a fixed angle (e.g. +70° for `on_right`) and scores candidates as `distance / cos²(θ)`, where θ is the angle between the biased heading and the direction to the candidate. Candidates must be within 1.2m and within roughly ±81° of the biased heading (cos²θ > 0.01). This means spatial resolution depends on both distance and angular alignment, so it can produce surprising results when dancers are in unusual formations.
 
 `resolvePairs()` resolves a relationship for all scoped dancers and validates symmetry (if A's neighbor is B, then B's neighbor must be A).
 
@@ -112,14 +114,18 @@ This is the core engine. `generateAllKeyframes()` takes an instruction list and 
 Most generator functions follow the same pattern:
 1. Resolve pairs or targets from the previous keyframe's positions.
 2. Compute orbital/displacement parameters (center, radius, start angle, etc.).
-3. Generate N sub-beat frames (typically one per 0.25 beats) with eased interpolation (`easeInOut` = cosine ease).
+3. Generate N keyframes (typically one per 0.25 beats) with eased interpolation (`easeInOut` = cosine ease).
 4. Return the array of keyframes.
 
+The output is a sparse array — only the generated keyframes exist, not one per animation frame. The renderer interpolates between them for smooth playback.
+
 Notable generators:
-- **Swing** has two phases: regular spinning orbit, then a "peel-off" phase in the last ~90 degrees where the pair separates to face a specified direction side by side.
-- **Give-and-take into swing**: a walk phase (drawee walks halfway to drawer) followed by a swing with center-of-mass drift toward the final position.
-- **Circle**: all scoped dancers orbit their common center, with ring hand connections automatically computed.
-- **Do-si-do**: like an allemande orbit but dancers maintain their original facing direction (no rotation) and follow an elliptical path.
+- **Swing** has two distinct phases. Phase 1 is a regular spinning orbit around the pair's center of mass, with the lark and robin on opposite sides (offset slightly: 0.15m forward, 0.1m right of center). Phase 2 begins when the lark has ~90° of rotation left: the lark walks to a final position (0.5m from center in the end-facing direction) while the robin transitions from facing opposite the lark to facing the same direction, ending side-by-side. The robin's position during phase 2 is computed in the lark's reference frame, moving from (0.3 front, 0.2 right) to (0 front, 1.0 right). Swing hands (lark right ↔ robin left) are held throughout and dropped on the final frame.
+- **Give-and-take into swing**: the drawee walks halfway to the drawer over 1 beat, then a swing begins from the meeting point. During the swing, the center of mass drifts (with easing) from the meeting point toward the final position, so the pair doesn't just spin in place.
+- **Circle**: all scoped dancers orbit their common centroid. Ring hand connections are computed by sorting dancers by angle around center and connecting each dancer's inside hand to the next dancer's.
+- **Do-si-do**: dancers orbit each other on an elliptical path (semi-minor axis = distance/4), always CW (passing right shoulders). Unlike allemande, dancers maintain their original facing direction throughout and no hands are taken.
+- **Balance**: syntactic sugar — generates a step-out followed by a step-back, each using half the total beats.
+- **Take hands**: when `hand` is `'inside'`, the hand for each dancer is resolved dynamically via `resolveInsideHand()`, which computes the bearing to the target and picks the closer hand. This means the same `take_hands` instruction can result in different hands for different dancers depending on their positions. Hand connections are deduplicated by canonical `(min, max)` ordering of dancer IDs so each pair gets exactly one connection.
 
 ### Validation
 
@@ -130,6 +136,8 @@ After generation, two validators can run:
 ### Error handling
 
 `KeyframeGenerationError` carries `partialKeyframes` so the UI can still render everything up to the point of failure. The error's `instructionId` identifies which instruction caused the problem. Instructions after the error are visually dimmed in the UI.
+
+Splits have special error handling: each branch is generated in a try/catch independently, so if one branch fails, its partial keyframes are still merged with the other branch's (possibly complete) keyframes before re-throwing.
 
 ## Rendering (`renderer.ts`)
 
@@ -146,7 +154,7 @@ The `Renderer` class draws onto a 2D canvas:
 
 `getFrameAtBeat()` provides smooth playback:
 - `rawFrameAtBeat()` does linear interpolation between the two surrounding keyframes (binary search), with angle-aware lerp for facing. It handles cycle wrapping and applies progression offsets for multi-cycle playback.
-- When `smoothness > 0`, a moving-average window samples 10 raw frames and averages positions/facings, producing smoother motion at the cost of slight lag.
+- When `smoothness > 0` (measured in beats), a moving-average window of that width samples 10 raw frames and averages positions/facings, producing smoother motion. Because the window is centered on the current beat, smoothing introduces lag of half the window width. Facing angles are unwrapped via chaining (each sample relative to the previous) so that fast rotations spanning >180° across the window don't cause wraparound artifacts.
 
 ## UI layer
 
