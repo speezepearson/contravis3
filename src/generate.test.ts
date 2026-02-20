@@ -1517,10 +1517,10 @@ describe('generateAllKeyframes with initFormation', () => {
     it('returns null when dancers end at expected progression positions', () => {
       // Move each dancer 2m in their progression direction (progression=1)
       const instructions = instr([
-        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 2.0 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 3.0 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
-      expect(validateProgression(keyframes, 'improper', 1)).toBeNull();
+      expect(validateProgression(keyframes, 'improper', 3)).toBeNull();
     });
 
     it('warns when dancers do not end at expected positions', () => {
