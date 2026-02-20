@@ -166,8 +166,7 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
-  /** Draw ghostly preview keyframes: path lines connecting adjacent positions
-   *  and small ghost dancers at whole-beat intervals. */
+  /** Draw ghostly preview keyframes: path lines connecting adjacent positions. */
   drawPreviewKeyframes(keyframes: Keyframe[]) {
     if (keyframes.length === 0) return;
     const ctx = this.ctx;
@@ -188,19 +187,6 @@ export class Renderer {
       }
       ctx.stroke();
       ctx.setLineDash([]);
-    }
-
-    // Draw ghost dancers at whole-beat keyframes
-    const shownBeats = new Set<number>();
-    for (const kf of keyframes) {
-      const roundedBeat = Math.round(kf.beat);
-      if (Math.abs(kf.beat - roundedBeat) < 0.13 && !shownBeats.has(roundedBeat)) {
-        shownBeats.add(roundedBeat);
-        for (const id of ProtoDancerIdSchema.options) {
-          const d = kf.dancers[id];
-          this.drawGhostDancer(id, d.x, d.y, d.facing);
-        }
-      }
     }
 
     // Always show the final keyframe ghost
