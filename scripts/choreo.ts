@@ -8,6 +8,7 @@ import {
   DanceSchema, InstructionSchema, InstructionIdSchema,
   type Dance, type Instruction, type Keyframe, type ProtoDancerId, type DancerId, type HandConnection, type DancerState, type InstructionId,
   ProtoDancerIdSchema, dancerPosition, parseDancerId, makeDancerId, instructionDuration,
+  NORTH, EAST, SOUTH, WEST, QUARTER_CW, QUARTER_CCW, FULL_CW, normalizeBearing,
 } from '../src/types';
 import { generateAllKeyframes, validateHandDistances, validateProgression, type GenerateError } from '../src/generate';
 
@@ -110,13 +111,14 @@ function computeBeatMap(instrs: Instruction[]): Map<string, number> {
 
 const PROTO_IDS = ProtoDancerIdSchema.options;
 
-function facingStr(deg: number): string {
-  const normalized = ((deg % 360) + 360) % 360;
-  if (Math.abs(normalized - 0) < 1) return 'up (0°)';
-  if (Math.abs(normalized - 90) < 1) return 'across-right (90°)';
-  if (Math.abs(normalized - 180) < 1) return 'down (180°)';
-  if (Math.abs(normalized - 270) < 1) return 'across-left (270°)';
-  return `${normalized.toFixed(0)}°`;
+function facingStr(rad: number): string {
+  const normalized = normalizeBearing(rad);
+  const EPS = 0.02; // ~1°
+  if (Math.abs(normalized - NORTH) < EPS) return 'up (0 rot)';
+  if (Math.abs(normalized - EAST) < EPS) return 'across-right (0.25 rot)';
+  if (Math.abs(normalized - SOUTH) < EPS) return 'down (0.5 rot)';
+  if (Math.abs(normalized - WEST) < EPS) return 'across-left (0.75 rot)';
+  return `${(normalized / FULL_CW).toFixed(2)} rot`;
 }
 
 function handStr(h: HandConnection, perspective: DancerId): string {
@@ -132,14 +134,13 @@ function neighborInfo(
   myId: ProtoDancerId,
   myState: DancerState,
   others: { id: DancerId; state: DancerState }[],
-  angleDeg: number, // absolute angle to search
+  angleRad: number, // absolute angle to search (radians)
 ): string {
   // Find nearest dancer in roughly that direction
-  const angleRad = angleDeg * Math.PI / 180;
   const ux = Math.sin(angleRad);
   const uy = Math.cos(angleRad);
 
-  let best: { id: DancerId; dist: number; heading: number; bearing: number } | null = null;
+  let best: { id: DancerId; dist: number; headingRot: number; bearingRot: number } | null = null;
   let bestScore = Infinity;
 
   for (const o of others) {
@@ -152,14 +153,14 @@ function neighborInfo(
     const score = dist / Math.max(cosTheta, 0.01);
     if (score < bestScore) {
       bestScore = score;
-      const heading = ((Math.atan2(dx, dy) * 180 / Math.PI) % 360 + 360) % 360;
-      const bearing = ((heading - myState.facing + 540) % 360) - 180;
-      best = { id: o.id, dist, heading, bearing };
+      const headingRad = normalizeBearing(Math.atan2(dx, dy));
+      const bearingRad = ((headingRad - myState.facing + 3 * Math.PI) % FULL_CW) - Math.PI;
+      best = { id: o.id, dist, headingRot: headingRad / FULL_CW, bearingRot: bearingRad / FULL_CW };
     }
   }
 
   if (!best) return `  ${label}: (none)`;
-  return `  ${label}: ${best.id}  dist=${best.dist.toFixed(2)}m  heading=${best.heading.toFixed(0)}°  bearing=${best.bearing > 0 ? '+' : ''}${best.bearing.toFixed(0)}°`;
+  return `  ${label}: ${best.id}  dist=${best.dist.toFixed(2)}m  heading=${best.headingRot.toFixed(2)} rot  bearing=${best.bearingRot > 0 ? '+' : ''}${best.bearingRot.toFixed(2)} rot`;
 }
 
 function formatKeyframe(kf: Keyframe): string {
@@ -191,10 +192,10 @@ function formatKeyframe(kf: Keyframe): string {
     }
 
     // on left, on right, in front (relative to facing)
-    const facingDeg = d.facing;
-    lines.push(neighborInfo('on left', protoId, d, others, facingDeg - 90));
-    lines.push(neighborInfo('on right', protoId, d, others, facingDeg + 90));
-    lines.push(neighborInfo('in front', protoId, d, others, facingDeg));
+    const facing = d.facing;
+    lines.push(neighborInfo('on left', protoId, d, others, facing + QUARTER_CCW));
+    lines.push(neighborInfo('on right', protoId, d, others, facing + QUARTER_CW));
+    lines.push(neighborInfo('in front', protoId, d, others, facing));
     lines.push('');
   }
 
