@@ -896,9 +896,8 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
     ? ACTION_OPTIONS
     : ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group');
 
-  const scrubMin = initial ? sb : 0;
-  const showSlider = onBeatChange && endBeat > scrubMin;
-  const clampedBeat = Math.min(Math.max(beat ?? sb, scrubMin), endBeat);
+  const showSlider = onBeatChange && endBeat > sb;
+  const clampedBeat = Math.min(Math.max(beat ?? sb, sb), endBeat);
 
   return (
     <div className="inline-form">
@@ -906,7 +905,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
         <input
           type="range"
           className="inline-form-scrubber"
-          min={Math.round(scrubMin * 100)}
+          min={Math.round(sb * 100)}
           max={Math.round(endBeat * 100)}
           value={Math.round(clampedBeat * 100)}
           onChange={e => onBeatChange!(Number(e.target.value) / 100)}

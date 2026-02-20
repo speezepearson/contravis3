@@ -92,15 +92,14 @@ export default function App() {
   const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
   wrapRef.current = !progressionWarning;
 
-  // Compute preview keyframes when editing or hovering (not when adding)
+  // Compute preview keyframes when editing, adding, or hovering
   const previewKeyframes = useMemo(() => {
     let startBeat: number;
     let scope: Set<ProtoDancerId>;
     let instr: Instruction | null;
 
     if (editInfo && previewInstruction) {
-      if (editInfo.insertAt) return []; // In add mode, use addModeKeyframes instead
-      // Editing: use the edit info and preview instruction
+      // Editing or adding: use the edit info and preview instruction
       startBeat = editInfo.startBeat;
       scope = editInfo.scope;
       instr = previewInstruction;
