@@ -1,18 +1,16 @@
-import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from 'react';
+import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
-import { InstructionSchema, DanceSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, ActionTypeSchema, splitLists, splitWithLists, instructionDuration, formatDanceParseError } from './types';
+import { InstructionSchema, DanceSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, ActionTypeSchema, splitLists, splitWithLists, formatDanceParseError } from './types';
 import type { Instruction, AtomicInstruction, SplitBy, ActionType, InitFormation, InstructionId, Dance } from './types';
 import type { GenerateError } from './generate';
-import { findInstructionStartBeat, findInstructionScope, ALL_DANCERS, SPLIT_GROUPS } from './generate';
-import type { ProtoDancerId } from './types';
 import { z } from 'zod';
 import { assertNever } from './utils';
-import { directionToText } from './fieldUtils';
+import { makeDefaultInstruction, makeInstructionId } from './fieldUtils';
 
 import { TakeHandsFields } from './figures/takeHands/TakeHandsFields';
 import { DropHandsFields } from './figures/dropHands/DropHandsFields';
@@ -51,10 +49,6 @@ const ACTION_LABELS: Record<string, string> = {
 function splitGroupLabel(by: SplitBy['by'], list: 'A' | 'B'): string {
   if (by === 'role') return list === 'A' ? 'Larks' : 'Robins';
   return list === 'A' ? 'Ups' : 'Downs';
-}
-
-function makeInstructionId(): InstructionId {
-  return InstructionIdSchema.parse(crypto.randomUUID());
 }
 
 // --- Tree manipulation helpers for cross-container drag ---
@@ -258,11 +252,6 @@ function computeDimmedIds(instructions: Instruction[], errorId: InstructionId | 
   return dimmed;
 }
 
-export interface EditingInfo {
-  startBeat: number;
-  scope: Set<ProtoDancerId>;
-}
-
 interface Props {
   instructions: Instruction[];
   setInstructions: (instructions: Instruction[]) => void;
@@ -274,75 +263,7 @@ interface Props {
   warnings: Map<InstructionId, string>;
   generateError: GenerateError | null;
   progressionWarning: string | null;
-  onEditingStart?: (info: EditingInfo) => void;
-  onEditingEnd?: () => void;
-  onPreviewInstruction?: (instr: Instruction | null) => void;
   onHoverInstruction?: (id: InstructionId | null) => void;
-  beat?: number;
-  onBeatChange?: (beat: number) => void;
-}
-
-function relLabel(r: string): string {
-  if (r === 'on_right') return 'on-your-right';
-  if (r === 'on_left') return 'on-your-left';
-  if (r === 'in_front') return 'in-front';
-  return r;
-}
-
-function summarizeAtomic(instr: AtomicInstruction): string {
-  switch (instr.type) {
-    case 'take_hands': {
-      const label = relLabel(instr.relationship) + (/^(partner|neighbor|opposite)$/.test(instr.relationship) ? 's' : '');
-      const handLabel = instr.hand === 'both' ? 'both' : instr.hand;
-      return `${label} take ${handLabel} hands`;
-    }
-    case 'drop_hands': {
-      const t = instr.target;
-      if (t === 'both') return 'drop all hands';
-      if (t === 'left' || t === 'right') return `drop ${t} hand`;
-      return `drop ${relLabel(t)} hands`;
-    }
-    case 'allemande':
-      return `${relLabel(instr.relationship)} allemande ${instr.handedness} ${instr.rotations}x (${instr.beats}b)`;
-    case 'do_si_do':
-      return `${relLabel(instr.relationship)} do-si-do ${instr.rotations}x (${instr.beats}b)`;
-    case 'circle':
-      return `circle ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
-    case 'pull_by':
-      return `${relLabel(instr.relationship)} pull by ${instr.hand} (${instr.beats}b)`;
-    case 'step': {
-      const facingOffsetStr = instr.facingOffset ? ` +${(instr.facingOffset / (2 * Math.PI)).toFixed(2)} rot` : '';
-      const facingStr = directionToText(instr.facing) === 'forward' && !instr.facingOffset ? '' : ` facing ${directionToText(instr.facing)}${facingOffsetStr}`;
-      return `step ${directionToText(instr.direction)} ${instr.distance}${facingStr} (${instr.beats}b)`;
-    }
-    case 'balance':
-      return `balance ${directionToText(instr.direction)} ${instr.distance} (${instr.beats}b)`;
-    case 'swing':
-      return `${relLabel(instr.relationship)} swing \u2192 ${directionToText(instr.endFacing)} (${instr.beats}b)`;
-    case 'box_the_gnat':
-      return `${relLabel(instr.relationship)} box the gnat (${instr.beats}b)`;
-    case 'give_and_take_into_swing':
-      return `${instr.role}s give & take ${relLabel(instr.relationship)} into swing \u2192 ${directionToText(instr.endFacing)} (${instr.beats}b)`;
-    case "mad_robin": {
-      const dirLabel =
-        instr.dir === "larks_in_middle"
-          ? "larks in middle"
-          : "robins in middle";
-      const withLabel =
-        instr.with === "larks_left" ? "larks' left" : "robins' left";
-      return `mad robin ${dirLabel}, ${withLabel} ${instr.rotations}x (${instr.beats}b)`;
-    }
-    default: return assertNever(instr);
-  }
-}
-
-function summarize(instr: Instruction): string {
-  if (instr.type === 'split' || instr.type === 'group') {
-    const totalBeats = instructionDuration(instr);
-    const prefix = instr.type === 'split' ? `split by ${instr.by}` : instr.label;
-    return `${prefix} (${totalBeats}b)`;
-  }
-  return summarizeAtomic(instr);
 }
 
 function SortableItem({ id, children }: { id: InstructionId; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
@@ -364,173 +285,155 @@ function DropZone({ containerId }: { containerId: string }) {
   return <div ref={setNodeRef} className={`drop-zone${isOver ? ' drop-zone-active' : ''}`} />;
 }
 
-// --- InlineForm: self-contained instruction editor ---
+// --- BeatGutter: editable beat count on the left ---
 
-function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPreview, startBeat, beat, onBeatChange }: {
-  initial?: Instruction;
-  onSave: (instr: Instruction) => void;
-  onCancel: () => void;
+function doesRequireBeatsInput(type: AtomicInstruction['type']): boolean {
+  switch (type) {
+    case 'allemande': return true;
+    case 'balance': return true;
+    case 'box_the_gnat': return true;
+    case 'circle': return true;
+    case 'do_si_do': return true;
+    case 'give_and_take_into_swing': return true;
+    case 'mad_robin': return true;
+    case 'pull_by': return true;
+    case 'step': return true;
+    case 'swing': return true;
+    case 'take_hands': return false;
+    case 'drop_hands': return false;
+    default: return assertNever(type);
+  }
+}
+
+function BeatGutter({ instruction, onChange }: { instruction: Instruction; onChange: (instr: Instruction) => void }) {
+  const hasBeat = instruction.type !== 'split' && instruction.type !== 'group' && doesRequireBeatsInput(instruction.type);
+  const currentBeats = hasBeat ? (instruction as AtomicInstruction).beats : 0;
+  const [beatsStr, setBeatsStr] = useState(String(currentBeats));
+
+  if (!hasBeat) return <span className="beat-gutter" />;
+
+  return (
+    <span className="beat-gutter">
+      <input
+        type="text"
+        inputMode="decimal"
+        className="inline-number"
+        value={beatsStr}
+        onChange={e => {
+          setBeatsStr(e.target.value);
+          const n = Number(e.target.value);
+          if (!isNaN(n)) {
+            const raw = { ...instruction, beats: n };
+            const result = InstructionSchema.safeParse(raw);
+            if (result.success) onChange(result.data);
+          }
+        }}
+      />
+      <span className="beat-label">beats</span>
+    </span>
+  );
+}
+
+// --- InlineForm: always-visible instruction editor ---
+
+function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = true }: {
+  instruction: Instruction;
+  onChange: (instr: Instruction) => void;
+  autoFocusAction?: boolean;
   allowContainers?: boolean;
-  onPreview?: (instr: Instruction | null) => void;
-  startBeat?: number;
-  beat?: number;
-  onBeatChange?: (beat: number) => void;
 }) {
-  const [action, setAction] = useState<ActionType | 'split' | 'group'>(() => {
-    if (!initial) return 'take_hands';
-    if (initial.type === 'split') return 'split';
-    if (initial.type === 'group') return 'group';
-    return initial.type;
-  });
-
   const actionRef = useRef<SearchableDropdownHandle>(null);
-  useEffect(() => { if (!initial) actionRef.current?.focus(); }, [initial]);
-  const [id] = useState(() => initial ? initial.id : makeInstructionId());
-  const isEditing = !!initial;
+  const [valid, setValid] = useState(true);
 
-  // Track end beat for playback slider
-  const sb = startBeat ?? 0;
-  const [endBeat, setEndBeat] = useState(() => sb + (initial ? instructionDuration(initial) : 0));
-  const wrappedOnPreview = useCallback((instr: Instruction | null) => {
-    onPreview?.(instr);
-    if (instr) setEndBeat(sb + instructionDuration(instr));
-  }, [onPreview, sb]);
-  const common = { id, isEditing, onSave, onCancel, onPreview: wrappedOnPreview };
+  useEffect(() => {
+    if (autoFocusAction) actionRef.current?.focus();
+  }, [autoFocusAction]);
 
   const actionOptions = allowContainers
     ? ACTION_OPTIONS
     : ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group');
 
-  const showSlider = onBeatChange && endBeat > sb;
-  const clampedBeat = Math.min(Math.max(beat ?? sb, sb), endBeat);
+  function handleActionChange(newAction: string) {
+    const parsed = z.union([ActionTypeSchema, z.literal('split'), z.literal('group')]).parse(newAction);
+    if (parsed !== instruction.type) {
+      onChange(makeDefaultInstruction(parsed, instruction.id));
+      setValid(true);
+    }
+  }
+
+  function handleFieldChange(updated: Instruction) {
+    onChange(updated);
+    setValid(true);
+  }
+
+  function handleInvalid() {
+    setValid(false);
+  }
+
+  const common = { onChange: handleFieldChange, onInvalid: handleInvalid };
 
   return (
-    <div className="inline-form">
-      {showSlider && (
-        <input
-          type="range"
-          className="inline-form-scrubber"
-          min={Math.round(sb * 100)}
-          max={Math.round(endBeat * 100)}
-          value={Math.round(clampedBeat * 100)}
-          onChange={e => onBeatChange!(Number(e.target.value) / 100)}
-        />
-      )}
-      <label>
-        Action
-        <SearchableDropdown
-          ref={actionRef}
-          options={actionOptions}
-          value={action}
-          onChange={v => setAction(z.union([ActionTypeSchema, z.literal('split'), z.literal('group')]).parse(v))}
-          getLabel={v => ACTION_LABELS[v] ?? v}
-        />
-      </label>
-      {(() => { switch (action) {
-        case 'take_hands': return <TakeHandsFields {...common} initial={initial?.type === 'take_hands' ? initial : undefined} />;
-        case 'drop_hands': return <DropHandsFields {...common} initial={initial?.type === 'drop_hands' ? initial : undefined} />;
-        case 'allemande': return <AllemandeFields {...common} initial={initial?.type === 'allemande' ? initial : undefined} />;
-        case 'do_si_do': return <DoSiDoFields {...common} initial={initial?.type === 'do_si_do' ? initial : undefined} />;
-        case 'circle': return <CircleFields {...common} initial={initial?.type === 'circle' ? initial : undefined} />;
-        case 'pull_by': return <PullByFields {...common} initial={initial?.type === 'pull_by' ? initial : undefined} />;
-        case 'step': return <StepFields {...common} initial={initial?.type === 'step' ? initial : undefined} />;
-        case 'balance': return <BalanceFields {...common} initial={initial?.type === 'balance' ? initial : undefined} />;
-        case 'swing': return <SwingFields {...common} initial={initial?.type === 'swing' ? initial : undefined} />;
-        case 'box_the_gnat': return <BoxTheGnatFields {...common} initial={initial?.type === 'box_the_gnat' ? initial : undefined} />;
-        case 'give_and_take_into_swing': return <GiveAndTakeIntoSwingFields {...common} initial={initial?.type === 'give_and_take_into_swing' ? initial : undefined} />;
-        case 'mad_robin': return <MadRobinFields {...common} initial={initial?.type === 'mad_robin' ? initial : undefined} />;
-        case 'split': return <SplitFields {...common} initial={initial?.type === 'split' ? initial : undefined} />;
-        case 'group': return <GroupFields {...common} initial={initial?.type === 'group' ? initial : undefined} />;
-        default: assertNever(action);
+    <span className={`inline-form${valid ? '' : ' invalid'}`}>
+      <SearchableDropdown
+        ref={actionRef}
+        options={actionOptions}
+        value={instruction.type}
+        onChange={handleActionChange}
+        getLabel={v => ACTION_LABELS[v] ?? v}
+      />
+      {(() => { switch (instruction.type) {
+        case 'take_hands': return <TakeHandsFields {...common} instruction={instruction} />;
+        case 'drop_hands': return <DropHandsFields {...common} instruction={instruction} />;
+        case 'allemande': return <AllemandeFields {...common} instruction={instruction} />;
+        case 'do_si_do': return <DoSiDoFields {...common} instruction={instruction} />;
+        case 'circle': return <CircleFields {...common} instruction={instruction} />;
+        case 'pull_by': return <PullByFields {...common} instruction={instruction} />;
+        case 'step': return <StepFields {...common} instruction={instruction} />;
+        case 'balance': return <BalanceFields {...common} instruction={instruction} />;
+        case 'swing': return <SwingFields {...common} instruction={instruction} />;
+        case 'box_the_gnat': return <BoxTheGnatFields {...common} instruction={instruction} />;
+        case 'give_and_take_into_swing': return <GiveAndTakeIntoSwingFields {...common} instruction={instruction} />;
+        case 'mad_robin': return <MadRobinFields {...common} instruction={instruction} />;
+        case 'split': return <SplitFields {...common} instruction={instruction} />;
+        case 'group': return <GroupFields {...common} instruction={instruction} />;
+        default: assertNever(instruction);
       }})()}
-    </div>
+    </span>
   );
 }
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onEditingStart, onEditingEnd, onPreviewInstruction, onHoverInstruction, beat, onBeatChange }: Props) {
-  const [editingId, setEditingId] = useState<InstructionId | null>(null);
-  const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onHoverInstruction }: Props) {
+  const [newlyAddedId, setNewlyAddedId] = useState<InstructionId | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [pasteFeedback, setPasteFeedback] = useState('');
+
+  // Clear newlyAddedId after render so autofocus fires only once
+  useEffect(() => {
+    if (newlyAddedId) setNewlyAddedId(null);
+  }, [newlyAddedId]);
 
   const dimmedIds = useMemo(
     () => computeDimmedIds(instructions, generateError?.instructionId),
     [instructions, generateError],
   );
 
-  /** Compute beat offset and dancer scope for an insert position. */
-  function computeInsertInfo(instrs: Instruction[], containerId: string, index: number): EditingInfo {
-    const parsed = parseContainerId(containerId);
-    if (parsed.type === 'top') {
-      const startBeat = instrs.slice(0, index).reduce((s, i) => s + instructionDuration(i), 0);
-      return { startBeat, scope: ALL_DANCERS };
-    }
-    if (parsed.type === 'group') {
-      const groupBeat = findInstructionStartBeat(instrs, parsed.groupId) ?? 0;
-      const group = findInstructionById(instrs, parsed.groupId);
-      if (group && group.type === 'group') {
-        const offset = group.instructions.slice(0, index).reduce((s, i) => s + instructionDuration(i), 0);
-        return { startBeat: groupBeat + offset, scope: ALL_DANCERS };
-      }
-      return { startBeat: groupBeat, scope: ALL_DANCERS };
-    }
-    if (parsed.type === 'split') {
-      const splitBeat = findInstructionStartBeat(instrs, parsed.splitId) ?? 0;
-      const split = findInstructionById(instrs, parsed.splitId);
-      if (split && split.type === 'split') {
-        const [listA, listB] = splitLists(split);
-        const [groupA, groupB] = SPLIT_GROUPS[split.by];
-        const list = parsed.list === 'A' ? listA : listB;
-        const scope = parsed.list === 'A' ? groupA : groupB;
-        const offset = list.slice(0, index).reduce((s, i) => s + i.beats, 0);
-        return { startBeat: splitBeat + offset, scope };
-      }
-      return { startBeat: splitBeat, scope: ALL_DANCERS };
-    }
-    return { startBeat: 0, scope: ALL_DANCERS };
-  }
-
-  function openInsert(containerId: string, index: number) {
-    setInsertTarget({ containerId, index });
-    setEditingId(null);
-    const info = computeInsertInfo(instructions, containerId, index);
-    onEditingStart?.(info);
-  }
-
-  function handleAdd(containerId: string, index: number, instr: Instruction) {
-    const newInstructions = insertIntoContainer(instructions, containerId, instr, index);
-    setInstructions(newInstructions);
-    const newIndex = index + 1;
-    setInsertTarget({ containerId, index: newIndex });
-    const info = computeInsertInfo(newInstructions, containerId, newIndex);
-    onEditingStart?.(info);
-  }
-
-  function openEdit(id: InstructionId) {
-    setEditingId(id);
-    setInsertTarget(null);
-    const startBeat = findInstructionStartBeat(instructions, id) ?? 0;
-    const scope = findInstructionScope(instructions, id);
-    onEditingStart?.({ startBeat, scope });
-  }
-
-  function handleSave(id: InstructionId, updated: Instruction) {
+  function handleChange(id: InstructionId, updated: Instruction) {
     setInstructions(replaceInTree(instructions, id, updated));
-    setEditingId(null);
-    onEditingEnd?.();
-    onPreviewInstruction?.(null);
+  }
+
+  function handleAdd(containerId: string, index: number) {
+    const id = makeInstructionId();
+    const defaultInstr = makeDefaultInstruction('step', id);
+    const newInstructions = insertIntoContainer(instructions, containerId, defaultInstr, index);
+    setInstructions(newInstructions);
+    setNewlyAddedId(id);
   }
 
   function handleRemove(id: InstructionId) {
     const [newTree] = removeFromTree(instructions, id);
     setInstructions(newTree);
-    if (editingId === id) {
-      setEditingId(null);
-      onEditingEnd?.();
-      onPreviewInstruction?.(null);
-    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -576,8 +479,6 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     }
 
     setInstructions(insertIntoContainer(treeWithout, destContainer, removed, insertIdx));
-    if (editingId === draggedId) setEditingId(null);
-    setInsertTarget(null);
   }
 
   function copyJson() {
@@ -605,35 +506,16 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     setInitFormation(parsed.initFormation);
     setProgression(parsed.progression);
     setInstructions(parsed.instructions);
-    setEditingId(null);
-    setInsertTarget(null);
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   function renderAddGap(containerId: string, index: number) {
-    const isOpen = insertTarget?.containerId === containerId && insertTarget.index === index;
-    const allowContainers = !containerId.startsWith('split-');
-    if (isOpen) {
-      const insertInfo = computeInsertInfo(instructions, containerId, index);
-      return (
-        <InlineForm
-          key={`add-${containerId}-${index}`}
-          onSave={instr => handleAdd(containerId, index, instr)}
-          onCancel={() => { setInsertTarget(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
-          allowContainers={allowContainers}
-          onPreview={onPreviewInstruction}
-          startBeat={insertInfo.startBeat}
-          beat={beat}
-          onBeatChange={onBeatChange}
-        />
-      );
-    }
     return (
       <div className="add-gap" key={`gap-${containerId}-${index}`}>
         <button
           className="add-gap-btn"
-          onClick={() => openInsert(containerId, index)}
+          onClick={() => handleAdd(containerId, index)}
           title="Add instruction"
         >+</button>
       </div>
@@ -648,8 +530,35 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     setInitFormation(parsed.data.initFormation);
     setProgression(parsed.data.progression);
     setInstructions(parsed.data.instructions);
-    setEditingId(null);
-    setInsertTarget(null);
+  }
+
+  function renderInstruction(instr: Instruction, dragHandleProps: Record<string, unknown>, options?: { extraClass?: string; inSplit?: boolean }) {
+    return (
+      <>
+        <div
+          className={`instruction-item${options?.extraClass ? ' ' + options.extraClass : ''}${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}`}
+          onMouseEnter={() => onHoverInstruction?.(instr.id)}
+          onMouseLeave={() => onHoverInstruction?.(null)}
+        >
+          <BeatGutter key={`beat-${instr.type}`} instruction={instr} onChange={updated => handleChange(instr.id, updated)} />
+          <InlineForm
+            key={instr.type}
+            instruction={instr}
+            onChange={updated => handleChange(instr.id, updated)}
+            autoFocusAction={newlyAddedId === instr.id}
+            allowContainers={!options?.inSplit}
+          />
+          <button className="delete-btn" onClick={() => handleRemove(instr.id)} title="Delete">{'\u00D7'}</button>
+          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
+        </div>
+        {warnings.get(instr.id) && (
+          <div className="instruction-warning">{warnings.get(instr.id)}</div>
+        )}
+        {generateError?.instructionId === instr.id && (
+          <div className="instruction-error">{generateError.message}</div>
+        )}
+      </>
+    );
   }
 
   return (
@@ -691,37 +600,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                 <SortableItem id={instr.id}>
                   {(dragHandleProps) => (
                     <>
-                      {editingId === instr.id ? (
-                        <InlineForm
-                          key={`edit-${instr.id}`}
-                          initial={instr}
-                          onSave={updated => handleSave(instr.id, updated)}
-                          onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
-                          onPreview={onPreviewInstruction}
-                          startBeat={findInstructionStartBeat(instructions, instr.id) ?? 0}
-                          beat={beat}
-                          onBeatChange={onBeatChange}
-                        />
-                      ) : (
-                        <div
-                          className={`instruction-item${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}`}
-                          onMouseEnter={() => onHoverInstruction?.(instr.id)}
-                          onMouseLeave={() => onHoverInstruction?.(null)}
-                        >
-                          <div className="instruction-actions">
-                            <button onClick={() => openEdit(instr.id)} title="Edit">{'\u270E'}</button>
-                            <button onClick={() => handleRemove(instr.id)} title="Delete">{'\u00D7'}</button>
-                          </div>
-                          <span className="instruction-summary">{summarize(instr)}</span>
-                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                        </div>
-                      )}
-                      {warnings.get(instr.id) && (
-                        <div className="instruction-warning">{warnings.get(instr.id)}</div>
-                      )}
-                      {generateError?.instructionId === instr.id && (
-                        <div className="instruction-error">{generateError.message}</div>
-                      )}
+                      {renderInstruction(instr, dragHandleProps)}
                       {instr.type === 'split' && renderSplitBody(instr)}
                       {instr.type === 'group' && renderGroupBody(instr)}
                     </>
@@ -770,37 +649,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
               <SortableItem id={child.id}>
                 {(dragHandleProps) => (
                   <>
-                    {editingId === child.id ? (
-                      <InlineForm
-                        key={`edit-${child.id}`}
-                        initial={child}
-                        onSave={updated => handleSave(child.id, updated)}
-                        onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
-                        onPreview={onPreviewInstruction}
-                        startBeat={findInstructionStartBeat(instructions, child.id) ?? 0}
-                        beat={beat}
-                        onBeatChange={onBeatChange}
-                      />
-                    ) : (
-                      <div
-                        className={`instruction-item group-child-item${child.id === activeId ? ' active' : ''}${dimmedIds.has(child.id) ? ' dimmed' : ''}`}
-                        onMouseEnter={() => onHoverInstruction?.(child.id)}
-                        onMouseLeave={() => onHoverInstruction?.(null)}
-                      >
-                        <div className="instruction-actions">
-                          <button onClick={() => openEdit(child.id)} title="Edit">{'\u270E'}</button>
-                          <button onClick={() => handleRemove(child.id)} title="Delete">{'\u00D7'}</button>
-                        </div>
-                        <span className="instruction-summary">{summarize(child)}</span>
-                        <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                      </div>
-                    )}
-                    {warnings.get(child.id) && (
-                      <div className="instruction-warning">{warnings.get(child.id)}</div>
-                    )}
-                    {generateError?.instructionId === child.id && (
-                      <div className="instruction-error">{generateError.message}</div>
-                    )}
+                    {renderInstruction(child, dragHandleProps, { extraClass: 'group-child-item' })}
                     {child.type === 'split' && renderSplitBody(child)}
                     {child.type === 'group' && renderGroupBody(child)}
                   </>
@@ -829,34 +678,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
               <SortableContext id={containerId} items={subList.map(s => s.id)} strategy={verticalListSortingStrategy}>
                 {subList.map(sub => (
                   <SortableItem key={sub.id} id={sub.id}>
-                    {(dragHandleProps) => (
-                      editingId === sub.id ? (
-                        <InlineForm
-                          key={`edit-${sub.id}`}
-                          initial={InstructionSchema.parse(sub)}
-                          onSave={updated => handleSave(sub.id, updated)}
-                          onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
-                          allowContainers={false}
-                          onPreview={onPreviewInstruction}
-                          startBeat={findInstructionStartBeat(instructions, sub.id) ?? 0}
-                          beat={beat}
-                          onBeatChange={onBeatChange}
-                        />
-                      ) : (
-                        <div
-                          className={`instruction-item split-sub-item${sub.id === activeId ? ' active' : ''}${dimmedIds.has(sub.id) ? ' dimmed' : ''}`}
-                          onMouseEnter={() => onHoverInstruction?.(sub.id)}
-                          onMouseLeave={() => onHoverInstruction?.(null)}
-                        >
-                          <div className="instruction-actions">
-                            <button onClick={() => openEdit(sub.id)} title="Edit">{'\u270E'}</button>
-                            <button onClick={() => handleRemove(sub.id)} title="Delete">{'\u00D7'}</button>
-                          </div>
-                          <span className="instruction-summary">{summarizeAtomic(sub)}</span>
-                          <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
-                        </div>
-                      )
-                    )}
+                    {(dragHandleProps) =>
+                      renderInstruction(InstructionSchema.parse(sub), dragHandleProps, { extraClass: 'split-sub-item', inSplit: true })
+                    }
                   </SortableItem>
                 ))}
               </SortableContext>
