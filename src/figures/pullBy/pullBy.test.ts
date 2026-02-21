@@ -28,7 +28,7 @@ describe('pull_by', () => {
     expectFacingCloseTo(last.dancers['down_robin_0'].facing, init.dancers['down_robin_0'].facing, 5);
   });
 
-  it('has hand connections during the pull-by', () => {
+  it('has hand connections during the first half', () => {
     const instructions = instr([
       { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
     ]);
@@ -36,6 +36,19 @@ describe('pull_by', () => {
     const mid = kfs[Math.floor(kfs.length / 2)];
     expect(mid.hands.length).toBeGreaterThan(0);
     expect(mid.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
+  });
+
+  it('drops hand connections after the halfway point', () => {
+    const instructions = instr([
+      { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+    ]);
+    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    // Check a keyframe in the second half (3/4 through)
+    const threeQuarter = kfs[Math.floor(kfs.length * 3 / 4)];
+    expect(threeQuarter.hands).not.toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
+    // Final keyframe should also have no pull-by hands
+    const last = kfs[kfs.length - 1];
+    expect(last.hands).not.toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
   });
 
   it('right hand pull-by follows a CW elliptical path', () => {
