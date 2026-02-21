@@ -9,10 +9,9 @@ export function CircleFields({ instruction, onChange, onInvalid }: SubFormProps 
   const { id } = instruction;
   const [direction, setDirection] = useState<'left' | 'right'>(instruction.direction);
   const [rotations, setRotations] = useState(String(instruction.rotations));
-  const [beats, setBeats] = useState(String(instruction.beats));
 
   function tryCommit(overrides: Record<string, unknown>) {
-    const raw = { id, type: 'circle', beats: Number(beats), direction, rotations: Number(rotations), ...overrides };
+    const raw = { id, type: 'circle', beats: instruction.beats, direction, rotations: Number(rotations), ...overrides };
     const result = InstructionSchema.safeParse(raw);
     if (result.success) onChange(result.data);
     else onInvalid?.();
@@ -22,8 +21,6 @@ export function CircleFields({ instruction, onChange, onInvalid }: SubFormProps 
     <SearchableDropdown options={CIRCLE_DIR_OPTIONS} value={direction} onChange={v => { const d = HandSchema.parse(v); setDirection(d); tryCommit({ direction: d }); }} getLabel={v => v} />
     {' '}
     <input type="text" inputMode="decimal" className="inline-number" value={rotations} onChange={e => { setRotations(e.target.value); tryCommit({ rotations: Number(e.target.value) }); }} />
-    {'x ('}
-    <input type="text" inputMode="decimal" className="inline-number" value={beats} onChange={e => { setBeats(e.target.value); tryCommit({ beats: Number(e.target.value) }); }} />
-    {'b)'}
+    {'x'}
   </>);
 }

@@ -9,11 +9,10 @@ export function BalanceFields({ instruction, onChange, onInvalid }: SubFormProps
   const { id } = instruction;
   const [dirText, setDirText] = useState(directionToText(instruction.direction));
   const [distance, setDistance] = useState(String(instruction.distance));
-  const [beats, setBeats] = useState(String(instruction.beats));
 
   function tryCommit(overrides: Record<string, unknown>) {
     const dir = overrides.direction ?? parseDirection(dirText) ?? { kind: 'direction' as const, value: 'across' as const };
-    const raw = { id, type: 'balance', beats: Number(beats), direction: dir, distance: Number(distance), ...overrides };
+    const raw = { id, type: 'balance', beats: instruction.beats, direction: dir, distance: Number(distance), ...overrides };
     const result = InstructionSchema.safeParse(raw);
     if (result.success) onChange(result.data);
     else onInvalid?.();
@@ -23,8 +22,5 @@ export function BalanceFields({ instruction, onChange, onInvalid }: SubFormProps
     <SearchableDropdown options={DIR_OPTIONS} value={dirText} onChange={v => { setDirText(v); const dir = parseDirection(v); if (dir) tryCommit({ direction: dir }); else onInvalid?.(); }} placeholder="e.g. across" />
     {' '}
     <input type="text" inputMode="decimal" className="inline-number" value={distance} onChange={e => { setDistance(e.target.value); tryCommit({ distance: Number(e.target.value) }); }} />
-    {' ('}
-    <input type="text" inputMode="decimal" className="inline-number" value={beats} onChange={e => { setBeats(e.target.value); tryCommit({ beats: Number(e.target.value) }); }} />
-    {'b)'}
   </>);
 }

@@ -15,10 +15,9 @@ export function MadRobinFields({ instruction, onChange, onInvalid }: SubFormProp
   const [dir, setDir] = useState<'larks_in_middle' | 'robins_in_middle'>(instruction.dir);
   const [withDir, setWithDir] = useState<'larks_left' | 'robins_left'>(instruction.with);
   const [rotations, setRotations] = useState(String(instruction.rotations));
-  const [beats, setBeats] = useState(String(instruction.beats));
 
   function tryCommit(overrides: Record<string, unknown>) {
-    const raw = { id, type: 'mad_robin', beats: Number(beats), dir, with: withDir, rotations: Number(rotations), ...overrides };
+    const raw = { id, type: 'mad_robin', beats: instruction.beats, dir, with: withDir, rotations: Number(rotations), ...overrides };
     const result = InstructionSchema.safeParse(raw);
     if (result.success) onChange(result.data);
     else onInvalid?.();
@@ -30,8 +29,6 @@ export function MadRobinFields({ instruction, onChange, onInvalid }: SubFormProp
     <SearchableDropdown options={MAD_ROBIN_WITH_OPTIONS} value={withDir} onChange={v => { const w = z.enum(['larks_left', 'robins_left']).parse(v); setWithDir(w); tryCommit({ with: w }); }} getLabel={v => MAD_ROBIN_WITH_LABELS[v] ?? v} />
     {' '}
     <input type="text" inputMode="decimal" className="inline-number" value={rotations} onChange={e => { setRotations(e.target.value); tryCommit({ rotations: Number(e.target.value) }); }} />
-    {'x ('}
-    <input type="text" inputMode="decimal" className="inline-number" value={beats} onChange={e => { setBeats(e.target.value); tryCommit({ beats: Number(e.target.value) }); }} />
-    {'b)'}
+    {'x'}
   </>);
 }

@@ -9,10 +9,9 @@ export function DoSiDoFields({ instruction, onChange, onInvalid }: SubFormProps 
   const { id } = instruction;
   const [relationship, setRelationship] = useState<Relationship>(instruction.relationship);
   const [rotations, setRotations] = useState(String(instruction.rotations));
-  const [beats, setBeats] = useState(String(instruction.beats));
 
   function tryCommit(overrides: Record<string, unknown>) {
-    const raw = { id, type: 'do_si_do', beats: Number(beats), relationship, rotations: Number(rotations), ...overrides };
+    const raw = { id, type: 'do_si_do', beats: instruction.beats, relationship, rotations: Number(rotations), ...overrides };
     const result = InstructionSchema.safeParse(raw);
     if (result.success) onChange(result.data);
     else onInvalid?.();
@@ -22,8 +21,5 @@ export function DoSiDoFields({ instruction, onChange, onInvalid }: SubFormProps 
     <input type="text" inputMode="decimal" className="inline-number" value={rotations} onChange={e => { setRotations(e.target.value); tryCommit({ rotations: Number(e.target.value) }); }} />
     {'x with your '}
     <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
-    {' ('}
-    <input type="text" inputMode="decimal" className="inline-number" value={beats} onChange={e => { setBeats(e.target.value); tryCommit({ beats: Number(e.target.value) }); }} />
-    {'b)'}
   </>);
 }

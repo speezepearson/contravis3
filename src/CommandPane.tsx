@@ -285,6 +285,55 @@ function DropZone({ containerId }: { containerId: string }) {
   return <div ref={setNodeRef} className={`drop-zone${isOver ? ' drop-zone-active' : ''}`} />;
 }
 
+// --- BeatGutter: editable beat count on the left ---
+
+function doesRequireBeatsInput(type: AtomicInstruction['type']): boolean {
+  switch (type) {
+    case 'allemande': return true;
+    case 'balance': return true;
+    case 'box_the_gnat': return true;
+    case 'circle': return true;
+    case 'do_si_do': return true;
+    case 'give_and_take_into_swing': return true;
+    case 'mad_robin': return true;
+    case 'pull_by': return true;
+    case 'step': return true;
+    case 'swing': return true;
+    case 'take_hands': return false;
+    case 'drop_hands': return false;
+    default: return assertNever(type);
+  }
+}
+
+function BeatGutter({ instruction, onChange }: { instruction: Instruction; onChange: (instr: Instruction) => void }) {
+  const hasBeat = instruction.type !== 'split' && instruction.type !== 'group' && doesRequireBeatsInput(instruction.type);
+  const currentBeats = hasBeat ? (instruction as AtomicInstruction).beats : 0;
+  const [beatsStr, setBeatsStr] = useState(String(currentBeats));
+
+  if (!hasBeat) return <span className="beat-gutter" />;
+
+  return (
+    <span className="beat-gutter">
+      <input
+        type="text"
+        inputMode="decimal"
+        className="inline-number"
+        value={beatsStr}
+        onChange={e => {
+          setBeatsStr(e.target.value);
+          const n = Number(e.target.value);
+          if (!isNaN(n)) {
+            const raw = { ...instruction, beats: n };
+            const result = InstructionSchema.safeParse(raw);
+            if (result.success) onChange(result.data);
+          }
+        }}
+      />
+      <span className="beat-label">beats</span>
+    </span>
+  );
+}
+
 // --- InlineForm: always-visible instruction editor ---
 
 function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = true }: {
@@ -491,9 +540,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
           onMouseEnter={() => onHoverInstruction?.(instr.id)}
           onMouseLeave={() => onHoverInstruction?.(null)}
         >
-          <div className="instruction-actions">
-            <button onClick={() => handleRemove(instr.id)} title="Delete">{'\u00D7'}</button>
-          </div>
+          <BeatGutter key={`beat-${instr.type}`} instruction={instr} onChange={updated => handleChange(instr.id, updated)} />
           <InlineForm
             key={instr.type}
             instruction={instr}
@@ -501,6 +548,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
             autoFocusAction={newlyAddedId === instr.id}
             allowContainers={!options?.inSplit}
           />
+          <button className="delete-btn" onClick={() => handleRemove(instr.id)} title="Delete">{'\u00D7'}</button>
           <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
         </div>
         {warnings.get(instr.id) && (
