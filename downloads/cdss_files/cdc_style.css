@@ -1,0 +1,72 @@
+@media print {
+#header  {display: none;}
+#leftcolumn  {display: none;}
+#ftn1 {margin-top: 10px;border-top: 3px dotted #cccccc;padding: 0px 20px;font-size: .9em;}
+hr.clear   {display: none;}
+}
+@media screen {
+body {font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 76%;margin: 0;background-color:#FFFFFF;}
+h1, h2, h3, h4 {
+	font-family: Georgia, "Times New Roman", Times, serif;
+	padding: 10px 20px;
+	margin: 0;
+	}
+h3 {
+	font-weight: normal;
+	text-transform: uppercase;
+	}
+p {line-height: 1.4em;padding: 10px 20px;margin: 0;}
+p.photocredit {font-size: 9px; margin:0; margin-right: 20px; padding: 0; float: right;}
+a {color: #333333;}
+blockquote {margin: 0 20px; padding: 0;font-size: .9em;}
+#container {width: 824px; margin: 0 auto;padding: 0;background-image:url(../images/shadow_824.png);
+	border-bottom: 0px solid transparent;}
+#header {width: 800px;margin-left: 12px;padding-top: 6px;background-color:#608090;}
+#leftcolumn {
+	float: left; 
+	width: 166px; 
+	border-right: 1px dotted #666;
+	margin-left: 12px;
+	margin-top: 16px;
+	background-color: #FFFFFF;
+	}
+#leftcolumn ul {margin: 12px; padding: 0; list-style-type: none;background-color: #dddddd;}
+#leftcolumn li.subnav {display: none;}
+#leftcolumn a {color: #666666; text-decoration: none;font-size: .8em;display: block;padding: 2px 10px;}
+#leftcolumn a:hover {color: #000; /*text-decoration: underline;*/background-color: #F6f6f6;}
+#leftcolumn li {margin: 0; padding: 0;border-bottom: 1px solid white;line-height: 1.1em;}
+#content {float: left;width: 620px;background-color: #FFFFFF;}
+.dancecard {margin: 10px 40px; padding: 10px;border: 1px dotted #999999;}
+.table {margin: 10px 40px; padding: 10px;border: 1px dotted #999999;background-color: #f3f3f3;}
+a.more {text-decoration: none;color: #000000}
+a.more:hover {text-decoration: underline overline;}
+#footnote {width: 560px;margin: 10px 20px;border-top: 3px dotted #cccccc;font-size: .9em;}
+#footnote h3 {padding: 0;}
+#footer {
+	width: 824px;
+	height: 47px;
+	margin: 0 auto;
+	padding-top: 0;
+	background-image:url(../images/footer_bg.png);
+	background-repeat: no-repeat;
+	}
+hr.clear { 
+	/* This keeps the container from collapsing. Use <hr class="clear" /> 
+	right before you close the container.    */
+	display: block; 
+	clear: left; 
+	margin: -0.66em 0;
+    visibility: hidden;
+	}
+.footnote {
+	font-size: .8em;
+	vertical-align: super;
+	}
+a.footnote {
+	text-decoration: none;
+	}
+a.footnote:hover {font-size: .8em;text-decoration: underline overline;}
+.figure {text-align: center;
+	}
+}
+/* CSS Document */

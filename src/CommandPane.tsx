@@ -14,20 +14,20 @@ import { z } from 'zod';
 import { assertNever } from './utils';
 import { directionToText } from './fieldUtils';
 
-import { TakeHandsFields } from './figures/TakeHandsFields';
-import { DropHandsFields } from './figures/DropHandsFields';
-import { AllemandeFields } from './figures/AllemandeFields';
-import { DoSiDoFields } from './figures/DoSiDoFields';
-import { CircleFields } from './figures/CircleFields';
-import { PullByFields } from './figures/PullByFields';
-import { StepFields } from './figures/StepFields';
-import { BalanceFields } from './figures/BalanceFields';
-import { SwingFields } from './figures/SwingFields';
-import { BoxTheGnatFields } from './figures/BoxTheGnatFields';
-import { GiveAndTakeIntoSwingFields } from './figures/GiveAndTakeIntoSwingFields';
-import { MadRobinFields } from './figures/MadRobinFields';
-import { SplitFields } from './figures/SplitFields';
-import { GroupFields } from './figures/GroupFields';
+import { TakeHandsFields } from './figures/takeHands/TakeHandsFields';
+import { DropHandsFields } from './figures/dropHands/DropHandsFields';
+import { AllemandeFields } from './figures/allemande/AllemandeFields';
+import { DoSiDoFields } from './figures/doSiDo/DoSiDoFields';
+import { CircleFields } from './figures/circle/CircleFields';
+import { PullByFields } from './figures/pullBy/PullByFields';
+import { StepFields } from './figures/step/StepFields';
+import { BalanceFields } from './figures/balance/BalanceFields';
+import { SwingFields } from './figures/swing/SwingFields';
+import { BoxTheGnatFields } from './figures/boxTheGnat/BoxTheGnatFields';
+import { GiveAndTakeIntoSwingFields } from './figures/giveAndTakeIntoSwing/GiveAndTakeIntoSwingFields';
+import { MadRobinFields } from './figures/madRobin/MadRobinFields';
+import { SplitFields } from './figures/split/SplitFields';
+import { GroupFields } from './figures/group/GroupFields';
 
 const exampleDanceModules = import.meta.glob<Dance>('/example-dances/*.json', { eager: true, import: 'default' });
 const exampleDances: { key: string; label: string; dance: Dance }[] = Object.entries(exampleDanceModules).map(([path, dance]) => {

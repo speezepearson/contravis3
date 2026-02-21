@@ -3,18 +3,18 @@ import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLi
 import { assertNever } from './utils';
 import { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 
-import { finalTakeHands, generateTakeHands } from './figures/takeHands';
-import { finalDropHands, generateDropHands } from './figures/dropHands';
-import { finalAllemande, generateAllemande } from './figures/allemande';
-import { finalStep, generateStep } from './figures/step';
-import { finalBalance, generateBalance } from './figures/balance';
-import { finalDoSiDo, generateDoSiDo } from './figures/doSiDo';
-import { finalCircle, generateCircle } from './figures/circle';
-import { finalPullBy, generatePullBy } from './figures/pullBy';
-import { finalSwing, generateSwing } from './figures/swing';
-import { finalBoxTheGnat, generateBoxTheGnat } from './figures/boxTheGnat';
-import { finalGiveAndTakeIntoSwing, generateGiveAndTakeIntoSwing } from './figures/giveAndTakeIntoSwing';
-import { finalMadRobin, generateMadRobin } from './figures/madRobin';
+import { finalTakeHands, generateTakeHands } from './figures/takeHands/takeHands';
+import { finalDropHands, generateDropHands } from './figures/dropHands/dropHands';
+import { finalAllemande, generateAllemande } from './figures/allemande/allemande';
+import { finalStep, generateStep } from './figures/step/step';
+import { finalBalance, generateBalance } from './figures/balance/balance';
+import { finalDoSiDo, generateDoSiDo } from './figures/doSiDo/doSiDo';
+import { finalCircle, generateCircle } from './figures/circle/circle';
+import { finalPullBy, generatePullBy } from './figures/pullBy/pullBy';
+import { finalSwing, generateSwing } from './figures/swing/swing';
+import { finalBoxTheGnat, generateBoxTheGnat } from './figures/boxTheGnat/boxTheGnat';
+import { finalGiveAndTakeIntoSwing, generateGiveAndTakeIntoSwing } from './figures/giveAndTakeIntoSwing/giveAndTakeIntoSwing';
+import { finalMadRobin, generateMadRobin } from './figures/madRobin/madRobin';
 
 export { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 
