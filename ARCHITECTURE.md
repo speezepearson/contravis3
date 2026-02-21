@@ -44,7 +44,7 @@ Every dancer has a **role** (lark or robin) and a **progression direction** (up 
 
 ### DancerState and Keyframe
 
-A `DancerState` is `{ x, y, facing }` where x is across the set (west = -0.5, east = 0.5), y is along the set (up = positive), and facing is in degrees (0 = north/up, 90 = east). A `Keyframe` captures the state of all four proto-dancers at a specific beat, plus a list of `HandConnection`s (which dancer's which hand is holding which other dancer's which hand).
+A `DancerState` is `{ x, y, facing }` where x is across the set (west = -0.5, east = 0.5), y is along the set (up = positive), and facing is in radians (0 = north/up, π/2 = east); user-facing values are in rotations (1 rot = 2π rad). A `Keyframe` captures the state of all four proto-dancers at a specific beat, plus a list of `HandConnection`s (which dancer's which hand is holding which other dancer's which hand).
 
 ### Relationships
 
