@@ -2,8 +2,11 @@
 
 ## Build & Test
 
-- `npm run build` — type-check and build
-- `npm test` — run all tests (vitest)
+- `npm run dev` — Start dev server
+- `npm run build` — Type-check and build
+- `npm run test` — Run tests (vitest)
+- `npm run lint` — Lint
+
 
 ## Code Patterns
 

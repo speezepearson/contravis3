@@ -35,12 +35,13 @@ export function resolveRelationship(relationship: Relationship, id: ProtoDancerI
     case 'on_right': case 'on_left': case 'in_front':
     case 'larks_left_robins_right': case 'larks_right_robins_left': {
       const isLark = SPLIT_GROUPS.role[0].has(id);
+      const BIAS = 0.777 * Math.abs(QUARTER_CW); // ~70°, bias towards "in front"
       const angleOffset =
-        relationship === 'on_right' ? 70 * Math.PI / 180 :
-        relationship === 'on_left' ? -70 * Math.PI / 180 :
+        relationship === 'on_right' ? BIAS :
+        relationship === 'on_left' ? -BIAS :
         relationship === 'in_front' ? 0 :
-        relationship === 'larks_left_robins_right' ? (isLark ? -70 * Math.PI / 180 : 70 * Math.PI / 180) :
-        relationship === 'larks_right_robins_left' ? (isLark ? 70 * Math.PI / 180 : -70 * Math.PI / 180) :
+        relationship === 'larks_left_robins_right' ? (isLark ? -BIAS : BIAS) :
+        relationship === 'larks_right_robins_left' ? (isLark ? BIAS : -BIAS) :
         assertNever(relationship);
       const d = dancers[id];
       const headingRad = d.facing + angleOffset;
