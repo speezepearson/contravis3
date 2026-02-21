@@ -1,8 +1,8 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
-import { makeDancerId, dancerPosition, normalizeBearing, QUARTER_CW, QUARTER_CCW, FULL_CW, makeFinalKeyframe } from '../types';
+import { Vector, makeDancerId, dancerPosition, normalizeBearing, QUARTER_CW, QUARTER_CCW, FULL_CW, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, resolvePairs } from '../generateUtils';
 
-type OrbitDatum = { protoId: ProtoDancerId; cx: number; cy: number; startAngle: number; radius: number };
+type OrbitDatum = { protoId: ProtoDancerId; center: Vector; startAngle: number; radius: number };
 
 function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>) {
   const totalAngleRad = instr.rotations * FULL_CW * (instr.handedness === 'right' ? 1 : -1);
@@ -20,13 +20,13 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allema
       allemandHands.push({ a: aId, ha: instr.handedness, b: target, hb: instr.handedness });
     }
     const da = prev.dancers[id];
-    const partnerPos = dancerPosition(target, prev.dancers);
-    const cx = (da.x + partnerPos.x) / 2;
-    const cy = (da.y + partnerPos.y) / 2;
+    const partnerPos = dancerPosition(target, prev.dancers).pos;
+    const center = da.pos.add(partnerPos).multiply(0.5);
+    const delta = da.pos.subtract(center);
     orbitData.push({
-      protoId: id, cx, cy,
-      startAngle: Math.atan2(da.x - cx, da.y - cy),
-      radius: Math.hypot(da.x - cx, da.y - cy),
+      protoId: id, center,
+      startAngle: Math.atan2(delta.x, delta.y),
+      radius: delta.length(),
     });
   }
 
@@ -39,9 +39,11 @@ export function finalAllemande(prev: Keyframe, instr: Extract<AtomicInstruction,
   const dancers = copyDancers(prev.dancers);
   for (const od of orbitData) {
     const angle = od.startAngle + totalAngleRad;
-    dancers[od.protoId].x = od.cx + od.radius * Math.sin(angle);
-    dancers[od.protoId].y = od.cy + od.radius * Math.cos(angle);
-    const dirToCenter = Math.atan2(od.cx - dancers[od.protoId].x, od.cy - dancers[od.protoId].y);
+    dancers[od.protoId].pos = new Vector(
+      od.center.x + od.radius * Math.sin(angle),
+      od.center.y + od.radius * Math.cos(angle),
+    );
+    const dirToCenter = Math.atan2(od.center.x - dancers[od.protoId].pos.x, od.center.y - dancers[od.protoId].pos.y);
     dancers[od.protoId].facing = normalizeBearing(dirToCenter + shoulderOffset);
   }
 
@@ -67,9 +69,11 @@ export function generateAllemande(prev: Keyframe, _final: FinalKeyframe, instr: 
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
       const angle = od.startAngle + angleOffset;
-      dancers[od.protoId].x = od.cx + od.radius * Math.sin(angle);
-      dancers[od.protoId].y = od.cy + od.radius * Math.cos(angle);
-      const dirToCenter = Math.atan2(od.cx - dancers[od.protoId].x, od.cy - dancers[od.protoId].y);
+      dancers[od.protoId].pos = new Vector(
+        od.center.x + od.radius * Math.sin(angle),
+        od.center.y + od.radius * Math.cos(angle),
+      );
+      const dirToCenter = Math.atan2(od.center.x - dancers[od.protoId].pos.x, od.center.y - dancers[od.protoId].pos.y);
       dancers[od.protoId].facing = normalizeBearing(dirToCenter + shoulderOffset);
     }
 

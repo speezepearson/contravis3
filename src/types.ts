@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { Vector } from 'vecti';
+
+export { Vector } from 'vecti';
 
 export const RoleSchema = z.enum(['lark', 'robin']);
 export type Role = z.infer<typeof RoleSchema>;
@@ -28,7 +31,7 @@ export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
   const { proto, offset } = parseDancerId(id);
   const b = dancers[proto];
-  return { x: b.x, y: b.y + offset * 2, facing: b.facing };
+  return { pos: new Vector(b.pos.x, b.pos.y + offset * 2), facing: b.facing };
 }
 
 // Who they interact with (only for actions that involve a partner)
@@ -205,9 +208,10 @@ export function formatDanceParseError(error: z.ZodError, raw: unknown): string {
   return lines.length > 0 ? lines.join('\n') : 'Unknown validation error';
 }
 
+export const VectorSchema = z.instanceof(Vector);
+
 export const DancerStateSchema = z.object({
-  x: z.number(),
-  y: z.number(),
+  pos: VectorSchema,
   facing: z.number(), // radians: 0=north, π/2=east, π=south, 3π/2=west
 });
 export type DancerState = z.infer<typeof DancerStateSchema>;

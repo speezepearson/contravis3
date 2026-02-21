@@ -1,5 +1,6 @@
 import type { Instruction, Keyframe } from '../types';
 import { InstructionSchema, NORTH, SOUTH } from '../types';
+import { Vector } from 'vecti';
 import { z } from 'zod';
 
 export function tid(n: number): string {
@@ -16,10 +17,10 @@ export function initialKeyframe(): Keyframe {
   return {
     beat: 0,
     dancers: {
-      up_lark_0:    { x: -0.5, y: -0.5, facing: NORTH },
-      up_robin_0:   { x:  0.5, y: -0.5, facing: NORTH },
-      down_lark_0:  { x:  0.5, y:  0.5, facing: SOUTH },
-      down_robin_0: { x: -0.5, y:  0.5, facing: SOUTH },
+      up_lark_0:    { pos: new Vector(-0.5, -0.5), facing: NORTH },
+      up_robin_0:   { pos: new Vector( 0.5, -0.5), facing: NORTH },
+      down_lark_0:  { pos: new Vector( 0.5,  0.5), facing: SOUTH },
+      down_robin_0: { pos: new Vector(-0.5,  0.5), facing: SOUTH },
     },
     hands: [],
   };

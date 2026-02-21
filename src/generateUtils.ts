@@ -1,5 +1,5 @@
 import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId } from './types';
-import { makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, QUARTER_CW, HALF_CW, FULL_CW, QUARTER_CCW, normalizeBearing } from './types';
+import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, QUARTER_CW, HALF_CW, FULL_CW, QUARTER_CCW, normalizeBearing } from './types';
 import { assertNever } from './utils';
 
 export const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
@@ -22,7 +22,7 @@ export const ALL_DANCERS = new Set<ProtoDancerId>(PROTO_DANCER_IDS);
 export function copyDancers(dancers: Record<ProtoDancerId, DancerState>): Record<ProtoDancerId, DancerState> {
   return buildDancerRecord(id => {
     const d = dancers[id];
-    return { x: d.x, y: d.y, facing: d.facing };
+    return { pos: d.pos, facing: d.facing };
   });
 }
 
@@ -53,13 +53,13 @@ export function resolveRelationship(relationship: Relationship, id: ProtoDancerI
 
       for (const otherId of PROTO_DANCER_IDS) {
         if (otherId === id) continue;
-        const dyBase = dancers[otherId].y - d.y;
+        const dyBase = dancers[otherId].pos.y - d.pos.y;
         const oBest = Math.round(-dyBase / 2);
         for (let o = oBest - 2; o <= oBest + 2; o++) {
           const targetId = makeDancerId(otherId, o);
           const targetPos = dancerPosition(targetId, dancers);
-          const dx = targetPos.x - d.x;
-          const dy = targetPos.y - d.y;
+          const dx = targetPos.pos.x - d.pos.x;
+          const dy = targetPos.pos.y - d.pos.y;
           const r = Math.sqrt(dx * dx + dy * dy);
           if (r > 1.2 || r < 1e-9) continue;
 
@@ -145,25 +145,23 @@ export function easeInOut(t: number): number {
 /** Position on an ellipse whose major axis runs from `a` to `b`.
  *  phi=0 → a, phi=π → b, phi=2π → a again. */
 export function ellipsePosition(
-  a: { x: number; y: number },
-  b: { x: number; y: number },
+  a: Vector,
+  b: Vector,
   semiMinor: number,
   phi: number,
-): { x: number; y: number } {
-  const cx = (a.x + b.x) / 2;
-  const cy = (a.y + b.y) / 2;
-  const dx = a.x - cx;
-  const dy = a.y - cy;
-  const semiMajor = Math.hypot(dx, dy);
-  if (semiMajor < 1e-9) return { x: cx, y: cy };
-  const sinStart = dx / semiMajor;
-  const cosStart = dy / semiMajor;
+): Vector {
+  const c = a.add(b).multiply(0.5);
+  const d = a.subtract(c);
+  const semiMajor = d.length();
+  if (semiMajor < 1e-9) return c;
+  const sinStart = d.x / semiMajor;
+  const cosStart = d.y / semiMajor;
   const cosPhi = Math.cos(phi);
   const sinPhi = Math.sin(phi);
-  return {
-    x: cx + semiMajor * cosPhi * sinStart + semiMinor * sinPhi * cosStart,
-    y: cy + semiMajor * cosPhi * cosStart - semiMinor * sinPhi * sinStart,
-  };
+  return new Vector(
+    c.x + semiMajor * cosPhi * sinStart + semiMinor * sinPhi * cosStart,
+    c.y + semiMajor * cosPhi * cosStart - semiMinor * sinPhi * sinStart,
+  );
 }
 
 /** Resolve a RelativeDirection to an absolute heading in radians for a specific dancer.
@@ -174,8 +172,8 @@ export function resolveHeading(dir: RelativeDirection, d: DancerState, id: Proto
     switch (v) {
       case 'up':               return NORTH;
       case 'down':             return SOUTH;
-      case 'across':           return d.x < 0 ? EAST : -EAST;
-      case 'out':              return d.x < 0 ? -EAST : EAST;
+      case 'across':           return d.pos.x < 0 ? EAST : -EAST;
+      case 'out':              return d.pos.x < 0 ? -EAST : EAST;
       case 'progression':      return UPS.has(id) ? NORTH : SOUTH;
       case 'forward':          return d.facing;
       case 'back':             return d.facing + HALF_CW;
@@ -187,7 +185,7 @@ export function resolveHeading(dir: RelativeDirection, d: DancerState, id: Proto
   // relationship: toward the matched partner
   const targetDancerId = resolveRelationship(dir.value, id, dancers);
   const t = dancerPosition(targetDancerId, dancers);
-  return Math.atan2(t.x - d.x, t.y - d.y);
+  return Math.atan2(t.pos.x - d.pos.x, t.pos.y - d.pos.y);
 }
 
 /** Resolve a RelativeDirection to an absolute facing in radians. */
@@ -198,7 +196,7 @@ export function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoD
 /** Determine a dancer's inside hand (the hand closer to the target).
  *  Throws if the target is directly in front of or behind the dancer. */
 export function resolveInsideHand(dancer: DancerState, target: DancerState): 'left' | 'right' {
-  const heading = Math.atan2(target.x - dancer.x, target.y - dancer.y);
+  const heading = Math.atan2(target.pos.x - dancer.pos.x, target.pos.y - dancer.pos.y);
   const rel = ((heading - dancer.facing + 3 * Math.PI) % FULL_CW) - Math.PI;
   if (Math.abs(rel) < 1e-9 || Math.abs(Math.abs(rel) - Math.PI) < 1e-9) {
     throw new Error('Cannot determine inside hand: target is neither to the left nor to the right');
@@ -212,9 +210,8 @@ export function resolveInsideHand(dancer: DancerState, target: DancerState): 'le
 export function insideHandInRing(dancer: DancerState, target: DancerState, dancerAngle: number, targetAngle: number): 'left' | 'right' {
   const fx = Math.sin(dancer.facing);
   const fy = Math.cos(dancer.facing);
-  const dx = target.x - dancer.x;
-  const dy = target.y - dancer.y;
-  const cross = fx * dy - fy * dx;
+  const delta = target.pos.subtract(dancer.pos);
+  const cross = fx * delta.y - fy * delta.x;
   if (Math.abs(cross) > 1e-9) {
     return cross < 0 ? 'right' : 'left';
   }

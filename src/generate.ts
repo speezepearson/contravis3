@@ -1,5 +1,5 @@
 import type { Instruction, AtomicInstruction, Keyframe, FinalKeyframe, HandConnection, ProtoDancerId, InitFormation, InstructionId } from './types';
-import { dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists, NORTH, EAST, SOUTH, WEST } from './types';
+import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists, NORTH, EAST, SOUTH, WEST } from './types';
 import { assertNever } from './utils';
 import { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 
@@ -42,10 +42,10 @@ function initialKeyframe(initFormation: InitFormation = 'improper'): Keyframe {
     return {
       beat: 0,
       dancers: {
-        up_lark_0:    { x: -0.5, y:  0.5, facing: EAST },
-        up_robin_0:   { x: -0.5, y: -0.5, facing: EAST },
-        down_lark_0:  { x:  0.5, y: -0.5, facing: WEST },
-        down_robin_0: { x:  0.5, y:  0.5, facing: WEST },
+        up_lark_0:    { pos: new Vector(-0.5,  0.5), facing: EAST },
+        up_robin_0:   { pos: new Vector(-0.5, -0.5), facing: EAST },
+        down_lark_0:  { pos: new Vector( 0.5, -0.5), facing: WEST },
+        down_robin_0: { pos: new Vector( 0.5,  0.5), facing: WEST },
       },
       hands: [],
     };
@@ -53,10 +53,10 @@ function initialKeyframe(initFormation: InitFormation = 'improper'): Keyframe {
   return {
     beat: 0,
     dancers: {
-      up_lark_0:    { x: -0.5, y: -0.5, facing: NORTH },
-      up_robin_0:   { x:  0.5, y: -0.5, facing: NORTH },
-      down_lark_0:  { x:  0.5, y:  0.5, facing: SOUTH },
-      down_robin_0: { x: -0.5, y:  0.5, facing: SOUTH },
+      up_lark_0:    { pos: new Vector(-0.5, -0.5), facing: NORTH },
+      up_robin_0:   { pos: new Vector( 0.5, -0.5), facing: NORTH },
+      down_lark_0:  { pos: new Vector( 0.5,  0.5), facing: SOUTH },
+      down_robin_0: { pos: new Vector(-0.5,  0.5), facing: SOUTH },
     },
     hands: [],
   };
@@ -173,7 +173,7 @@ function mergeSplitTimelines(
       const src = groupA.has(id)
         ? (kfA ? kfA.dancers[id] : prev.dancers[id])
         : (kfB ? kfB.dancers[id] : prev.dancers[id]);
-      return { x: src.x, y: src.y, facing: src.facing };
+      return { pos: src.pos, facing: src.facing };
     });
 
     // Merge hands: combine from both timelines, dedup by (a,b) pair
@@ -275,7 +275,7 @@ export function validateHandDistances(
     for (const hand of kf.hands) {
       const posA = dancerPosition(hand.a, kf.dancers);
       const posB = dancerPosition(hand.b, kf.dancers);
-      const dist = Math.hypot(posA.x - posB.x, posA.y - posB.y);
+      const dist = posA.pos.subtract(posB.pos).length();
       if (dist > maxDistance) {
         // Find the instruction owning this beat
         for (const r of ranges) {
@@ -305,13 +305,13 @@ export function validateProgression(
   const problems: string[] = [];
   for (const id of PROTO_DANCER_IDS) {
     const sign = UPS.has(id) ? 1 : -1;
-    const expectedX = init.dancers[id].x;
-    const expectedY = init.dancers[id].y + sign * expectedDy;
-    const dx = final.dancers[id].x - expectedX;
-    const dy = final.dancers[id].y - expectedY;
+    const expectedX = init.dancers[id].pos.x;
+    const expectedY = init.dancers[id].pos.y + sign * expectedDy;
+    const dx = final.dancers[id].pos.x - expectedX;
+    const dy = final.dancers[id].pos.y - expectedY;
     const dist = Math.hypot(dx, dy);
     if (dist > 0.05) {
-      problems.push(`${id} started at (${init.dancers[id].x.toFixed(2)}, ${init.dancers[id].y.toFixed(2)}), should have ended at (${expectedX.toFixed(2)}, ${expectedY.toFixed(2)}), but actually ended at (${final.dancers[id].x.toFixed(2)}, ${final.dancers[id].y.toFixed(2)})`);
+      problems.push(`${id} started at (${init.dancers[id].pos.x.toFixed(2)}, ${init.dancers[id].pos.y.toFixed(2)}), should have ended at (${expectedX.toFixed(2)}, ${expectedY.toFixed(2)}), but actually ended at (${final.dancers[id].pos.x.toFixed(2)}, ${final.dancers[id].pos.y.toFixed(2)})`);
     }
   }
   if (problems.length === 0) return null;

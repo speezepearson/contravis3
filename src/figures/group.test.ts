@@ -43,8 +43,8 @@ describe('group', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y + 1, 5);
-    expect(last.dancers['up_robin_0'].y).toBeCloseTo(init.dancers['up_robin_0'].y - 1, 5);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
+    expect(last.dancers['up_robin_0'].pos.y).toBeCloseTo(init.dancers['up_robin_0'].pos.y - 1, 5);
   });
 
   it('empty group produces no keyframes', () => {

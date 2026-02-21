@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
-import { makeDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
+import { Vector, makeDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, easeInOut, insideHandInRing } from '../generateUtils';
 
 type OrbitDatum = { protoId: ProtoDancerId; startAngle: number; radius: number };
@@ -12,8 +12,8 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle
   let cx = 0, cy = 0, count = 0;
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
-    cx += prev.dancers[id].x;
-    cy += prev.dancers[id].y;
+    cx += prev.dancers[id].pos.x;
+    cy += prev.dancers[id].pos.y;
     count++;
   }
   cx /= count;
@@ -23,10 +23,11 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const d = prev.dancers[id];
+    const delta = d.pos.subtract(new Vector(cx, cy));
     orbitData.push({
       protoId: id,
-      startAngle: Math.atan2(d.x - cx, d.y - cy),
-      radius: Math.hypot(d.x - cx, d.y - cy),
+      startAngle: Math.atan2(delta.x, delta.y),
+      radius: delta.length(),
     });
   }
 
@@ -57,9 +58,11 @@ export function finalCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { 
   const dancers = copyDancers(prev.dancers);
   for (const od of orbitData) {
     const angle = od.startAngle + totalAngleRad;
-    dancers[od.protoId].x = cx + od.radius * Math.sin(angle);
-    dancers[od.protoId].y = cy + od.radius * Math.cos(angle);
-    dancers[od.protoId].facing = normalizeBearing(Math.atan2(cx - dancers[od.protoId].x, cy - dancers[od.protoId].y));
+    dancers[od.protoId].pos = new Vector(
+      cx + od.radius * Math.sin(angle),
+      cy + od.radius * Math.cos(angle),
+    );
+    dancers[od.protoId].facing = normalizeBearing(Math.atan2(cx - dancers[od.protoId].pos.x, cy - dancers[od.protoId].pos.y));
   }
 
   return makeFinalKeyframe({ beat: prev.beat + instr.beats, dancers, hands });
@@ -78,10 +81,12 @@ export function generateCircle(prev: Keyframe, _final: FinalKeyframe, instr: Ext
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
       const angle = od.startAngle + angleOffset;
-      dancers[od.protoId].x = cx + od.radius * Math.sin(angle);
-      dancers[od.protoId].y = cy + od.radius * Math.cos(angle);
+      dancers[od.protoId].pos = new Vector(
+        cx + od.radius * Math.sin(angle),
+        cy + od.radius * Math.cos(angle),
+      );
       // Face center
-      dancers[od.protoId].facing = normalizeBearing(Math.atan2(cx - dancers[od.protoId].x, cy - dancers[od.protoId].y));
+      dancers[od.protoId].facing = normalizeBearing(Math.atan2(cx - dancers[od.protoId].pos.x, cy - dancers[od.protoId].pos.y));
     }
     result.push({ beat, dancers, hands });
   }
