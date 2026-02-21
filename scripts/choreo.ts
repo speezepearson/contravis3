@@ -8,8 +8,9 @@ import {
   DanceSchema, InstructionSchema, InstructionIdSchema,
   type Dance, type Instruction, type Keyframe, type ProtoDancerId, type DancerId, type HandConnection, type DancerState, type InstructionId,
   ProtoDancerIdSchema, dancerPosition, parseDancerId, makeDancerId, instructionDuration,
-  NORTH, EAST, SOUTH, WEST, QUARTER_CW, QUARTER_CCW, FULL_CW, normalizeBearing,
+  NORTH, EAST, SOUTH, WEST, headingAngle,
 } from '../src/types';
+import { Vector } from 'vecti';
 import { generateAllKeyframes, validateHandDistances, validateProgression, type GenerateError } from '../src/generate';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -111,14 +112,15 @@ function computeBeatMap(instrs: Instruction[]): Map<string, number> {
 
 const PROTO_IDS = ProtoDancerIdSchema.options;
 
-function facingStr(rad: number): string {
-  const normalized = normalizeBearing(rad);
-  const EPS = 0.02; // ~1°
-  if (Math.abs(normalized - NORTH) < EPS) return 'up (0 rot)';
-  if (Math.abs(normalized - EAST) < EPS) return 'across-right (0.25 rot)';
-  if (Math.abs(normalized - SOUTH) < EPS) return 'down (0.5 rot)';
-  if (Math.abs(normalized - WEST) < EPS) return 'across-left (0.75 rot)';
-  return `${(normalized / FULL_CW).toFixed(2)} rot`;
+function facingStr(facing: Vector): string {
+  const EPS = 0.02; // ~1° in component space
+  if (facing.subtract(NORTH).length() < EPS) return 'up (0 rot)';
+  if (facing.subtract(EAST).length() < EPS) return 'across-right (0.25 rot)';
+  if (facing.subtract(SOUTH).length() < EPS) return 'down (0.5 rot)';
+  if (facing.subtract(WEST).length() < EPS) return 'across-left (0.75 rot)';
+  const rad = headingAngle(facing);
+  const normalized = ((rad % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  return `${(normalized / (2 * Math.PI)).toFixed(2)} rot`;
 }
 
 function handStr(h: HandConnection, perspective: DancerId): string {
@@ -131,31 +133,29 @@ function handStr(h: HandConnection, perspective: DancerId): string {
 
 function neighborInfo(
   label: string,
-  myId: ProtoDancerId,
+  _myId: ProtoDancerId,
   myState: DancerState,
   others: { id: DancerId; state: DancerState }[],
-  angleRad: number, // absolute angle to search (radians)
+  searchDir: Vector, // unit vector direction to search
 ): string {
-  // Find nearest dancer in roughly that direction
-  const ux = Math.sin(angleRad);
-  const uy = Math.cos(angleRad);
-
   let best: { id: DancerId; dist: number; headingRot: number; bearingRot: number } | null = null;
   let bestScore = Infinity;
+  const TAU = 2 * Math.PI;
 
   for (const o of others) {
-    const dx = o.state.x - myState.x;
-    const dy = o.state.y - myState.y;
-    const dist = Math.hypot(dx, dy);
+    const delta = o.state.pos.subtract(myState.pos);
+    const dist = delta.length();
     if (dist < 0.01) continue;
-    const cosTheta = (ux * dx + uy * dy) / dist;
+    const cosTheta = (searchDir.x * delta.x + searchDir.y * delta.y) / dist;
     if (cosTheta < 0.3) continue; // must be roughly in that direction
     const score = dist / Math.max(cosTheta, 0.01);
     if (score < bestScore) {
       bestScore = score;
-      const headingRad = normalizeBearing(Math.atan2(dx, dy));
-      const bearingRad = ((headingRad - myState.facing + 3 * Math.PI) % FULL_CW) - Math.PI;
-      best = { id: o.id, dist, headingRot: headingRad / FULL_CW, bearingRot: bearingRad / FULL_CW };
+      const headingRad = Math.atan2(delta.x, delta.y);
+      const normalizedHeading = ((headingRad % TAU) + TAU) % TAU;
+      const myFacingRad = headingAngle(myState.facing);
+      const bearingRad = ((headingRad - myFacingRad + 3 * Math.PI) % TAU) - Math.PI;
+      best = { id: o.id, dist, headingRot: normalizedHeading / TAU, bearingRot: bearingRad / TAU };
     }
   }
 
@@ -171,7 +171,7 @@ function formatKeyframe(kf: Keyframe): string {
     const d = kf.dancers[protoId];
     const dancerId = makeDancerId(protoId, 0);
     lines.push(`${protoId}:`);
-    lines.push(`  pos: (${d.x.toFixed(3)}, ${d.y.toFixed(3)})  facing: ${facingStr(d.facing)}`);
+    lines.push(`  pos: (${d.pos.x.toFixed(3)}, ${d.pos.y.toFixed(3)})  facing: ${facingStr(d.facing)}`);
 
     // Hand connections
     const myHands = kf.hands.filter(h => h.a === dancerId || h.b === dancerId);
@@ -192,10 +192,12 @@ function formatKeyframe(kf: Keyframe): string {
     }
 
     // on left, on right, in front (relative to facing)
-    const facing = d.facing;
-    lines.push(neighborInfo('on left', protoId, d, others, facing + QUARTER_CCW));
-    lines.push(neighborInfo('on right', protoId, d, others, facing + QUARTER_CW));
-    lines.push(neighborInfo('in front', protoId, d, others, facing));
+    const f = d.facing;
+    // left = 90° CCW from facing: (-facing.y, facing.x)
+    lines.push(neighborInfo('on left', protoId, d, others, new Vector(-f.y, f.x)));
+    // right = 90° CW from facing: (facing.y, -facing.x)
+    lines.push(neighborInfo('on right', protoId, d, others, new Vector(f.y, -f.x)));
+    lines.push(neighborInfo('in front', protoId, d, others, f));
     lines.push('');
   }
 

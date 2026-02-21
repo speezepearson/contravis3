@@ -1,5 +1,5 @@
 import type { DancerState, Keyframe, ProtoDancerId } from './types';
-import { dancerPosition, ProtoDancerIdSchema, buildDancerRecord, FULL_CW } from './types';
+import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, headingAngle } from './types';
 
 const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark_0:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
@@ -109,7 +109,7 @@ export class Renderer {
     for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
       for (const id of ProtoDancerIdSchema.options) {
         const d = frame.dancers[id];
-        this.drawDancer(id, d.x, d.y + offset, d.facing, offset === 0 ? 1.0 : 0.35);
+        this.drawDancer(id, d.pos.x, d.pos.y + offset, d.facing, offset === 0 ? 1.0 : 0.35);
       }
     }
 
@@ -117,7 +117,7 @@ export class Renderer {
     for (const id of ProtoDancerIdSchema.options) {
       const d = frame.dancers[id];
       if (!this.trails[id]) this.trails[id] = [];
-      this.trails[id]!.push({ x: d.x, y: d.y });
+      this.trails[id]!.push({ x: d.pos.x, y: d.pos.y });
       if (this.trails[id]!.length > this.trailLength) this.trails[id]!.shift();
     }
 
@@ -139,9 +139,12 @@ export class Renderer {
     }
   }
 
-  private handAnchorOffset(facing: number, hand: 'left' | 'right', r: number): [number, number] {
+  private handAnchorOffset(facing: Vector, hand: 'left' | 'right', r: number): [number, number] {
     const sign = hand === 'right' ? 1 : -1;
-    return [Math.cos(facing) * sign * r, Math.sin(facing) * sign * r];
+    // "right" from facing (x,y) in screen coords: facing.x→sin, facing.y→cos in heading convention
+    // screen-x offset = cos(heading) * sign = facing.y * sign
+    // screen-y offset = sin(heading) * sign = facing.x * sign (but y is flipped in worldToCanvas)
+    return [facing.y * sign * r, facing.x * sign * r];
   }
 
   private drawHandsForAllCopies(da: DancerState, handA: 'left' | 'right', db: DancerState, handB: 'left' | 'right') {
@@ -155,8 +158,8 @@ export class Renderer {
     const [dxB, dyB] = this.handAnchorOffset(db.facing, handB, r);
     for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
       ctx.globalAlpha = offset === 0 ? 1.0 : 0.35;
-      const [ax, ay] = this.worldToCanvas(da.x, da.y + offset);
-      const [bx, by] = this.worldToCanvas(db.x, db.y + offset);
+      const [ax, ay] = this.worldToCanvas(da.pos.x, da.pos.y + offset);
+      const [bx, by] = this.worldToCanvas(db.pos.x, db.pos.y + offset);
       ctx.beginPath();
       ctx.moveTo(ax + dxA, ay + dyA);
       ctx.lineTo(bx + dxB, by + dyB);
@@ -180,7 +183,7 @@ export class Renderer {
       ctx.beginPath();
       for (let i = 0; i < keyframes.length; i++) {
         const d = keyframes[i].dancers[id];
-        const [cx, cy] = this.worldToCanvas(d.x, d.y);
+        const [cx, cy] = this.worldToCanvas(d.pos.x, d.pos.y);
         if (i === 0) ctx.moveTo(cx, cy);
         else ctx.lineTo(cx, cy);
       }
@@ -192,13 +195,13 @@ export class Renderer {
     const last = keyframes[keyframes.length - 1];
     for (const id of ProtoDancerIdSchema.options) {
       const d = last.dancers[id];
-      this.drawGhostDancer(id, d.x, d.y, d.facing);
+      this.drawGhostDancer(id, d.pos.x, d.pos.y, d.facing);
     }
 
     ctx.globalAlpha = 1.0;
   }
 
-  private drawGhostDancer(id: ProtoDancerId, x: number, y: number, facing: number) {
+  private drawGhostDancer(id: ProtoDancerId, x: number, y: number, facing: Vector) {
     const color = COLORS[id];
     if (!color) return;
     const ctx = this.ctx;
@@ -216,9 +219,9 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
 
-    // Facing arrow (shorter)
-    const ax = cx + Math.sin(facing) * (r + 4);
-    const ay = cy - Math.cos(facing) * (r + 4);
+    // Facing arrow (shorter): facing.x = sin(heading), facing.y = cos(heading)
+    const ax = cx + facing.x * (r + 4);
+    const ay = cy - facing.y * (r + 4);
     ctx.strokeStyle = color.stroke;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -229,7 +232,7 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
-  private drawDancer(id: ProtoDancerId, x: number, y: number, facing: number, alpha: number) {
+  private drawDancer(id: ProtoDancerId, x: number, y: number, facing: Vector, alpha: number) {
     const color = COLORS[id];
     if (!color) return;
     const ctx = this.ctx;
@@ -247,9 +250,9 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
 
-    // Facing arrow
-    const ax = cx + Math.sin(facing) * (r + 6);
-    const ay = cy - Math.cos(facing) * (r + 6);
+    // Facing arrow: facing.x = sin(heading), facing.y = cos(heading)
+    const ax = cx + facing.x * (r + 6);
+    const ay = cy - facing.y * (r + 6);
     ctx.strokeStyle = color.stroke;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -259,13 +262,13 @@ export class Renderer {
 
     // Arrowhead
     const headLen = 6;
-    const headAngle = 0.4;
+    const headAngleVal = 0.4;
     const angle = Math.atan2(ay - cy, ax - cx);
     ctx.beginPath();
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - headLen * Math.cos(angle - headAngle), ay - headLen * Math.sin(angle - headAngle));
+    ctx.lineTo(ax - headLen * Math.cos(angle - headAngleVal), ay - headLen * Math.sin(angle - headAngleVal));
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - headLen * Math.cos(angle + headAngle), ay - headLen * Math.sin(angle + headAngle));
+    ctx.lineTo(ax - headLen * Math.cos(angle + headAngleVal), ay - headLen * Math.sin(angle + headAngleVal));
     ctx.stroke();
 
     // Label
@@ -281,17 +284,16 @@ export class Renderer {
 
 // --- Keyframe interpolation ---
 
-function lerpAngle(a: number, b: number, t: number): number {
-  let diff = ((b - a + Math.PI) % FULL_CW) - Math.PI;
-  if (diff < -Math.PI) diff += FULL_CW;
-  return (a + diff * t + FULL_CW) % FULL_CW;
-}
-
-/** Unwrap an angle relative to a reference so the difference is in (-π, π]. */
-function unwrapAngle(angle: number, ref: number): number {
-  let diff = ((angle - ref + Math.PI) % FULL_CW) - Math.PI;
-  if (diff < -Math.PI) diff += FULL_CW;
-  return ref + diff;
+/** Lerp between two facing vectors via the short arc. */
+function lerpFacing(a: Vector, b: Vector, t: number): Vector {
+  // Use angle-based lerp to handle wraparound correctly
+  const aRad = headingAngle(a);
+  const bRad = headingAngle(b);
+  let diff = bRad - aRad;
+  if (diff > Math.PI) diff -= 2 * Math.PI;
+  if (diff < -Math.PI) diff += 2 * Math.PI;
+  const rad = aRad + diff * t;
+  return new Vector(Math.sin(rad), Math.cos(rad));
 }
 
 /** Linear interpolation between keyframes (no smoothing). */
@@ -328,9 +330,8 @@ function rawFrameAtBeat(keyframes: Keyframe[], beat: number, danceLength: number
     const d0 = f0.dancers[id];
     const d1 = f1.dancers[id];
     return {
-      x: d0.x + (d1.x - d0.x) * t,
-      y: d0.y + (d1.y - d0.y) * t,
-      facing: lerpAngle(d0.facing, d1.facing, t),
+      pos: d0.pos.add(d1.pos.subtract(d0.pos).multiply(t)),
+      facing: lerpFacing(d0.facing, d1.facing, t),
     };
   });
 
@@ -348,7 +349,7 @@ function applyProgression(frame: Keyframe, cycle: number, progression: number): 
   const dancers = buildDancerRecord(id => {
     const d = frame.dancers[id];
     const sign = id.startsWith('up_') ? 1 : -1;
-    return { x: d.x, y: d.y + sign * dy, facing: d.facing };
+    return { pos: new Vector(d.pos.x, d.pos.y + sign * dy), facing: d.facing };
   });
   return { ...frame, dancers };
 }
@@ -379,27 +380,24 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
     samples.push(s);
   }
 
-  // Average x, y per dancer; angle-aware average for facing
+  // Average pos and facing per dancer.
+  // For facing vectors, sum them and normalize — this naturally handles wraparound.
   const dancers = buildDancerRecord(id => {
     let sumX = 0, sumY = 0;
-    // Unwrap facing angles via chaining: each sample unwraps relative to the
-    // previous one, so even fast rotations (>180° across the full window) work.
-    let prevFacing = samples[0].dancers[id].facing;
-    let sumFacing = 0;
+    let sumFX = 0, sumFY = 0;
 
     for (const s of samples) {
       const d = s.dancers[id];
-      sumX += d.x;
-      sumY += d.y;
-      prevFacing = unwrapAngle(d.facing, prevFacing);
-      sumFacing += prevFacing;
+      sumX += d.pos.x;
+      sumY += d.pos.y;
+      sumFX += d.facing.x;
+      sumFY += d.facing.y;
     }
 
     const n = SMOOTH_SAMPLES;
     return {
-      x: sumX / n,
-      y: sumY / n,
-      facing: ((sumFacing / n % FULL_CW) + FULL_CW) % FULL_CW,
+      pos: new Vector(sumX / n, sumY / n),
+      facing: new Vector(sumFX, sumFY).normalize(),
     };
   });
 

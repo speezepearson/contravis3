@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { Vector } from 'vecti';
+
+export { Vector } from 'vecti';
 
 export const RoleSchema = z.enum(['lark', 'robin']);
 export type Role = z.infer<typeof RoleSchema>;
@@ -28,7 +31,7 @@ export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
   const { proto, offset } = parseDancerId(id);
   const b = dancers[proto];
-  return { x: b.x, y: b.y + offset * 2, facing: b.facing };
+  return { pos: new Vector(b.pos.x, b.pos.y + offset * 2), facing: b.facing };
 }
 
 // Who they interact with (only for actions that involve a partner)
@@ -204,32 +207,30 @@ export function formatDanceParseError(error: z.ZodError, raw: unknown): string {
   return lines.length > 0 ? lines.join('\n') : 'Unknown validation error';
 }
 
+export const VectorSchema = z.instanceof(Vector);
+
 export const DancerStateSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-  facing: z.number(), // radians: 0=north, π/2=east, π=south, 3π/2=west
+  pos: VectorSchema,
+  facing: VectorSchema, // unit vector: NORTH = (0,1), EAST = (1,0)
 });
 export type DancerState = z.infer<typeof DancerStateSchema>;
 
-// --- Angle constants (radians) ---
+// --- Direction constants (unit vectors) ---
 
 /** Cardinal bearings (absolute directions). */
-export const NORTH = 0;
-export const EAST = Math.PI / 2;
-export const SOUTH = Math.PI;
-export const WEST = 3 * Math.PI / 2;
+export const NORTH = new Vector(0, 1);
+export const EAST = new Vector(1, 0);
+export const SOUTH = new Vector(0, -1);
+export const WEST = new Vector(-1, 0);
 
-/** Rotation amounts. */
-export const QUARTER_CW = Math.PI / 2;
-export const HALF_CW = Math.PI;
-export const FULL_CW = 2 * Math.PI;
-export const QUARTER_CCW = -Math.PI / 2;
-export const HALF_CCW = -Math.PI;
-export const FULL_CCW = -2 * Math.PI;
+/** Convert a heading angle (radians, 0=north CW) to a unit vector. */
+export function headingVector(radians: number): Vector {
+  return new Vector(Math.sin(radians), Math.cos(radians));
+}
 
-/** Normalize a bearing into [0, 2π). */
-export function normalizeBearing(bearing: number): number {
-  return ((bearing % FULL_CW) + FULL_CW) % FULL_CW;
+/** Convert a unit facing vector to a heading angle (radians, 0=north CW). */
+export function headingAngle(v: Vector): number {
+  return Math.atan2(v.x, v.y);
 }
 
 export const HandConnectionSchema = z.object({

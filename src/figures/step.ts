@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { normalizeBearing, makeFinalKeyframe, FULL_CW } from '../types';
+import { makeFinalKeyframe, headingAngle, headingVector } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolveHeading, resolveFacing } from '../generateUtils';
 
 export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'step' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
@@ -8,10 +8,10 @@ export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { ty
     if (!scope.has(id)) continue;
     const d = prev.dancers[id];
     const heading = resolveHeading(instr.direction, d, id, prev.dancers);
-    dancers[id].x = d.x + Math.sin(heading) * instr.distance;
-    dancers[id].y = d.y + Math.cos(heading) * instr.distance;
+    dancers[id].pos = d.pos.add(heading.multiply(instr.distance));
     const base = resolveFacing(instr.facing, d, id, prev.dancers);
-    dancers[id].facing = normalizeBearing(base + instr.facingOffset);
+    // offset is CW radians; vecti rotateByRadians is CCW, so negate
+    dancers[id].facing = base.rotateByRadians(-instr.facingOffset);
   }
   return makeFinalKeyframe({
     beat: prev.beat + instr.beats,
@@ -31,12 +31,16 @@ export function generateStep(prev: Keyframe, final: FinalKeyframe, instr: Extrac
     const dancers = copyDancers(prev.dancers);
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
-      dancers[id].x = prev.dancers[id].x + (final.dancers[id].x - prev.dancers[id].x) * tEased;
-      dancers[id].y = prev.dancers[id].y + (final.dancers[id].y - prev.dancers[id].y) * tEased;
-      let df = final.dancers[id].facing - prev.dancers[id].facing;
-      if (df > Math.PI) df -= FULL_CW;
-      if (df < -Math.PI) df += FULL_CW;
-      dancers[id].facing = normalizeBearing(prev.dancers[id].facing + df * tEased);
+      dancers[id].pos = prev.dancers[id].pos.add(
+        final.dancers[id].pos.subtract(prev.dancers[id].pos).multiply(tEased),
+      );
+      // Interpolate facing via angles for correct shortest-arc behaviour
+      const prevAngle = headingAngle(prev.dancers[id].facing);
+      const finalAngle = headingAngle(final.dancers[id].facing);
+      let df = finalAngle - prevAngle;
+      if (df > Math.PI) df -= 2 * Math.PI;
+      if (df < -Math.PI) df += 2 * Math.PI;
+      dancers[id].facing = headingVector(prevAngle + df * tEased);
     }
     keyframes.push({ beat, dancers, hands: prev.hands });
   }

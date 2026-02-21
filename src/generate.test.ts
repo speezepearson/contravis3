@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { Vector } from 'vecti';
 import { generateAllKeyframes, validateHandDistances, validateProgression } from './generate';
 import { DanceSchema, NORTH, EAST, SOUTH, WEST } from './types';
 import { tid, instr, initialKeyframe } from './figures/testUtils';
@@ -111,15 +112,15 @@ describe('generateAllKeyframes with initFormation', () => {
     const { keyframes: kfs } = generateAllKeyframes([]);
     expect(kfs).toHaveLength(1);
     // Improper: ups face north (0), downs face south (180)
-    expect(kfs[0].dancers.up_lark_0.facing).toBe(NORTH);
-    expect(kfs[0].dancers.down_lark_0.facing).toBe(SOUTH);
+    expect(kfs[0].dancers.up_lark_0.facing).toEqual(NORTH);
+    expect(kfs[0].dancers.down_lark_0.facing).toEqual(SOUTH);
   });
 
   it('uses improper formation when initFormation is "improper"', () => {
     const { keyframes: kfs } = generateAllKeyframes([], 'improper');
     expect(kfs).toHaveLength(1);
-    expect(kfs[0].dancers.up_lark_0).toEqual({ x: -0.5, y: -0.5, facing: NORTH });
-    expect(kfs[0].dancers.down_lark_0).toEqual({ x: 0.5, y: 0.5, facing: SOUTH });
+    expect(kfs[0].dancers.up_lark_0).toEqual({ pos: new Vector(-0.5, -0.5), facing: NORTH });
+    expect(kfs[0].dancers.down_lark_0).toEqual({ pos: new Vector(0.5, 0.5), facing: SOUTH });
   });
 
   it('uses beckett formation when initFormation is "beckett"', () => {
@@ -127,19 +128,19 @@ describe('generateAllKeyframes with initFormation', () => {
     expect(kfs).toHaveLength(1);
     // Beckett: everyone faces across (east-west) instead of up-down
     // Ups face east (90), downs face west (270)
-    expect(kfs[0].dancers.up_lark_0.facing).toBe(EAST);
-    expect(kfs[0].dancers.up_robin_0.facing).toBe(EAST);
-    expect(kfs[0].dancers.down_lark_0.facing).toBe(WEST);
-    expect(kfs[0].dancers.down_robin_0.facing).toBe(WEST);
+    expect(kfs[0].dancers.up_lark_0.facing).toEqual(EAST);
+    expect(kfs[0].dancers.up_robin_0.facing).toEqual(EAST);
+    expect(kfs[0].dancers.down_lark_0.facing).toEqual(WEST);
+    expect(kfs[0].dancers.down_robin_0.facing).toEqual(WEST);
   });
 
   it('beckett formation has correct positions', () => {
     const { keyframes: kfs } = generateAllKeyframes([], 'beckett');
-    // Beckett = improper rotated 90° CW: (x,y) -> (y, -x), facing -> facing+90
-    expect(kfs[0].dancers.up_lark_0).toEqual({ x: -0.5, y:  0.5, facing: EAST });
-    expect(kfs[0].dancers.up_robin_0).toEqual({ x: -0.5, y: -0.5, facing: EAST });
-    expect(kfs[0].dancers.down_lark_0).toEqual({ x:  0.5, y: -0.5, facing: WEST });
-    expect(kfs[0].dancers.down_robin_0).toEqual({ x:  0.5, y:  0.5, facing: WEST });
+    // Beckett = improper rotated 90 deg CW: (x,y) -> (y, -x), facing -> facing+90
+    expect(kfs[0].dancers.up_lark_0).toEqual({ pos: new Vector(-0.5,  0.5), facing: EAST });
+    expect(kfs[0].dancers.up_robin_0).toEqual({ pos: new Vector(-0.5, -0.5), facing: EAST });
+    expect(kfs[0].dancers.down_lark_0).toEqual({ pos: new Vector( 0.5, -0.5), facing: WEST });
+    expect(kfs[0].dancers.down_robin_0).toEqual({ pos: new Vector( 0.5,  0.5), facing: WEST });
   });
 
   describe('validateProgression', () => {
@@ -174,7 +175,7 @@ describe('generateAllKeyframes with initFormation', () => {
   describe('partial keyframe preservation on error', () => {
     it('preserves keyframes from earlier instructions in a group when a later child fails', () => {
       // A group with a successful step followed by a failing take_hands (inside hand with neighbor
-      // in improper formation → error because neighbor is directly in front).
+      // in improper formation -> error because neighbor is directly in front).
       const instructions = instr([{
         id: tid(1), type: 'group', label: 'test group',
         instructions: [
@@ -192,8 +193,8 @@ describe('generateAllKeyframes with initFormation', () => {
 
     it('preserves keyframes from the successful branch of a split when the other branch fails', () => {
       // Split by role: larks do a step (succeeds), robins try inside-hand take with neighbor (fails).
-      // In improper formation, robins at (0.5,-0.5) and (-0.5,0.5) face 0° and 180° respectively.
-      // Their neighbor is directly in front → inside hand fails.
+      // In improper formation, robins at (0.5,-0.5) and (-0.5,0.5) face 0 deg and 180 deg respectively.
+      // Their neighbor is directly in front -> inside hand fails.
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
         larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
@@ -207,7 +208,7 @@ describe('generateAllKeyframes with initFormation', () => {
       // The larks should have moved forward in the partial result
       const last = keyframes[keyframes.length - 1];
       const init = initialKeyframe();
-      expect(last.dancers['up_lark_0'].y).not.toBeCloseTo(init.dancers['up_lark_0'].y, 5);
+      expect(last.dancers['up_lark_0'].pos.y).not.toBeCloseTo(init.dancers['up_lark_0'].pos.y, 5);
     });
 
     it('preserves keyframes from a successful first instruction when the second top-level instruction fails', () => {
@@ -245,8 +246,8 @@ describe('generateAllKeyframes with initFormation', () => {
       const last = keyframes[keyframes.length - 1];
       const init = initialKeyframe();
       // Both larks and robins should have moved from their initial positions in the partial result
-      expect(last.dancers['up_lark_0'].y).not.toBeCloseTo(init.dancers['up_lark_0'].y, 5);
-      expect(last.dancers['up_robin_0'].y).not.toBeCloseTo(init.dancers['up_robin_0'].y, 5);
+      expect(last.dancers['up_lark_0'].pos.y).not.toBeCloseTo(init.dancers['up_lark_0'].pos.y, 5);
+      expect(last.dancers['up_robin_0'].pos.y).not.toBeCloseTo(init.dancers['up_robin_0'].pos.y, 5);
     });
   });
 });

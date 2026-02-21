@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
+import { headingAngle } from '../types';
 import { tid, instr, initialKeyframe } from './testUtils';
 
 describe('allemande', () => {
@@ -20,8 +21,8 @@ describe('allemande', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x, 1);
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y, 1);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x, 1);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y, 1);
   });
 
   it('dancers swap positions after half rotation', () => {
@@ -30,13 +31,13 @@ describe('allemande', () => {
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(-0.5, 1);
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(0.5, 1);
-    expect(last.dancers['down_robin_0'].x).toBeCloseTo(-0.5, 1);
-    expect(last.dancers['down_robin_0'].y).toBeCloseTo(-0.5, 1);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(-0.5, 1);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(0.5, 1);
+    expect(last.dancers['down_robin_0'].pos.x).toBeCloseTo(-0.5, 1);
+    expect(last.dancers['down_robin_0'].pos.y).toBeCloseTo(-0.5, 1);
   });
 
-  it('allemande right: right shoulder faces partner (facing is 90° CCW from direction to partner)', () => {
+  it('allemande right: right shoulder faces partner (facing is 90 deg CCW from direction to partner)', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
     ]);
@@ -48,14 +49,14 @@ describe('allemande', () => {
     const ul = mid.dancers['up_lark_0'];
     const dr = mid.dancers['down_robin_0'];
     const TAU = 2 * Math.PI;
-    const dirToPartner = Math.atan2(dr.x - ul.x, dr.y - ul.y);
-    // Facing should be 90° CCW (i.e. -π/2) from direction to partner
+    const dirToPartner = Math.atan2(dr.pos.x - ul.pos.x, dr.pos.y - ul.pos.y);
+    // Facing should be 90 deg CCW (i.e. -pi/2) from direction to partner
     const expectedFacing = ((dirToPartner - Math.PI / 2) % TAU + TAU) % TAU;
-    const actualFacing = ((ul.facing % TAU) + TAU) % TAU;
+    const actualFacing = ((headingAngle(ul.facing) % TAU) + TAU) % TAU;
     expect(actualFacing).toBeCloseTo(expectedFacing, 0);
   });
 
-  it('allemande left: left shoulder faces partner (facing is 90° CW from direction to partner)', () => {
+  it('allemande left: left shoulder faces partner (facing is 90 deg CW from direction to partner)', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 1 },
     ]);
@@ -65,10 +66,10 @@ describe('allemande', () => {
     const ul = mid.dancers['up_lark_0'];
     const dr = mid.dancers['down_robin_0'];
     const TAU = 2 * Math.PI;
-    const dirToPartner = Math.atan2(dr.x - ul.x, dr.y - ul.y);
-    // Facing should be 90° CW (i.e. +π/2) from direction to partner
+    const dirToPartner = Math.atan2(dr.pos.x - ul.pos.x, dr.pos.y - ul.pos.y);
+    // Facing should be 90 deg CW (i.e. +pi/2) from direction to partner
     const expectedFacing = ((dirToPartner + Math.PI / 2) % TAU + TAU) % TAU;
-    const actualFacing = ((ul.facing % TAU) + TAU) % TAU;
+    const actualFacing = ((headingAngle(ul.facing) % TAU) + TAU) % TAU;
     expect(actualFacing).toBeCloseTo(expectedFacing, 0);
   });
 
@@ -102,7 +103,7 @@ describe('allemande', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // After half rotation CCW, up_lark should be roughly where down_robin was
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(-0.5, 1);
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(0.5, 1);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(-0.5, 1);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(0.5, 1);
   });
 });

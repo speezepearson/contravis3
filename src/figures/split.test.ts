@@ -14,11 +14,11 @@ describe('split', () => {
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
     // Larks step up
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y + 1, 5);
-    expect(last.dancers['down_lark_0'].y).toBeCloseTo(init.dancers['down_lark_0'].y + 1, 5);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
+    expect(last.dancers['down_lark_0'].pos.y).toBeCloseTo(init.dancers['down_lark_0'].pos.y + 1, 5);
     // Robins step down
-    expect(last.dancers['up_robin_0'].y).toBeCloseTo(init.dancers['up_robin_0'].y - 1, 5);
-    expect(last.dancers['down_robin_0'].y).toBeCloseTo(init.dancers['down_robin_0'].y - 1, 5);
+    expect(last.dancers['up_robin_0'].pos.y).toBeCloseTo(init.dancers['up_robin_0'].pos.y - 1, 5);
+    expect(last.dancers['down_robin_0'].pos.y).toBeCloseTo(init.dancers['down_robin_0'].pos.y - 1, 5);
   });
 
   it('split by position: ups and downs do different things', () => {
@@ -30,11 +30,11 @@ describe('split', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
     // Ups turn to face down
-    expect(last.dancers['up_lark_0'].facing).toBe(SOUTH);
-    expect(last.dancers['up_robin_0'].facing).toBe(SOUTH);
+    expect(last.dancers['up_lark_0'].facing).toEqual(SOUTH);
+    expect(last.dancers['up_robin_0'].facing).toEqual(SOUTH);
     // Downs turn to face up
-    expect(last.dancers['down_lark_0'].facing).toBe(NORTH);
-    expect(last.dancers['down_robin_0'].facing).toBe(NORTH);
+    expect(last.dancers['down_lark_0'].facing).toEqual(NORTH);
+    expect(last.dancers['down_robin_0'].facing).toEqual(NORTH);
   });
 
   it('empty larks list: larks hold still', () => {
@@ -50,7 +50,7 @@ describe('split', () => {
     expect(last.dancers['up_lark_0']).toEqual(init.dancers['up_lark_0']);
     expect(last.dancers['down_lark_0']).toEqual(init.dancers['down_lark_0']);
     // Robins moved
-    expect(last.dancers['up_robin_0'].y).toBeCloseTo(init.dancers['up_robin_0'].y + 1, 5);
+    expect(last.dancers['up_robin_0'].pos.y).toBeCloseTo(init.dancers['up_robin_0'].pos.y + 1, 5);
   });
 
   it('empty downs list: downs hold still', () => {
@@ -63,7 +63,7 @@ describe('split', () => {
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
     // Ups moved across
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x + 0.5, 5);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 0.5, 5);
     // Downs unchanged
     expect(last.dancers['down_lark_0']).toEqual(init.dancers['down_lark_0']);
     expect(last.dancers['down_robin_0']).toEqual(init.dancers['down_robin_0']);
@@ -122,11 +122,11 @@ describe('split', () => {
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
     // Larks stepped up by 1, then across by 0.5
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y + 1, 5);
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x + 0.5, 5);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 0.5, 5);
     // Robins stepped down by 1, then across by 0.5
-    expect(last.dancers['up_robin_0'].y).toBeCloseTo(init.dancers['up_robin_0'].y - 1, 5);
-    expect(last.dancers['up_robin_0'].x).toBeCloseTo(init.dancers['up_robin_0'].x - 0.5, 5);
+    expect(last.dancers['up_robin_0'].pos.y).toBeCloseTo(init.dancers['up_robin_0'].pos.y - 1, 5);
+    expect(last.dancers['up_robin_0'].pos.x).toBeCloseTo(init.dancers['up_robin_0'].pos.x - 0.5, 5);
   });
 
   it('split with allemande in one list and step in the other', () => {
@@ -141,10 +141,10 @@ describe('split', () => {
     expect(kfs.length).toBeGreaterThan(2);
     expect(last.beat).toBeCloseTo(8, 5);
     // Ups did a full allemande, should return approximately to start
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x, 1);
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y, 1);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x, 1);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y, 1);
     // Downs stepped up by 1
-    expect(last.dancers['down_lark_0'].y).toBeCloseTo(init.dancers['down_lark_0'].y + 1, 5);
-    expect(last.dancers['down_robin_0'].y).toBeCloseTo(init.dancers['down_robin_0'].y + 1, 5);
+    expect(last.dancers['down_lark_0'].pos.y).toBeCloseTo(init.dancers['down_lark_0'].pos.y + 1, 5);
+    expect(last.dancers['down_robin_0'].pos.y).toBeCloseTo(init.dancers['down_robin_0'].pos.y + 1, 5);
   });
 });

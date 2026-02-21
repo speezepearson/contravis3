@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
-import { ProtoDancerIdSchema } from '../types';
+import { ProtoDancerIdSchema, headingAngle } from '../types';
 import { tid, instr, initialKeyframe } from './testUtils';
 
 describe('circle', () => {
@@ -12,8 +12,8 @@ describe('circle', () => {
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
     for (const id of ProtoDancerIdSchema.options) {
-      expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 1);
-      expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y, 1);
+      expect(last.dancers[id].pos.x).toBeCloseTo(init.dancers[id].pos.x, 1);
+      expect(last.dancers[id].pos.y).toBeCloseTo(init.dancers[id].pos.y, 1);
     }
   });
 
@@ -23,9 +23,9 @@ describe('circle', () => {
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
-    // Quarter CW: up_lark (-0.5,-0.5) → (-0.5, 0.5) = down_robin's position
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(-0.5, 1);
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(0.5, 1);
+    // Quarter CW: up_lark (-0.5,-0.5) -> (-0.5, 0.5) = down_robin's position
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(-0.5, 1);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(0.5, 1);
   });
 
   it('circle right moves counter-clockwise', () => {
@@ -34,9 +34,9 @@ describe('circle', () => {
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
-    // Quarter CCW: up_lark (-0.5,-0.5) → (0.5, -0.5) = up_robin's position
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(0.5, 1);
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(-0.5, 1);
+    // Quarter CCW: up_lark (-0.5,-0.5) -> (0.5, -0.5) = up_robin's position
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(0.5, 1);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(-0.5, 1);
   });
 
   it('dancers face center throughout', () => {
@@ -49,8 +49,8 @@ describe('circle', () => {
     for (const id of ['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0'] as const) {
       const d = mid.dancers[id];
       const TAU = 2 * Math.PI;
-      const angleToCenter = ((Math.atan2(-d.x, -d.y)) % TAU + TAU) % TAU;
-      const facing = ((d.facing % TAU) + TAU) % TAU;
+      const angleToCenter = ((Math.atan2(-d.pos.x, -d.pos.y)) % TAU + TAU) % TAU;
+      const facing = ((headingAngle(d.facing) % TAU) + TAU) % TAU;
       expect(facing).toBeCloseTo(angleToCenter, 0);
     }
   });

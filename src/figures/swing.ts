@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { makeDancerId, parseDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
+import { Vector, makeDancerId, parseDancerId, headingAngle, headingVector, makeFinalKeyframe } from '../types';
 import { copyDancers, resolveFacing, resolvePairs, isLark } from '../generateUtils';
 
 const FRONT = 0.15;
@@ -10,8 +10,7 @@ const PHASE_OFFSET = Math.PI + Math.atan2(RIGHT, FRONT);
 type SwingPair = {
   lark: ProtoDancerId;
   robin: ProtoDancerId;
-  cx: number;
-  cy: number;
+  center: Vector;
   f0: number;
   omega: number;
   endFacingRad: number;
@@ -39,15 +38,13 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing'
 
     const larkState = prev.dancers[lark];
     const robinState = prev.dancers[robin];
-    const cx = (larkState.x + robinState.x) / 2;
-    const cy = (larkState.y + robinState.y) / 2;
+    const center = larkState.pos.add(robinState.pos).multiply(0.5);
 
-    const larkDx = larkState.x - cx;
-    const larkDy = larkState.y - cy;
-    const thetaLark = Math.atan2(larkDx, larkDy);
+    const larkDelta = larkState.pos.subtract(center);
+    const thetaLark = Math.atan2(larkDelta.x, larkDelta.y);
     const f0 = thetaLark - PHASE_OFFSET;
 
-    const endFacingRad = resolveFacing(instr.endFacing, larkState, lark, prev.dancers);
+    const endFacingRad = headingAngle(resolveFacing(instr.endFacing, larkState, lark, prev.dancers));
 
     const baseRotation = (Math.PI / 2) * instr.beats;
     const needed = endFacingRad - f0;
@@ -58,7 +55,7 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing'
     const phase2Duration = (Math.PI / 2) / omega;
     const phase2Start = instr.beats - phase2Duration;
 
-    pairs.push({ lark, robin, cx, cy, f0, omega, endFacingRad, phase2Start, phase2Duration });
+    pairs.push({ lark, robin, center, f0, omega, endFacingRad, phase2Start, phase2Duration });
   }
 
   // Hands not involving swing participants
@@ -78,16 +75,20 @@ export function finalSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { t
   const { pairs, nonParticipantHands } = setup(prev, instr, scope);
 
   const dancers = copyDancers(prev.dancers);
-  for (const { lark, robin, cx, cy, endFacingRad } of pairs) {
+  for (const { lark, robin, center, endFacingRad } of pairs) {
     // Lark position: 0.5m to the left of CoM (from lark's perspective facing endFacing)
-    dancers[lark].x = cx - 0.5 * Math.cos(endFacingRad);
-    dancers[lark].y = cy + 0.5 * Math.sin(endFacingRad);
-    dancers[lark].facing = normalizeBearing(endFacingRad);
+    dancers[lark].pos = new Vector(
+      center.x - 0.5 * Math.cos(endFacingRad),
+      center.y + 0.5 * Math.sin(endFacingRad),
+    );
+    dancers[lark].facing = headingVector(endFacingRad);
 
     // Robin: 1.0m to lark's right, facing same direction
-    dancers[robin].x = dancers[lark].x + 1.0 * Math.cos(endFacingRad);
-    dancers[robin].y = dancers[lark].y - 1.0 * Math.sin(endFacingRad);
-    dancers[robin].facing = normalizeBearing(endFacingRad);
+    dancers[robin].pos = new Vector(
+      dancers[lark].pos.x + 1.0 * Math.cos(endFacingRad),
+      dancers[lark].pos.y - 1.0 * Math.sin(endFacingRad),
+    );
+    dancers[robin].facing = headingVector(endFacingRad);
   }
 
   // Swing hands are dropped at the end
@@ -112,43 +113,52 @@ export function generateSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extr
     const dancers = copyDancers(prev.dancers);
 
     for (const pair of pairs) {
-      const { lark, robin, cx, cy, f0, omega, endFacingRad, phase2Start, phase2Duration } = pair;
+      const { lark, robin, center, f0, omega, endFacingRad, phase2Start, phase2Duration } = pair;
 
       const larkFacingRad = f0 + omega * elapsed;
 
       if (elapsed <= phase2Start) {
         // Phase 1: regular swing orbit
-        dancers[lark].x = cx - FRONT * Math.sin(larkFacingRad) - RIGHT * Math.cos(larkFacingRad);
-        dancers[lark].y = cy - FRONT * Math.cos(larkFacingRad) + RIGHT * Math.sin(larkFacingRad);
-        dancers[lark].facing = normalizeBearing(larkFacingRad);
+        dancers[lark].pos = new Vector(
+          center.x - FRONT * Math.sin(larkFacingRad) - RIGHT * Math.cos(larkFacingRad),
+          center.y - FRONT * Math.cos(larkFacingRad) + RIGHT * Math.sin(larkFacingRad),
+        );
+        dancers[lark].facing = headingVector(larkFacingRad);
 
         const robinFacingRad = larkFacingRad + Math.PI;
-        dancers[robin].x = cx + FRONT * Math.sin(larkFacingRad) + RIGHT * Math.cos(larkFacingRad);
-        dancers[robin].y = cy + FRONT * Math.cos(larkFacingRad) - RIGHT * Math.sin(larkFacingRad);
-        dancers[robin].facing = normalizeBearing(robinFacingRad);
+        dancers[robin].pos = new Vector(
+          center.x + FRONT * Math.sin(larkFacingRad) + RIGHT * Math.cos(larkFacingRad),
+          center.y + FRONT * Math.cos(larkFacingRad) - RIGHT * Math.sin(larkFacingRad),
+        );
+        dancers[robin].facing = headingVector(robinFacingRad);
       } else {
         // Phase 2: lark has 90° of rotation left
         const tLocal = (elapsed - phase2Start) / phase2Duration;
 
         const fP1End = f0 + omega * phase2Start;
-        const larkP1EndX = cx - FRONT * Math.sin(fP1End) - RIGHT * Math.cos(fP1End);
-        const larkP1EndY = cy - FRONT * Math.cos(fP1End) + RIGHT * Math.sin(fP1End);
+        const larkP1End = new Vector(
+          center.x - FRONT * Math.sin(fP1End) - RIGHT * Math.cos(fP1End),
+          center.y - FRONT * Math.cos(fP1End) + RIGHT * Math.sin(fP1End),
+        );
 
-        const larkFinalX = cx - 0.5 * Math.cos(endFacingRad);
-        const larkFinalY = cy + 0.5 * Math.sin(endFacingRad);
+        const larkFinal = new Vector(
+          center.x - 0.5 * Math.cos(endFacingRad),
+          center.y + 0.5 * Math.sin(endFacingRad),
+        );
 
-        dancers[lark].x = larkP1EndX + (larkFinalX - larkP1EndX) * tLocal;
-        dancers[lark].y = larkP1EndY + (larkFinalY - larkP1EndY) * tLocal;
-        dancers[lark].facing = normalizeBearing(larkFacingRad);
+        dancers[lark].pos = larkP1End.add(larkFinal.subtract(larkP1End).multiply(tLocal));
+        dancers[lark].facing = headingVector(larkFacingRad);
 
         const robinFacingRad = larkFacingRad + Math.PI * (1 + tLocal);
-        dancers[robin].facing = normalizeBearing(robinFacingRad);
+        dancers[robin].facing = headingVector(robinFacingRad);
 
         const robinFront = 0.3 * (1 - tLocal);
         const robinRight = 0.2 + 0.8 * tLocal;
 
-        dancers[robin].x = dancers[lark].x + robinFront * Math.sin(larkFacingRad) + robinRight * Math.cos(larkFacingRad);
-        dancers[robin].y = dancers[lark].y + robinFront * Math.cos(larkFacingRad) - robinRight * Math.sin(larkFacingRad);
+        dancers[robin].pos = new Vector(
+          dancers[lark].pos.x + robinFront * Math.sin(larkFacingRad) + robinRight * Math.cos(larkFacingRad),
+          dancers[lark].pos.y + robinFront * Math.cos(larkFacingRad) - robinRight * Math.sin(larkFacingRad),
+        );
       }
     }
 

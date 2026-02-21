@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { parseDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
+import { Vector, parseDancerId, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, resolvePairs, isLark } from '../generateUtils';
 import { finalSwing, generateSwing } from './swing';
 
@@ -13,10 +13,8 @@ type GTPair = {
 type DriftDatum = {
   lark: ProtoDancerId;
   robin: ProtoDancerId;
-  finalCx: number;
-  finalCy: number;
-  startCx: number;
-  startCy: number;
+  finalCenter: Vector;
+  startCenter: Vector;
 };
 
 function resolvePairsForGT(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }>, scope: Set<ProtoDancerId>) {
@@ -33,7 +31,7 @@ function resolvePairsForGT(prev: Keyframe, instr: Extract<AtomicInstruction, { t
 
     const aState = prev.dancers[id];
     const bState = prev.dancers[targetProto];
-    if (Math.sign(aState.x) === Math.sign(bState.x) && Math.abs(aState.x) > 1e-6 && Math.abs(bState.x) > 1e-6) {
+    if (Math.sign(aState.pos.x) === Math.sign(bState.pos.x) && Math.abs(aState.pos.x) > 1e-6 && Math.abs(bState.pos.x) > 1e-6) {
       throw new Error(`Give & take into swing: ${id} and ${targetProto} are on the same side of the set`);
     }
 
@@ -56,11 +54,12 @@ function computeAfterWalk(prev: Keyframe, pairs: GTPair[], walkBeats: number): K
   for (const { drawer, drawee } of pairs) {
     const drawerState = prev.dancers[drawer];
     const draweeState = prev.dancers[drawee];
-    dancers[drawer].facing = normalizeBearing(Math.atan2(draweeState.x - drawerState.x, draweeState.y - drawerState.y));
-    dancers[drawee].facing = normalizeBearing(Math.atan2(drawerState.x - draweeState.x, drawerState.y - draweeState.y));
+    const toDrawee = draweeState.pos.subtract(drawerState.pos);
+    const toDrawer = drawerState.pos.subtract(draweeState.pos);
+    dancers[drawer].facing = toDrawee.normalize();
+    dancers[drawee].facing = toDrawer.normalize();
     // Drawee moves halfway to drawer
-    dancers[drawee].x = (drawerState.x + draweeState.x) / 2;
-    dancers[drawee].y = (drawerState.y + draweeState.y) / 2;
+    dancers[drawee].pos = drawerState.pos.add(draweeState.pos).multiply(0.5);
   }
   return { beat: prev.beat + walkBeats, dancers, hands: prev.hands };
 }
@@ -71,7 +70,8 @@ function computeDriftData(prev: Keyframe, afterWalk: Keyframe, pairs: GTPair[]):
   for (const { drawer, drawee } of pairs) {
     const drawerState = prev.dancers[drawer];
     const draweeState = prev.dancers[drawee];
-    walkStartDancers[drawer].facing = normalizeBearing(Math.atan2(draweeState.x - drawerState.x, draweeState.y - drawerState.y));
+    const toDrawee = draweeState.pos.subtract(drawerState.pos);
+    walkStartDancers[drawer].facing = toDrawee.normalize();
   }
 
   const driftData: DriftDatum[] = [];
@@ -79,15 +79,17 @@ function computeDriftData(prev: Keyframe, afterWalk: Keyframe, pairs: GTPair[]):
     const drawerState = prev.dancers[drawer];
     const drawerFacing = walkStartDancers[drawer].facing;
     const sign = isLark(drawer) ? 1 : -1;
-    const rightX = sign * Math.cos(drawerFacing);
-    const rightY = sign * -Math.sin(drawerFacing);
-    const finalCx = drawerState.x + 0.5 * rightX;
-    const finalCy = drawerState.y + 0.5 * rightY;
+    // "right" from facing direction: (facing.y, -facing.x) for CW 90°
+    const rightX = sign * drawerFacing.y;
+    const rightY = sign * -drawerFacing.x;
+    const finalCenter = new Vector(
+      drawerState.pos.x + 0.5 * rightX,
+      drawerState.pos.y + 0.5 * rightY,
+    );
 
-    const startCx = (afterWalk.dancers[lark].x + afterWalk.dancers[robin].x) / 2;
-    const startCy = (afterWalk.dancers[lark].y + afterWalk.dancers[robin].y) / 2;
+    const startCenter = afterWalk.dancers[lark].pos.add(afterWalk.dancers[robin].pos).multiply(0.5);
 
-    driftData.push({ lark, robin, finalCx, finalCy, startCx, startCy });
+    driftData.push({ lark, robin, finalCenter, startCenter });
   }
 
   return driftData;
@@ -96,17 +98,12 @@ function computeDriftData(prev: Keyframe, afterWalk: Keyframe, pairs: GTPair[]):
 function applyDrift(kf: Keyframe, driftData: DriftDatum[], t: number): Keyframe {
   const tEased = easeInOut(t);
   const dancers = copyDancers(kf.dancers);
-  for (const { lark, robin, finalCx, finalCy, startCx, startCy } of driftData) {
-    const currentCx = (kf.dancers[lark].x + kf.dancers[robin].x) / 2;
-    const currentCy = (kf.dancers[lark].y + kf.dancers[robin].y) / 2;
-    const targetCx = startCx + (finalCx - startCx) * tEased;
-    const targetCy = startCy + (finalCy - startCy) * tEased;
-    const shiftX = targetCx - currentCx;
-    const shiftY = targetCy - currentCy;
-    dancers[lark].x += shiftX;
-    dancers[lark].y += shiftY;
-    dancers[robin].x += shiftX;
-    dancers[robin].y += shiftY;
+  for (const { lark, robin, finalCenter, startCenter } of driftData) {
+    const currentCenter = kf.dancers[lark].pos.add(kf.dancers[robin].pos).multiply(0.5);
+    const targetCenter = startCenter.add(finalCenter.subtract(startCenter).multiply(tEased));
+    const shift = targetCenter.subtract(currentCenter);
+    dancers[lark].pos = dancers[lark].pos.add(shift);
+    dancers[robin].pos = dancers[robin].pos.add(shift);
   }
   return { ...kf, dancers };
 }
@@ -148,8 +145,10 @@ export function generateGiveAndTakeIntoSwing(prev: Keyframe, _final: FinalKeyfra
   for (const { drawer, drawee } of pairs) {
     const drawerState = prev.dancers[drawer];
     const draweeState = prev.dancers[drawee];
-    walkStartDancers[drawer].facing = normalizeBearing(Math.atan2(draweeState.x - drawerState.x, draweeState.y - drawerState.y));
-    walkStartDancers[drawee].facing = normalizeBearing(Math.atan2(drawerState.x - draweeState.x, drawerState.y - draweeState.y));
+    const toDrawee = draweeState.pos.subtract(drawerState.pos);
+    const toDrawer = drawerState.pos.subtract(draweeState.pos);
+    walkStartDancers[drawer].facing = toDrawee.normalize();
+    walkStartDancers[drawee].facing = toDrawer.normalize();
   }
   const walkStart: Keyframe = { beat: prev.beat, dancers: walkStartDancers, hands: prev.hands };
 
@@ -163,13 +162,10 @@ export function generateGiveAndTakeIntoSwing(prev: Keyframe, _final: FinalKeyfra
     for (const { drawer, drawee } of pairs) {
       const draweeStart = prev.dancers[drawee];
       const drawerPos = prev.dancers[drawer];
-      const halfwayX = (drawerPos.x + draweeStart.x) / 2;
-      const halfwayY = (drawerPos.y + draweeStart.y) / 2;
-      dancers[drawee].x = draweeStart.x + (halfwayX - draweeStart.x) * tEased;
-      dancers[drawee].y = draweeStart.y + (halfwayY - draweeStart.y) * tEased;
+      const halfway = drawerPos.pos.add(draweeStart.pos).multiply(0.5);
+      dancers[drawee].pos = draweeStart.pos.add(halfway.subtract(draweeStart.pos).multiply(tEased));
       dancers[drawee].facing = walkStart.dancers[drawee].facing;
-      dancers[drawer].x = drawerPos.x;
-      dancers[drawer].y = drawerPos.y;
+      dancers[drawer].pos = drawerPos.pos;
       dancers[drawer].facing = walkStart.dancers[drawer].facing;
     }
     walkFrames.push({ beat, dancers, hands: prev.hands });

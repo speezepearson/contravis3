@@ -1,13 +1,13 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { dancerPosition, makeFinalKeyframe } from '../types';
+import { type Vector, dancerPosition, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../generateUtils';
 
 type OrbitDatum = {
   protoId: ProtoDancerId;
-  startPos: { x: number; y: number };
-  partnerPos: { x: number; y: number };
+  startPos: Vector;
+  partnerPos: Vector;
   semiMinor: number;
-  originalFacing: number;
+  originalFacing: Vector;
 };
 
 function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'do_si_do' }>, scope: Set<ProtoDancerId>) {
@@ -17,12 +17,12 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'do_si_
   const orbitData: OrbitDatum[] = [];
   for (const [id, target] of pairs) {
     const da = prev.dancers[id];
-    const partnerPos = dancerPosition(target, prev.dancers);
-    const dist = Math.hypot(da.x - partnerPos.x, da.y - partnerPos.y);
+    const partnerState = dancerPosition(target, prev.dancers);
+    const dist = da.pos.subtract(partnerState.pos).length();
     orbitData.push({
       protoId: id,
-      startPos: { x: da.x, y: da.y },
-      partnerPos: { x: partnerPos.x, y: partnerPos.y },
+      startPos: da.pos,
+      partnerPos: partnerState.pos,
       semiMinor: dist / 4,
       originalFacing: da.facing,
     });
@@ -36,9 +36,7 @@ export function finalDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { 
 
   const dancers = copyDancers(prev.dancers);
   for (const od of orbitData) {
-    const pos = ellipsePosition(od.startPos, od.partnerPos, od.semiMinor, totalAngleRad);
-    dancers[od.protoId].x = pos.x;
-    dancers[od.protoId].y = pos.y;
+    dancers[od.protoId].pos = ellipsePosition(od.startPos, od.partnerPos, od.semiMinor, totalAngleRad);
     dancers[od.protoId].facing = od.originalFacing;
   }
 
@@ -61,9 +59,7 @@ export function generateDoSiDo(prev: Keyframe, _final: FinalKeyframe, instr: Ext
     const phase = tEased * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
-      const pos = ellipsePosition(od.startPos, od.partnerPos, od.semiMinor, phase);
-      dancers[od.protoId].x = pos.x;
-      dancers[od.protoId].y = pos.y;
+      dancers[od.protoId].pos = ellipsePosition(od.startPos, od.partnerPos, od.semiMinor, phase);
       dancers[od.protoId].facing = od.originalFacing;
     }
     result.push({ beat, dancers, hands: prev.hands });
