@@ -24,6 +24,9 @@ import { SwingFields } from './figures/swing/SwingFields';
 import { BoxTheGnatFields } from './figures/boxTheGnat/BoxTheGnatFields';
 import { GiveAndTakeIntoSwingFields } from './figures/giveAndTakeIntoSwing/GiveAndTakeIntoSwingFields';
 import { MadRobinFields } from './figures/madRobin/MadRobinFields';
+import { ShortWavesFields } from './figures/shortWaves/ShortWavesFields';
+import { LongWavesFields } from './figures/longWaves/LongWavesFields';
+import { LongLinesFields } from './figures/longLines/LongLinesFields';
 import { SplitFields } from './figures/split/SplitFields';
 import { GroupFields } from './figures/group/GroupFields';
 
@@ -36,13 +39,14 @@ const exampleDances: { key: string; label: string; dance: Dance }[] = Object.ent
   return { key: filename, label, dance };
 });
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'split', 'group'];
+const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'short_waves', 'long_waves', 'long_lines', 'split', 'group'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
   step: 'step', balance: 'balance',
   box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
   mad_robin: 'mad robin',
+  short_waves: 'short waves', long_waves: 'long waves', long_lines: 'long lines',
   split: 'split', group: 'group',
 };
 
@@ -301,6 +305,9 @@ function doesRequireBeatsInput(type: AtomicInstruction['type']): boolean {
     case 'swing': return true;
     case 'take_hands': return false;
     case 'drop_hands': return false;
+    case 'short_waves': return false;
+    case 'long_waves': return false;
+    case 'long_lines': return true;
     default: return assertNever(type);
   }
 }
@@ -394,6 +401,9 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
         case 'box_the_gnat': return <BoxTheGnatFields {...common} instruction={instruction} />;
         case 'give_and_take_into_swing': return <GiveAndTakeIntoSwingFields {...common} instruction={instruction} />;
         case 'mad_robin': return <MadRobinFields {...common} instruction={instruction} />;
+        case 'short_waves': return <ShortWavesFields {...common} instruction={instruction} />;
+        case 'long_waves': return <LongWavesFields {...common} instruction={instruction} />;
+        case 'long_lines': return <LongLinesFields {...common} instruction={instruction} />;
         case 'split': return <SplitFields {...common} instruction={instruction} />;
         case 'group': return <GroupFields {...common} instruction={instruction} />;
         default: assertNever(instruction);
