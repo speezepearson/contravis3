@@ -127,7 +127,7 @@ export default function App() {
   const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
   const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
-  wrapRef.current = !progressionWarning;
+  useEffect(() => { wrapRef.current = !progressionWarning; }, [progressionWarning]);
 
   const minBeat = 0;
   const maxBeat = DANCE_LENGTH;

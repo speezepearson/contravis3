@@ -6,12 +6,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import {
   DanceSchema, InstructionSchema, InstructionIdSchema,
-  type Dance, type Instruction, type Keyframe, type ProtoDancerId, type DancerId, type HandConnection, type DancerState, type InstructionId,
-  ProtoDancerIdSchema, dancerPosition, parseDancerId, makeDancerId, instructionDuration,
+  type Dance, type Instruction, type Keyframe, type ProtoDancerId, type DancerId, type HandConnection, type DancerState,
+  ProtoDancerIdSchema, dancerPosition, makeDancerId, instructionDuration,
   NORTH, EAST, SOUTH, WEST, headingAngle,
 } from '../src/types';
 import { Vector } from 'vecti';
-import { generateAllKeyframes, validateHandDistances, validateProgression, type GenerateError } from '../src/generate';
+import { generateAllKeyframes, validateHandDistances, validateProgression } from '../src/generate';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

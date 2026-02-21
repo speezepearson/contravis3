@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 import { DanceSchema } from './types';
 
 const dir = resolve(__dirname, '../example-dances');

@@ -384,7 +384,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
   });
 
   const actionRef = useRef<SearchableDropdownHandle>(null);
-  useEffect(() => { if (!initial) actionRef.current?.focus(); }, []);
+  useEffect(() => { if (!initial) actionRef.current?.focus(); }, [initial]);
   const [id] = useState(() => initial ? initial.id : makeInstructionId());
   const isEditing = !!initial;
 

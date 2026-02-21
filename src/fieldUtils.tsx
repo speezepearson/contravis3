@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect } from 'react';
 import { InstructionSchema, RelativeDirectionSchema } from './types';
 import type { Instruction, Relationship, RelativeDirection, DropHandsTarget, Role, InstructionId } from './types';
