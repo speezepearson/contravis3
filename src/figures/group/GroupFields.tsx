@@ -2,20 +2,18 @@ import { useState } from 'react';
 import { InstructionSchema } from '../../types';
 import type { Instruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
-import { SaveCancelButtons } from '../../fieldUtils';
 
-export function GroupFields({ id, isEditing, initial, onSave, onCancel }: SubFormProps & { initial?: Extract<Instruction, { type: 'group' }> }) {
-  const [label, setLabel] = useState(initial?.label ?? '');
+export function GroupFields({ instruction, onChange }: SubFormProps & { instruction: Extract<Instruction, { type: 'group' }> }) {
+  const [label, setLabel] = useState(instruction.label);
 
-  function save() {
-    onSave(InstructionSchema.parse({ id, type: 'group', label: label || 'Untitled', instructions: initial?.instructions ?? [] }));
+  function tryCommit(lbl: string) {
+    const result = InstructionSchema.safeParse({ id: instruction.id, type: 'group', label: lbl || 'Untitled', instructions: instruction.instructions });
+    if (result.success) onChange(result.data);
   }
 
   return (<>
-    <label>
-      Label
-      <input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Allemande figure" />
-    </label>
-    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+    {' "'}
+    <input type="text" className="inline-text" value={label} onChange={e => { setLabel(e.target.value); tryCommit(e.target.value); }} placeholder="Untitled" />
+    {'"'}
   </>);
 }

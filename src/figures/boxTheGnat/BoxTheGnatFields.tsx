@@ -3,27 +3,21 @@ import SearchableDropdown from '../../SearchableDropdown';
 import { InstructionSchema, RelationshipSchema } from '../../types';
 import type { Relationship, AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
-import { SaveCancelButtons, useInstructionPreview, defaultBeats, RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../../fieldUtils';
+import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../../fieldUtils';
 
-export function BoxTheGnatFields({ id, isEditing, initial, onSave, onCancel, onPreview }: SubFormProps & { initial?: Extract<AtomicInstruction, { type: 'box_the_gnat' }> }) {
-  const [relationship, setRelationship] = useState<Relationship>(initial?.relationship ?? 'neighbor');
-  const [beats, setBeats] = useState(initial ? String(initial.beats) : defaultBeats('box_the_gnat'));
+export function BoxTheGnatFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'box_the_gnat' }> }) {
+  const { id } = instruction;
+  const [relationship, setRelationship] = useState<Relationship>(instruction.relationship);
 
-  useInstructionPreview(onPreview, () => ({ id, type: 'box_the_gnat', beats: Number(beats) || 0, relationship }), [id, relationship, beats]);
-
-  function save() {
-    onSave(InstructionSchema.parse({ id, type: 'box_the_gnat', beats: Number(beats) || 0, relationship }));
+  function tryCommit(overrides: Record<string, unknown>) {
+    const raw = { id, type: 'box_the_gnat', beats: instruction.beats, relationship, ...overrides };
+    const result = InstructionSchema.safeParse(raw);
+    if (result.success) onChange(result.data);
+    else onInvalid?.();
   }
 
   return (<>
-    <label>
-      With
-      <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => setRelationship(RelationshipSchema.parse(v))} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
-    </label>
-    <label>
-      Beats
-      <input type="text" inputMode="decimal" value={beats} onChange={e => setBeats(e.target.value)} />
-    </label>
-    <SaveCancelButtons isEditing={isEditing} onSave={save} onCancel={onCancel} />
+    {'with your '}
+    <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
   </>);
 }

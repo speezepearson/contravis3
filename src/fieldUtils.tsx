@@ -1,57 +1,55 @@
-import { useEffect } from 'react';
-import { InstructionSchema, RelativeDirectionSchema } from './types';
-import type { Instruction, Relationship, RelativeDirection, DropHandsTarget, Role, InstructionId } from './types';
+import { InstructionSchema, InstructionIdSchema, RelativeDirectionSchema } from './types';
+import type { Instruction, Relationship, RelativeDirection, DropHandsTarget, Role, InstructionId, ActionType } from './types';
+import { assertNever } from './utils';
 
-// --- Shared sub-form types and components ---
+// --- Shared sub-form types ---
 
+/** Props for inline field components. Each component receives `onChange` for immediate
+ *  commit of valid instructions, and `onInvalid` to signal when validation fails. */
 export interface SubFormProps {
-  id: InstructionId;
-  isEditing: boolean;
-  onSave: (instr: Instruction) => void;
-  onCancel: () => void;
-  onPreview?: (instr: Instruction | null) => void;
+  onChange: (instr: Instruction) => void;
+  onInvalid?: () => void;
 }
 
-export function SaveCancelButtons({ isEditing, onSave, onCancel }: { isEditing: boolean; onSave: () => void; onCancel: () => void }) {
-  return (
-    <div className="builder-buttons">
-      <button className="add-btn" onClick={onSave}>{isEditing ? 'Save' : 'Add'}</button>
-      <button className="cancel-btn" onClick={onCancel}>Cancel</button>
-    </div>
-  );
-}
-
-/** Hook that tries to build an instruction from current form state and calls onPreview. */
-export function useInstructionPreview(
-  onPreview: ((instr: Instruction | null) => void) | undefined,
-  builder: () => Record<string, unknown>,
-  deps: unknown[],
-) {
-  useEffect(() => {
-    if (!onPreview) return;
-    try {
-      onPreview(InstructionSchema.parse(builder()));
-    } catch {
-      onPreview(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onPreview, ...deps]);
-}
-
-export function defaultBeats(action: string): string {
-  switch (action) {
-    case 'allemande': return '8';
-    case 'do_si_do':  return '8';
-    case 'swing':     return '8';
-    case 'circle':    return '8';
-    case 'pull_by':   return '2';
-    case 'step':      return '2';
-    case 'balance':   return '4';
-    case 'box_the_gnat': return '4';
-    case 'give_and_take_into_swing': return '16';
-    case 'mad_robin':  return '8';
-    default:          return '0';
+/** Create a default instruction for a given type. Used when adding new instructions
+ *  or when the user changes the action type dropdown. */
+export function makeDefaultInstruction(type: ActionType | 'split' | 'group', id: InstructionId): Instruction {
+  switch (type) {
+    case 'step':
+      return InstructionSchema.parse({ id, type: 'step', beats: 0, direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 });
+    case 'take_hands':
+      return InstructionSchema.parse({ id, type: 'take_hands', beats: 0, relationship: 'neighbor', hand: 'right' });
+    case 'drop_hands':
+      return InstructionSchema.parse({ id, type: 'drop_hands', beats: 0, target: 'both' });
+    case 'allemande':
+      return InstructionSchema.parse({ id, type: 'allemande', beats: 8, relationship: 'neighbor', handedness: 'right', rotations: 1 });
+    case 'do_si_do':
+      return InstructionSchema.parse({ id, type: 'do_si_do', beats: 8, relationship: 'neighbor', rotations: 1 });
+    case 'circle':
+      return InstructionSchema.parse({ id, type: 'circle', beats: 8, direction: 'left', rotations: 1 });
+    case 'pull_by':
+      return InstructionSchema.parse({ id, type: 'pull_by', beats: 2, relationship: 'neighbor', hand: 'right' });
+    case 'balance':
+      return InstructionSchema.parse({ id, type: 'balance', beats: 4, direction: { kind: 'direction', value: 'across' }, distance: 0.5 });
+    case 'swing':
+      return InstructionSchema.parse({ id, type: 'swing', beats: 8, relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } });
+    case 'box_the_gnat':
+      return InstructionSchema.parse({ id, type: 'box_the_gnat', beats: 4, relationship: 'neighbor' });
+    case 'give_and_take_into_swing':
+      return InstructionSchema.parse({ id, type: 'give_and_take_into_swing', beats: 16, relationship: 'neighbor', role: 'lark', endFacing: { kind: 'direction', value: 'across' } });
+    case 'mad_robin':
+      return InstructionSchema.parse({ id, type: 'mad_robin', beats: 8, dir: 'larks_in_middle', with: 'larks_left', rotations: 1 });
+    case 'split':
+      return InstructionSchema.parse({ id, type: 'split', by: 'role', larks: [], robins: [] });
+    case 'group':
+      return InstructionSchema.parse({ id, type: 'group', label: 'Untitled', instructions: [] });
+    default:
+      return assertNever(type);
   }
+}
+
+export function makeInstructionId(): InstructionId {
+  return InstructionIdSchema.parse(crypto.randomUUID());
 }
 
 export function parseDirection(text: string): RelativeDirection | null {

@@ -22,7 +22,8 @@
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
+  min-width: 100%;
+  width: max-content;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -40,6 +41,7 @@
   font-size: 13px;
   cursor: pointer;
   color: #e0e0e0;
+  white-space: nowrap;
 }
 
 .searchable-dropdown-popover li:hover {
