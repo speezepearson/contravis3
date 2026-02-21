@@ -139,6 +139,7 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
         type="text"
         value={inputValue}
         placeholder={placeholder}
+        size={Math.max((inputValue?.length || placeholder?.length || 0) + 2, 4)}
         onChange={handleChange}
         onFocus={handleFocus}
         onClick={handleClick}
