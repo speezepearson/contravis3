@@ -119,7 +119,7 @@ export default function App() {
   const [previewInstruction, setPreviewInstruction] = useState<Instruction | null>(null);
   const [hoveredInstructionId, setHoveredInstructionId] = useState<InstructionId | null>(null);
 
-  const bpmRef = useRef(120);
+  const bpmRef = useRef(90);
   const smoothnessRef = useRef(1);
   const progressionRef = useRef(1);
   const wrapRef = useRef(true);
