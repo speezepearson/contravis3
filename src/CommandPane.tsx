@@ -276,7 +276,7 @@ interface Props {
   progressionWarning: string | null;
   onEditingStart?: (info: EditingInfo) => void;
   onEditingEnd?: () => void;
-  onPreviewInstruction?: (instr: Instruction | null) => void;
+  onSpeculativeInstructions?: (instrs: Instruction[] | null) => void;
   onHoverInstruction?: (id: InstructionId | null) => void;
   beat?: number;
   onBeatChange?: (beat: number) => void;
@@ -449,7 +449,7 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onEditingStart, onEditingEnd, onPreviewInstruction, onHoverInstruction, beat, onBeatChange }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onEditingStart, onEditingEnd, onSpeculativeInstructions, onHoverInstruction, beat, onBeatChange }: Props) {
   const [editingId, setEditingId] = useState<InstructionId | null>(null);
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -520,7 +520,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     setInstructions(replaceInTree(instructions, id, updated));
     setEditingId(null);
     onEditingEnd?.();
-    onPreviewInstruction?.(null);
+    onSpeculativeInstructions?.(null);
   }
 
   function handleRemove(id: InstructionId) {
@@ -529,7 +529,22 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     if (editingId === id) {
       setEditingId(null);
       onEditingEnd?.();
-      onPreviewInstruction?.(null);
+      onSpeculativeInstructions?.(null);
+    }
+  }
+
+  /** Build speculative instructions when a preview fires during insert or edit. */
+  function handlePreview(instr: Instruction | null) {
+    if (!instr) {
+      onSpeculativeInstructions?.(null);
+      return;
+    }
+    if (insertTarget) {
+      onSpeculativeInstructions?.(insertIntoContainer(instructions, insertTarget.containerId, instr, insertTarget.index));
+    } else if (editingId) {
+      onSpeculativeInstructions?.(replaceInTree(instructions, editingId, instr));
+    } else {
+      onSpeculativeInstructions?.(null);
     }
   }
 
@@ -620,9 +635,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
         <InlineForm
           key={`add-${containerId}-${index}`}
           onSave={instr => handleAdd(containerId, index, instr)}
-          onCancel={() => { setInsertTarget(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
+          onCancel={() => { setInsertTarget(null); onEditingEnd?.(); onSpeculativeInstructions?.(null); }}
           allowContainers={allowContainers}
-          onPreview={onPreviewInstruction}
+          onPreview={handlePreview}
           startBeat={insertInfo.startBeat}
           beat={beat}
           onBeatChange={onBeatChange}
@@ -696,8 +711,8 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           key={`edit-${instr.id}`}
                           initial={instr}
                           onSave={updated => handleSave(instr.id, updated)}
-                          onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
-                          onPreview={onPreviewInstruction}
+                          onCancel={() => { setEditingId(null); onEditingEnd?.(); onSpeculativeInstructions?.(null); }}
+                          onPreview={handlePreview}
                           startBeat={findInstructionStartBeat(instructions, instr.id) ?? 0}
                           beat={beat}
                           onBeatChange={onBeatChange}
@@ -775,8 +790,8 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                         key={`edit-${child.id}`}
                         initial={child}
                         onSave={updated => handleSave(child.id, updated)}
-                        onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
-                        onPreview={onPreviewInstruction}
+                        onCancel={() => { setEditingId(null); onEditingEnd?.(); onSpeculativeInstructions?.(null); }}
+                        onPreview={handlePreview}
                         startBeat={findInstructionStartBeat(instructions, child.id) ?? 0}
                         beat={beat}
                         onBeatChange={onBeatChange}
@@ -835,9 +850,9 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                           key={`edit-${sub.id}`}
                           initial={InstructionSchema.parse(sub)}
                           onSave={updated => handleSave(sub.id, updated)}
-                          onCancel={() => { setEditingId(null); onEditingEnd?.(); onPreviewInstruction?.(null); }}
+                          onCancel={() => { setEditingId(null); onEditingEnd?.(); onSpeculativeInstructions?.(null); }}
                           allowContainers={false}
-                          onPreview={onPreviewInstruction}
+                          onPreview={handlePreview}
                           startBeat={findInstructionStartBeat(instructions, sub.id) ?? 0}
                           beat={beat}
                           onBeatChange={onBeatChange}

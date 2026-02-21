@@ -116,7 +116,7 @@ export default function App() {
 
   // Editing state for pause-on-edit and keyframe preview
   const [editInfo, setEditInfo] = useState<{ startBeat: number; scope: Set<ProtoDancerId> } | null>(null);
-  const [previewInstruction, setPreviewInstruction] = useState<Instruction | null>(null);
+  const [speculativeInstructions, setSpeculativeInstructions] = useState<Instruction[] | null>(null);
   const [hoveredInstructionId, setHoveredInstructionId] = useState<InstructionId | null>(null);
 
   const bpmRef = useRef(120);
@@ -124,44 +124,36 @@ export default function App() {
   const progressionRef = useRef(1);
   const wrapRef = useRef(true);
 
-  const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
-  const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
+  // Use speculative instructions (from in-progress edits) when available
+  const effectiveInstructions = speculativeInstructions ?? instructions;
+  const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(effectiveInstructions, initFormation), [effectiveInstructions, initFormation]);
+  const warnings = useMemo(() => validateHandDistances(effectiveInstructions, keyframes), [effectiveInstructions, keyframes]);
   const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
   wrapRef.current = !progressionWarning;
 
   const minBeat = 0;
   const maxBeat = DANCE_LENGTH;
 
-  // Compute preview keyframes when editing or hovering
+  // Compute preview keyframes for hover (editing preview is now handled by speculative instructions)
   const previewKeyframes = useMemo(() => {
-    let startBeat: number;
-    let scope: Set<ProtoDancerId>;
-    let instr: Instruction | null;
-
-    if (editInfo && previewInstruction) {
-      // Editing/adding: use the edit info and preview instruction
-      startBeat = editInfo.startBeat;
-      scope = editInfo.scope;
-      instr = previewInstruction;
-    } else if (hoveredInstructionId && !editInfo) {
+    if (hoveredInstructionId && !editInfo) {
       // Hovering (not during edit): compute from the hovered instruction
-      instr = findInstructionById(instructions, hoveredInstructionId);
+      const instr = findInstructionById(instructions, hoveredInstructionId);
       if (!instr) return [];
-      startBeat = findInstructionStartBeat(instructions, hoveredInstructionId) ?? 0;
-      scope = findInstructionScope(instructions, hoveredInstructionId);
-    } else {
-      return [];
-    }
+      const startBeat = findInstructionStartBeat(instructions, hoveredInstructionId) ?? 0;
+      const scope = findInstructionScope(instructions, hoveredInstructionId);
 
-    // Find the keyframe at or before the start beat
-    let prevKeyframe: Keyframe | null = null;
-    for (const kf of keyframes) {
-      if (kf.beat <= startBeat + 1e-6) prevKeyframe = kf;
-      else break;
+      // Find the keyframe at or before the start beat
+      let prevKeyframe: Keyframe | null = null;
+      for (const kf of keyframes) {
+        if (kf.beat <= startBeat + 1e-6) prevKeyframe = kf;
+        else break;
+      }
+      if (!prevKeyframe) return [];
+      return generateInstructionPreview(instr, prevKeyframe, scope) ?? [];
     }
-    if (!prevKeyframe) return [];
-    return generateInstructionPreview(instr, prevKeyframe, scope) ?? [];
-  }, [editInfo, previewInstruction, hoveredInstructionId, instructions, keyframes]);
+    return [];
+  }, [hoveredInstructionId, editInfo, instructions, keyframes]);
 
   // Keep a ref to keyframes for the animation loop
   const keyframesRef = useRef(keyframes);
@@ -321,17 +313,16 @@ export default function App() {
     rendererRef.current?.clearTrails();
     // Store edit info for preview generation
     setEditInfo({ startBeat: info.startBeat, scope: info.scope });
-    setPreviewInstruction(null);
     draw();
   }, [draw]);
 
   const handleEditingEnd = useCallback(() => {
     setEditInfo(null);
-    setPreviewInstruction(null);
+    setSpeculativeInstructions(null);
   }, []);
 
-  const handlePreviewInstruction = useCallback((instr: Instruction | null) => {
-    setPreviewInstruction(instr);
+  const handleSpeculativeInstructions = useCallback((instrs: Instruction[] | null) => {
+    setSpeculativeInstructions(instrs);
   }, []);
 
   const handleHoverInstruction = useCallback((id: InstructionId | null) => {
@@ -455,7 +446,7 @@ export default function App() {
       {/* Desktop sidebar */}
       <div className="sidebar-column">
         <div className="sidebar-instructions">
-          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} onHoverInstruction={handleHoverInstruction} beat={beat} onBeatChange={handleBeatChange} />
+          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onSpeculativeInstructions={handleSpeculativeInstructions} onHoverInstruction={handleHoverInstruction} beat={beat} onBeatChange={handleBeatChange} />
         </div>
         <div className="sidebar-controls">
           {controlsBlock}
@@ -472,7 +463,7 @@ export default function App() {
 
       {/* Mobile instruction drawer */}
       <div className={`instruction-drawer ${drawerOpen ? 'open' : ''}`}>
-        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onPreviewInstruction={handlePreviewInstruction} onHoverInstruction={handleHoverInstruction} beat={beat} onBeatChange={handleBeatChange} />
+        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onEditingStart={handleEditingStart} onEditingEnd={handleEditingEnd} onSpeculativeInstructions={handleSpeculativeInstructions} onHoverInstruction={handleHoverInstruction} beat={beat} onBeatChange={handleBeatChange} />
       </div>
     </div>
   );
