@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
-import { tid, instr, initialKeyframe } from './testUtils';
+import { tid, instr, initialKeyframe, expectFacingCloseTo } from './testUtils';
 
 describe('pull_by', () => {
   it('dancers swap positions', () => {
@@ -24,8 +24,8 @@ describe('pull_by', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].facing).toBeCloseTo(init.dancers['up_lark_0'].facing, 5);
-    expect(last.dancers['down_robin_0'].facing).toBeCloseTo(init.dancers['down_robin_0'].facing, 5);
+    expectFacingCloseTo(last.dancers['up_lark_0'].facing, init.dancers['up_lark_0'].facing, 5);
+    expectFacingCloseTo(last.dancers['down_robin_0'].facing, init.dancers['down_robin_0'].facing, 5);
   });
 
   it('has hand connections during the pull-by', () => {

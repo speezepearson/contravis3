@@ -1,5 +1,5 @@
 import type { DancerState, Keyframe, ProtoDancerId } from './types';
-import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, FULL_CW } from './types';
+import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, headingAngle } from './types';
 
 const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark_0:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
@@ -139,9 +139,12 @@ export class Renderer {
     }
   }
 
-  private handAnchorOffset(facing: number, hand: 'left' | 'right', r: number): [number, number] {
+  private handAnchorOffset(facing: Vector, hand: 'left' | 'right', r: number): [number, number] {
     const sign = hand === 'right' ? 1 : -1;
-    return [Math.cos(facing) * sign * r, Math.sin(facing) * sign * r];
+    // "right" from facing (x,y) in screen coords: facing.x→sin, facing.y→cos in heading convention
+    // screen-x offset = cos(heading) * sign = facing.y * sign
+    // screen-y offset = sin(heading) * sign = facing.x * sign (but y is flipped in worldToCanvas)
+    return [facing.y * sign * r, facing.x * sign * r];
   }
 
   private drawHandsForAllCopies(da: DancerState, handA: 'left' | 'right', db: DancerState, handB: 'left' | 'right') {
@@ -198,7 +201,7 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
-  private drawGhostDancer(id: ProtoDancerId, x: number, y: number, facing: number) {
+  private drawGhostDancer(id: ProtoDancerId, x: number, y: number, facing: Vector) {
     const color = COLORS[id];
     if (!color) return;
     const ctx = this.ctx;
@@ -216,9 +219,9 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
 
-    // Facing arrow (shorter)
-    const ax = cx + Math.sin(facing) * (r + 4);
-    const ay = cy - Math.cos(facing) * (r + 4);
+    // Facing arrow (shorter): facing.x = sin(heading), facing.y = cos(heading)
+    const ax = cx + facing.x * (r + 4);
+    const ay = cy - facing.y * (r + 4);
     ctx.strokeStyle = color.stroke;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -229,7 +232,7 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
-  private drawDancer(id: ProtoDancerId, x: number, y: number, facing: number, alpha: number) {
+  private drawDancer(id: ProtoDancerId, x: number, y: number, facing: Vector, alpha: number) {
     const color = COLORS[id];
     if (!color) return;
     const ctx = this.ctx;
@@ -247,9 +250,9 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
 
-    // Facing arrow
-    const ax = cx + Math.sin(facing) * (r + 6);
-    const ay = cy - Math.cos(facing) * (r + 6);
+    // Facing arrow: facing.x = sin(heading), facing.y = cos(heading)
+    const ax = cx + facing.x * (r + 6);
+    const ay = cy - facing.y * (r + 6);
     ctx.strokeStyle = color.stroke;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -259,13 +262,13 @@ export class Renderer {
 
     // Arrowhead
     const headLen = 6;
-    const headAngle = 0.4;
+    const headAngleVal = 0.4;
     const angle = Math.atan2(ay - cy, ax - cx);
     ctx.beginPath();
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - headLen * Math.cos(angle - headAngle), ay - headLen * Math.sin(angle - headAngle));
+    ctx.lineTo(ax - headLen * Math.cos(angle - headAngleVal), ay - headLen * Math.sin(angle - headAngleVal));
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - headLen * Math.cos(angle + headAngle), ay - headLen * Math.sin(angle + headAngle));
+    ctx.lineTo(ax - headLen * Math.cos(angle + headAngleVal), ay - headLen * Math.sin(angle + headAngleVal));
     ctx.stroke();
 
     // Label
@@ -281,17 +284,16 @@ export class Renderer {
 
 // --- Keyframe interpolation ---
 
-function lerpAngle(a: number, b: number, t: number): number {
-  let diff = ((b - a + Math.PI) % FULL_CW) - Math.PI;
-  if (diff < -Math.PI) diff += FULL_CW;
-  return (a + diff * t + FULL_CW) % FULL_CW;
-}
-
-/** Unwrap an angle relative to a reference so the difference is in (-π, π]. */
-function unwrapAngle(angle: number, ref: number): number {
-  let diff = ((angle - ref + Math.PI) % FULL_CW) - Math.PI;
-  if (diff < -Math.PI) diff += FULL_CW;
-  return ref + diff;
+/** Lerp between two facing vectors via the short arc. */
+function lerpFacing(a: Vector, b: Vector, t: number): Vector {
+  // Use angle-based lerp to handle wraparound correctly
+  const aRad = headingAngle(a);
+  const bRad = headingAngle(b);
+  let diff = bRad - aRad;
+  if (diff > Math.PI) diff -= 2 * Math.PI;
+  if (diff < -Math.PI) diff += 2 * Math.PI;
+  const rad = aRad + diff * t;
+  return new Vector(Math.sin(rad), Math.cos(rad));
 }
 
 /** Linear interpolation between keyframes (no smoothing). */
@@ -329,7 +331,7 @@ function rawFrameAtBeat(keyframes: Keyframe[], beat: number, danceLength: number
     const d1 = f1.dancers[id];
     return {
       pos: d0.pos.add(d1.pos.subtract(d0.pos).multiply(t)),
-      facing: lerpAngle(d0.facing, d1.facing, t),
+      facing: lerpFacing(d0.facing, d1.facing, t),
     };
   });
 
@@ -378,26 +380,24 @@ export function getFrameAtBeat(keyframes: Keyframe[], beat: number, smoothness: 
     samples.push(s);
   }
 
-  // Average pos per dancer; angle-aware average for facing
+  // Average pos and facing per dancer.
+  // For facing vectors, sum them and normalize — this naturally handles wraparound.
   const dancers = buildDancerRecord(id => {
     let sumX = 0, sumY = 0;
-    // Unwrap facing angles via chaining: each sample unwraps relative to the
-    // previous one, so even fast rotations (>180° across the full window) work.
-    let prevFacing = samples[0].dancers[id].facing;
-    let sumFacing = 0;
+    let sumFX = 0, sumFY = 0;
 
     for (const s of samples) {
       const d = s.dancers[id];
       sumX += d.pos.x;
       sumY += d.pos.y;
-      prevFacing = unwrapAngle(d.facing, prevFacing);
-      sumFacing += prevFacing;
+      sumFX += d.facing.x;
+      sumFY += d.facing.y;
     }
 
     const n = SMOOTH_SAMPLES;
     return {
       pos: new Vector(sumX / n, sumY / n),
-      facing: ((sumFacing / n % FULL_CW) + FULL_CW) % FULL_CW,
+      facing: new Vector(sumFX, sumFY).normalize(),
     };
   });
 

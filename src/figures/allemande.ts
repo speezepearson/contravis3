@@ -1,12 +1,13 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
-import { Vector, makeDancerId, dancerPosition, normalizeBearing, QUARTER_CW, QUARTER_CCW, FULL_CW, makeFinalKeyframe } from '../types';
+import { Vector, makeDancerId, dancerPosition, headingVector, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, resolvePairs } from '../generateUtils';
 
 type OrbitDatum = { protoId: ProtoDancerId; center: Vector; startAngle: number; radius: number };
 
 function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>) {
-  const totalAngleRad = instr.rotations * FULL_CW * (instr.handedness === 'right' ? 1 : -1);
-  const shoulderOffset = instr.handedness === 'right' ? QUARTER_CCW : QUARTER_CW;
+  const totalAngleRad = instr.rotations * 2 * Math.PI * (instr.handedness === 'right' ? 1 : -1);
+  // shoulderOffset: right-hand allemande → face 90° CCW from center (i.e. -π/2), left → 90° CW (+π/2)
+  const shoulderOffset = instr.handedness === 'right' ? -Math.PI / 2 : Math.PI / 2;
   const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
 
   const handsSeen = new Set<string>();
@@ -44,7 +45,7 @@ export function finalAllemande(prev: Keyframe, instr: Extract<AtomicInstruction,
       od.center.y + od.radius * Math.cos(angle),
     );
     const dirToCenter = Math.atan2(od.center.x - dancers[od.protoId].pos.x, od.center.y - dancers[od.protoId].pos.y);
-    dancers[od.protoId].facing = normalizeBearing(dirToCenter + shoulderOffset);
+    dancers[od.protoId].facing = headingVector(dirToCenter + shoulderOffset);
   }
 
   return makeFinalKeyframe({
@@ -74,7 +75,7 @@ export function generateAllemande(prev: Keyframe, _final: FinalKeyframe, instr: 
         od.center.y + od.radius * Math.cos(angle),
       );
       const dirToCenter = Math.atan2(od.center.x - dancers[od.protoId].pos.x, od.center.y - dancers[od.protoId].pos.y);
-      dancers[od.protoId].facing = normalizeBearing(dirToCenter + shoulderOffset);
+      dancers[od.protoId].facing = headingVector(dirToCenter + shoulderOffset);
     }
 
     result.push({ beat, dancers, hands });

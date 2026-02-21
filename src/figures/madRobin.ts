@@ -1,13 +1,12 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { parseDancerId, dancerPosition, EAST, WEST, makeFinalKeyframe } from '../types';
+import { type Vector, parseDancerId, dancerPosition, EAST, WEST, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../generateUtils';
-import { Vector } from 'vecti';
 
 type OrbitDatum = {
   protoId: ProtoDancerId;
   startPos: Vector;
   partnerPos: Vector;
-  acrossFacing: number;
+  acrossFacing: Vector;
 };
 
 function setup(

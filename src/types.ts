@@ -212,29 +212,26 @@ export const VectorSchema = z.instanceof(Vector);
 
 export const DancerStateSchema = z.object({
   pos: VectorSchema,
-  facing: z.number(), // radians: 0=north, π/2=east, π=south, 3π/2=west
+  facing: VectorSchema, // unit vector: NORTH = (0,1), EAST = (1,0)
 });
 export type DancerState = z.infer<typeof DancerStateSchema>;
 
-// --- Angle constants (radians) ---
+// --- Direction constants (unit vectors) ---
 
 /** Cardinal bearings (absolute directions). */
-export const NORTH = 0;
-export const EAST = Math.PI / 2;
-export const SOUTH = Math.PI;
-export const WEST = 3 * Math.PI / 2;
+export const NORTH = new Vector(0, 1);
+export const EAST = new Vector(1, 0);
+export const SOUTH = new Vector(0, -1);
+export const WEST = new Vector(-1, 0);
 
-/** Rotation amounts. */
-export const QUARTER_CW = Math.PI / 2;
-export const HALF_CW = Math.PI;
-export const FULL_CW = 2 * Math.PI;
-export const QUARTER_CCW = -Math.PI / 2;
-export const HALF_CCW = -Math.PI;
-export const FULL_CCW = -2 * Math.PI;
+/** Convert a heading angle (radians, 0=north CW) to a unit vector. */
+export function headingVector(radians: number): Vector {
+  return new Vector(Math.sin(radians), Math.cos(radians));
+}
 
-/** Normalize a bearing into [0, 2π). */
-export function normalizeBearing(bearing: number): number {
-  return ((bearing % FULL_CW) + FULL_CW) % FULL_CW;
+/** Convert a unit facing vector to a heading angle (radians, 0=north CW). */
+export function headingAngle(v: Vector): number {
+  return Math.atan2(v.x, v.y);
 }
 
 export const HandConnectionSchema = z.object({

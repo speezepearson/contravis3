@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
 import { NORTH, SOUTH } from '../types';
-import { tid, instr, initialKeyframe } from './testUtils';
+import { tid, instr, initialKeyframe, expectFacingCloseTo } from './testUtils';
 
 describe('box_the_gnat', () => {
   it('errors when pairs have the same role', () => {
@@ -37,9 +37,9 @@ describe('box_the_gnat', () => {
     // After turn: up_lark faces down_robin -> facing 0 deg (up, since down_robin is north of up_lark)
     // After box the gnat: lark turns CW 180 deg -> facing 180 deg
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].facing).toBeCloseTo(SOUTH, 0);
+    expectFacingCloseTo(last.dancers['up_lark_0'].facing, SOUTH, 0);
     // down_robin was facing up_lark -> facing 180 deg (south), turns CCW 180 deg -> facing 0 deg
-    expect(last.dancers['down_robin_0'].facing).toBeCloseTo(NORTH, 0);
+    expectFacingCloseTo(last.dancers['down_robin_0'].facing, NORTH, 0);
   });
 
   it('path follows an ellipse (midpoint is off the major axis)', () => {

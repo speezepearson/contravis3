@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { normalizeBearing, makeFinalKeyframe } from '../types';
+import { makeFinalKeyframe } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, resolveFacing } from '../generateUtils';
 
 export function finalTurn(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'turn' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
@@ -8,7 +8,8 @@ export function finalTurn(prev: Keyframe, instr: Extract<AtomicInstruction, { ty
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const base = resolveFacing(instr.target, prev.dancers[id], id, prev.dancers);
-    dancers[id].facing = normalizeBearing(base + instr.offset);
+    // offset is CW radians; vecti rotateByRadians is CCW, so negate
+    dancers[id].facing = base.rotateByRadians(-instr.offset);
   }
 
   return makeFinalKeyframe({

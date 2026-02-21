@@ -30,11 +30,11 @@ describe('split', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
     // Ups turn to face down
-    expect(last.dancers['up_lark_0'].facing).toBe(SOUTH);
-    expect(last.dancers['up_robin_0'].facing).toBe(SOUTH);
+    expect(last.dancers['up_lark_0'].facing).toEqual(SOUTH);
+    expect(last.dancers['up_robin_0'].facing).toEqual(SOUTH);
     // Downs turn to face up
-    expect(last.dancers['down_lark_0'].facing).toBe(NORTH);
-    expect(last.dancers['down_robin_0'].facing).toBe(NORTH);
+    expect(last.dancers['down_lark_0'].facing).toEqual(NORTH);
+    expect(last.dancers['down_robin_0'].facing).toEqual(NORTH);
   });
 
   it('empty larks list: larks hold still', () => {
