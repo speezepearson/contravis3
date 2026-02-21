@@ -6,7 +6,7 @@ import { tid, instr } from './testUtils';
 describe('give_and_take_into_swing', () => {
   // Set up: turn everyone to face across, so pairs are on opposite sides of the set
   function faceAcross() {
-    return { id: tid(99), beats: 0, type: 'turn' as const, offset: 0, target: { kind: 'direction' as const, value: 'across' as const } };
+    return { id: tid(99), beats: 0, type: 'step' as const, direction: { kind: 'direction' as const, value: 'forward' as const }, distance: 0, facing: { kind: 'direction' as const, value: 'across' as const }, facingOffset: 0 };
   }
 
   it('errors when pairs have the same role', () => {

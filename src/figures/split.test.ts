@@ -7,8 +7,8 @@ describe('split', () => {
   it('split by role: larks and robins do different things', () => {
     const instructions = instr([{
       id: tid(1), type: 'split', by: 'role',
-      larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-      robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+      larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
+      robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -24,8 +24,8 @@ describe('split', () => {
   it('split by position: ups and downs do different things', () => {
     const instructions = instr([{
       id: tid(1), type: 'split', by: 'position',
-      ups: [{ id: tid(10), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } }],
-      downs: [{ id: tid(11), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } }],
+      ups: [{ id: tid(10), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'down' }, facingOffset: 0 }],
+      downs: [{ id: tid(11), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'up' }, facingOffset: 0 }],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -41,7 +41,7 @@ describe('split', () => {
     const instructions = instr([{
       id: tid(1), type: 'split', by: 'role',
       larks: [],
-      robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+      robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -56,7 +56,7 @@ describe('split', () => {
   it('empty downs list: downs hold still', () => {
     const instructions = instr([{
       id: tid(1), type: 'split', by: 'position',
-      ups: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 }],
+      ups: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
       downs: [],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -84,11 +84,11 @@ describe('split', () => {
     const instructions = instr([{
       id: tid(1), type: 'split', by: 'role',
       larks: [
-        { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
-        { id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 },
+        { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
+        { id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ],
       robins: [
-        { id: tid(12), beats: 8, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 1 },
+        { id: tid(12), beats: 8, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -113,10 +113,10 @@ describe('split', () => {
     const instructions = instr([
       {
         id: tid(1), type: 'split', by: 'role',
-        larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-        robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+        larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
+        robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
       },
-      { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 },
+      { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -133,7 +133,7 @@ describe('split', () => {
     const instructions = instr([{
       id: tid(1), type: 'split', by: 'position',
       ups: [{ id: tid(10), beats: 8, type: 'allemande', relationship: 'partner', handedness: 'right', rotations: 1 }],
-      downs: [{ id: tid(11), beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
+      downs: [{ id: tid(11), beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();

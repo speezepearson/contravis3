@@ -188,12 +188,14 @@
         {
           "id": "b2000000-0000-4000-a000-000000000005",
           "beats": 0,
-          "type": "turn",
-          "target": {
+          "type": "step",
+          "direction": { "kind": "direction", "value": "forward" },
+          "distance": 0,
+          "facing": {
             "kind": "relationship",
             "value": "neighbor"
           },
-          "offset": 0
+          "facingOffset": 0
         },
         {
           "id": "b2000000-0000-4000-a000-000000000006",
@@ -211,12 +213,14 @@
         {
           "id": "b2000000-0000-4000-a000-000000000008",
           "beats": 0,
-          "type": "turn",
-          "target": {
+          "type": "step",
+          "direction": { "kind": "direction", "value": "forward" },
+          "distance": 0,
+          "facing": {
             "kind": "relationship",
             "value": "partner"
           },
-          "offset": 0
+          "facingOffset": 0
         },
         {
           "id": "b2000000-0000-4000-a000-000000000009",
@@ -251,12 +255,14 @@
         {
           "id": "b2000000-0000-4000-a000-00000000000d",
           "beats": 0,
-          "type": "turn",
-          "target": {
+          "type": "step",
+          "direction": { "kind": "direction", "value": "forward" },
+          "distance": 0,
+          "facing": {
             "kind": "relationship",
             "value": "neighbor"
           },
-          "offset": 0
+          "facingOffset": 0
         },
         {
           "id": "b2000000-0000-4000-a000-00000000000e",

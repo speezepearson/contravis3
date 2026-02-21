@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
-import { parseDancerId, NORTH, EAST, WEST } from '../types';
+import { parseDancerId } from '../types';
 import { tid, instr, initialKeyframe } from './testUtils';
 
 describe('take_hands', () => {
@@ -62,7 +62,7 @@ describe('take_hands', () => {
     // Facing east (90°), north = left → up_lark uses left.
     // down_robin (at -0.5, 0.5) faces east (90°), up_lark is south → right.
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'partner' } },
+      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: 'partner' }, facingOffset: 0 },
       { id: tid(2), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -117,7 +117,7 @@ describe('dynamic relationships (on_right, on_left, in_front)', () => {
   it('on_left after turning to face across resolves correctly', () => {
     // Turn everyone to face across, then "on your left" resolves per-dancer.
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'across' } },
+      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 },
       { id: tid(2), beats: 0, type: 'take_hands', relationship: 'on_left', hand: 'left' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -137,7 +137,7 @@ describe('dynamic relationships (on_right, on_left, in_front)', () => {
     // for down dancers (nobody is north of them within the same hands-four).
     // They should find dancers in the adjacent hands-four (offset +1).
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
+      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'up' }, facingOffset: 0 },
       { id: tid(2), beats: 0, type: 'take_hands', relationship: 'in_front', hand: 'right' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);

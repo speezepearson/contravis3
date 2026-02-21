@@ -63,8 +63,7 @@ export const AtomicInstructionSchema = z.discriminatedUnion('type', [
   z.object({ ...baseFields, type: z.literal('do_si_do'), relationship: RelationshipSchema, rotations: z.number() }),
   z.object({ ...baseFields, type: z.literal('circle'), direction: HandSchema, rotations: z.number() }),
   z.object({ ...baseFields, type: z.literal('pull_by'), relationship: RelationshipSchema, hand: HandSchema }),
-  z.object({ ...baseFields, type: z.literal('turn'), target: RelativeDirectionSchema, offset: z.number() }),
-  z.object({ ...baseFields, type: z.literal('step'), direction: RelativeDirectionSchema, distance: z.number() }),
+  z.object({ ...baseFields, type: z.literal('step'), direction: RelativeDirectionSchema, distance: z.number(), facing: RelativeDirectionSchema, facingOffset: z.number() }),
   z.object({ ...baseFields, type: z.literal('balance'), direction: RelativeDirectionSchema, distance: z.number() }),
   z.object({ ...baseFields, type: z.literal('swing'), relationship: RelationshipSchema, endFacing: RelativeDirectionSchema }),
   z.object({ ...baseFields, type: z.literal('box_the_gnat'), relationship: RelationshipSchema }),
@@ -73,7 +72,7 @@ export const AtomicInstructionSchema = z.discriminatedUnion('type', [
 ]);
 export type AtomicInstruction = z.infer<typeof AtomicInstructionSchema>;
 
-export const ActionTypeSchema = z.enum(['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'turn', 'step', 'balance', 'swing', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin']);
+export const ActionTypeSchema = z.enum(['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'step', 'balance', 'swing', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin']);
 export type ActionType = z.infer<typeof ActionTypeSchema>;
 
 export const SplitBySchema = z.discriminatedUnion('by', [

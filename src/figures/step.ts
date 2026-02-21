@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { makeFinalKeyframe } from '../types';
-import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolveHeading } from '../generateUtils';
+import { normalizeBearing, makeFinalKeyframe, FULL_CW } from '../types';
+import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolveHeading, resolveFacing } from '../generateUtils';
 
 export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'step' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
   const dancers = copyDancers(prev.dancers);
@@ -10,6 +10,8 @@ export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { ty
     const heading = resolveHeading(instr.direction, d, id, prev.dancers);
     dancers[id].x = d.x + Math.sin(heading) * instr.distance;
     dancers[id].y = d.y + Math.cos(heading) * instr.distance;
+    const base = resolveFacing(instr.facing, d, id, prev.dancers);
+    dancers[id].facing = normalizeBearing(base + instr.facingOffset);
   }
   return makeFinalKeyframe({
     beat: prev.beat + instr.beats,
@@ -31,6 +33,10 @@ export function generateStep(prev: Keyframe, final: FinalKeyframe, instr: Extrac
       if (!scope.has(id)) continue;
       dancers[id].x = prev.dancers[id].x + (final.dancers[id].x - prev.dancers[id].x) * tEased;
       dancers[id].y = prev.dancers[id].y + (final.dancers[id].y - prev.dancers[id].y) * tEased;
+      let df = final.dancers[id].facing - prev.dancers[id].facing;
+      if (df > Math.PI) df -= FULL_CW;
+      if (df < -Math.PI) df += FULL_CW;
+      dancers[id].facing = normalizeBearing(prev.dancers[id].facing + df * tEased);
     }
     keyframes.push({ beat, dancers, hands: prev.hands });
   }

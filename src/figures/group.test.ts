@@ -7,7 +7,7 @@ describe('group', () => {
     const instructions = instr([{
       id: tid(1), type: 'group', label: 'Allemande figure',
       instructions: [
-        { id: tid(10), beats: 2, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+        { id: tid(10), beats: 2, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
         { id: tid(11), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
       ],
     }]);
@@ -19,11 +19,11 @@ describe('group', () => {
 
   it('beats accumulate across groups and other instructions', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 0.5 },
+      { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 0.5, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       {
         id: tid(2), type: 'group', label: 'My group',
         instructions: [
-          { id: tid(20), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 },
+          { id: tid(20), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
         ],
       },
     ]);
@@ -36,8 +36,8 @@ describe('group', () => {
       id: tid(1), type: 'group', label: 'Split group',
       instructions: [{
         id: tid(10), type: 'split', by: 'role',
-        larks: [{ id: tid(100), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }],
-        robins: [{ id: tid(101), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1 }],
+        larks: [{ id: tid(100), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
+        robins: [{ id: tid(101), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
       }],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
