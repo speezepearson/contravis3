@@ -1,10 +1,44 @@
-# Contravis3
+# CLAUDE.md
 
-A browser-based visualizer and editor for contra dance choreography, built with TypeScript, React, and Vite.
-
-## Commands
+## Build & Test
 
 - `npm run dev` — Start dev server
 - `npm run build` — Type-check and build
 - `npm run test` — Run tests (vitest)
 - `npm run lint` — Lint
+
+
+## Code Patterns
+
+### Exhaustiveness checking
+
+When switching/branching on a discriminated union or enum-like type, always ensure exhaustiveness using `assertNever` (from `src/utils.ts`). This catches missing cases at compile time when new variants are added.
+
+In a switch statement, add a `default` case:
+
+```ts
+switch (instr.type) {
+  case 'foo': return handleFoo(instr);
+  case 'bar': return handleBar(instr);
+  default: return assertNever(instr);
+}
+```
+
+In a ternary/if-else chain, end with `assertNever`:
+
+```ts
+const result =
+  x === 'a' ? handleA() :
+  x === 'b' ? handleB() :
+  assertNever(x);
+```
+
+In JSX, use an IIFE switch:
+
+```tsx
+{(() => { switch (action) {
+  case 'foo': return <FooFields />;
+  case 'bar': return <BarFields />;
+  default: assertNever(action);
+}})()}
+```

@@ -1,5 +1,6 @@
 import type { Instruction, AtomicInstruction, Keyframe, FinalKeyframe, HandConnection, ProtoDancerId, InitFormation, InstructionId } from './types';
 import { dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists, NORTH, EAST, SOUTH, WEST } from './types';
+import { assertNever } from './utils';
 import { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 
 import { finalTakeHands, generateTakeHands } from './figures/takeHands';
@@ -79,6 +80,7 @@ function computeFinalKeyframe(prev: Keyframe, instr: AtomicInstruction, scope: S
     case 'box_the_gnat':             return finalBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return finalGiveAndTakeIntoSwing(prev, instr, scope);
     case 'mad_robin':                return finalMadRobin(prev, instr, scope);
+    default: return assertNever(instr);
   }
 }
 
@@ -98,6 +100,7 @@ function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, inst
     case 'box_the_gnat':             return generateBoxTheGnat(prev, final, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, final, instr, scope);
     case 'mad_robin':                return generateMadRobin(prev, final, instr, scope);
+    default: return assertNever(instr);
   }
 }
 
