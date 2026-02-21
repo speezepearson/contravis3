@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
+import { headingAngle } from '../types';
 import { tid, instr, initialKeyframe } from './testUtils';
 
 describe('allemande', () => {
@@ -51,7 +52,7 @@ describe('allemande', () => {
     const dirToPartner = Math.atan2(dr.pos.x - ul.pos.x, dr.pos.y - ul.pos.y);
     // Facing should be 90 deg CCW (i.e. -pi/2) from direction to partner
     const expectedFacing = ((dirToPartner - Math.PI / 2) % TAU + TAU) % TAU;
-    const actualFacing = ((ul.facing % TAU) + TAU) % TAU;
+    const actualFacing = ((headingAngle(ul.facing) % TAU) + TAU) % TAU;
     expect(actualFacing).toBeCloseTo(expectedFacing, 0);
   });
 
@@ -68,7 +69,7 @@ describe('allemande', () => {
     const dirToPartner = Math.atan2(dr.pos.x - ul.pos.x, dr.pos.y - ul.pos.y);
     // Facing should be 90 deg CW (i.e. +pi/2) from direction to partner
     const expectedFacing = ((dirToPartner + Math.PI / 2) % TAU + TAU) % TAU;
-    const actualFacing = ((ul.facing % TAU) + TAU) % TAU;
+    const actualFacing = ((headingAngle(ul.facing) % TAU) + TAU) % TAU;
     expect(actualFacing).toBeCloseTo(expectedFacing, 0);
   });
 

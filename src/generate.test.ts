@@ -112,8 +112,8 @@ describe('generateAllKeyframes with initFormation', () => {
     const { keyframes: kfs } = generateAllKeyframes([]);
     expect(kfs).toHaveLength(1);
     // Improper: ups face north (0), downs face south (180)
-    expect(kfs[0].dancers.up_lark_0.facing).toBe(NORTH);
-    expect(kfs[0].dancers.down_lark_0.facing).toBe(SOUTH);
+    expect(kfs[0].dancers.up_lark_0.facing).toEqual(NORTH);
+    expect(kfs[0].dancers.down_lark_0.facing).toEqual(SOUTH);
   });
 
   it('uses improper formation when initFormation is "improper"', () => {
@@ -128,10 +128,10 @@ describe('generateAllKeyframes with initFormation', () => {
     expect(kfs).toHaveLength(1);
     // Beckett: everyone faces across (east-west) instead of up-down
     // Ups face east (90), downs face west (270)
-    expect(kfs[0].dancers.up_lark_0.facing).toBe(EAST);
-    expect(kfs[0].dancers.up_robin_0.facing).toBe(EAST);
-    expect(kfs[0].dancers.down_lark_0.facing).toBe(WEST);
-    expect(kfs[0].dancers.down_robin_0.facing).toBe(WEST);
+    expect(kfs[0].dancers.up_lark_0.facing).toEqual(EAST);
+    expect(kfs[0].dancers.up_robin_0.facing).toEqual(EAST);
+    expect(kfs[0].dancers.down_lark_0.facing).toEqual(WEST);
+    expect(kfs[0].dancers.down_robin_0.facing).toEqual(WEST);
   });
 
   it('beckett formation has correct positions', () => {

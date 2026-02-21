@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Vector } from 'vecti';
 import { getFrameAtBeat } from './renderer';
 import type { Keyframe } from './types';
+import { headingVector, headingAngle } from './types';
 
 // Helper to build a simple keyframe
 function makeKeyframe(beat: number, positions: {
@@ -13,10 +14,10 @@ function makeKeyframe(beat: number, positions: {
   return {
     beat,
     dancers: {
-      up_lark_0:    { pos: new Vector(positions.up_lark_0[0],    positions.up_lark_0[1]),    facing: positions.up_lark_0[2] },
-      up_robin_0:   { pos: new Vector(positions.up_robin_0[0],   positions.up_robin_0[1]),   facing: positions.up_robin_0[2] },
-      down_lark_0:  { pos: new Vector(positions.down_lark_0[0],  positions.down_lark_0[1]),  facing: positions.down_lark_0[2] },
-      down_robin_0: { pos: new Vector(positions.down_robin_0[0], positions.down_robin_0[1]), facing: positions.down_robin_0[2] },
+      up_lark_0:    { pos: new Vector(positions.up_lark_0[0],    positions.up_lark_0[1]),    facing: headingVector(positions.up_lark_0[2]) },
+      up_robin_0:   { pos: new Vector(positions.up_robin_0[0],   positions.up_robin_0[1]),   facing: headingVector(positions.up_robin_0[2]) },
+      down_lark_0:  { pos: new Vector(positions.down_lark_0[0],  positions.down_lark_0[1]),  facing: headingVector(positions.down_lark_0[2]) },
+      down_robin_0: { pos: new Vector(positions.down_robin_0[0], positions.down_robin_0[1]), facing: headingVector(positions.down_robin_0[2]) },
     },
     hands: [],
   };
@@ -173,7 +174,7 @@ describe('getFrameAtBeat', () => {
         makeKeyframe(6, { up_lark_0: [0, 0, deg2rad(10)],  up_robin_0: z, down_lark_0: z, down_robin_0: z }),
       ];
       const frame = getFrameAtBeat(kfs, 3, 2)!;
-      const f = frame.dancers.up_lark_0.facing;
+      const f = ((headingAngle(frame.dancers.up_lark_0.facing) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
       // Should be near 0 (between 350 deg and 10 deg), not near pi
       expect(f > deg2rad(340) || f < deg2rad(20)).toBe(true);
     });

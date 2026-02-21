@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
 import { EAST, WEST } from '../types';
-import { tid, instr } from './testUtils';
+import { tid, instr, expectFacingCloseTo } from './testUtils';
 
 describe('give_and_take_into_swing', () => {
   // Set up: turn everyone to face across, so pairs are on opposite sides of the set
@@ -76,10 +76,10 @@ describe('give_and_take_into_swing', () => {
     expect(error).toBeNull();
     const last = kfs[kfs.length - 1];
     // Pair 1 ends on lark's side (x < 0): across = 90 deg
-    expect(last.dancers['up_lark_0'].facing).toBeCloseTo(EAST, 0);
-    expect(last.dancers['up_robin_0'].facing).toBeCloseTo(EAST, 0);
+    expectFacingCloseTo(last.dancers['up_lark_0'].facing, EAST, 0);
+    expectFacingCloseTo(last.dancers['up_robin_0'].facing, EAST, 0);
     // Pair 2 ends on lark's side (x > 0): across = 270 deg
-    expect(last.dancers['down_lark_0'].facing).toBeCloseTo(WEST, 0);
-    expect(last.dancers['down_robin_0'].facing).toBeCloseTo(WEST, 0);
+    expectFacingCloseTo(last.dancers['down_lark_0'].facing, WEST, 0);
+    expectFacingCloseTo(last.dancers['down_robin_0'].facing, WEST, 0);
   });
 });

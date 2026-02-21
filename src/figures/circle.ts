@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
-import { Vector, makeDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
+import { Vector, makeDancerId, makeFinalKeyframe } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, easeInOut, insideHandInRing } from '../generateUtils';
 
 type OrbitDatum = { protoId: ProtoDancerId; startAngle: number; radius: number };
@@ -62,7 +62,7 @@ export function finalCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { 
       cx + od.radius * Math.sin(angle),
       cy + od.radius * Math.cos(angle),
     );
-    dancers[od.protoId].facing = normalizeBearing(Math.atan2(cx - dancers[od.protoId].pos.x, cy - dancers[od.protoId].pos.y));
+    dancers[od.protoId].facing = new Vector(cx, cy).subtract(dancers[od.protoId].pos).normalize();
   }
 
   return makeFinalKeyframe({ beat: prev.beat + instr.beats, dancers, hands });
@@ -86,7 +86,7 @@ export function generateCircle(prev: Keyframe, _final: FinalKeyframe, instr: Ext
         cy + od.radius * Math.cos(angle),
       );
       // Face center
-      dancers[od.protoId].facing = normalizeBearing(Math.atan2(cx - dancers[od.protoId].pos.x, cy - dancers[od.protoId].pos.y));
+      dancers[od.protoId].facing = new Vector(cx, cy).subtract(dancers[od.protoId].pos).normalize();
     }
     result.push({ beat, dancers, hands });
   }

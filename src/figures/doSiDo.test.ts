@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
-import { tid, instr, initialKeyframe } from './testUtils';
+import { tid, instr, initialKeyframe, expectFacingCloseTo } from './testUtils';
 
 describe('do_si_do', () => {
   it('dancers return to starting positions after 1 full rotation', () => {
@@ -22,8 +22,8 @@ describe('do_si_do', () => {
     const init = initialKeyframe();
     // Check mid-animation: facing should stay at initial values
     const mid = kfs[Math.floor(kfs.length / 2)];
-    expect(mid.dancers['up_lark_0'].facing).toBeCloseTo(init.dancers['up_lark_0'].facing, 1);
-    expect(mid.dancers['down_robin_0'].facing).toBeCloseTo(init.dancers['down_robin_0'].facing, 1);
+    expectFacingCloseTo(mid.dancers['up_lark_0'].facing, init.dancers['up_lark_0'].facing, 1);
+    expectFacingCloseTo(mid.dancers['down_robin_0'].facing, init.dancers['down_robin_0'].facing, 1);
   });
 
   it('no hand connections during do-si-do', () => {

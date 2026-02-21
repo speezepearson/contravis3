@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
-import { NORTH, EAST, WEST } from '../types';
-import { tid, instr, initialKeyframe } from './testUtils';
+import { NORTH, EAST, WEST, headingAngle } from '../types';
+import { tid, instr, initialKeyframe, expectFacingCloseTo } from './testUtils';
 
 describe('swing', () => {
   it('produces multiple keyframes spanning the beat count', () => {
@@ -46,13 +46,13 @@ describe('swing', () => {
       Math.abs(kf.beat - 4) < Math.abs(best.beat - 4) ? kf : best
     );
     // up_lark and down_robin should face opposite directions
-    const ulFacing = mid.dancers['up_lark_0'].facing;
-    const drFacing = mid.dancers['down_robin_0'].facing;
+    const ulFacing = headingAngle(mid.dancers['up_lark_0'].facing);
+    const drFacing = headingAngle(mid.dancers['down_robin_0'].facing);
     const diff1 = ((ulFacing - drFacing + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
     expect(Math.abs(diff1)).toBeCloseTo(Math.PI, 0);
     // up_robin and down_lark should face opposite directions
-    const urFacing = mid.dancers['up_robin_0'].facing;
-    const dlFacing = mid.dancers['down_lark_0'].facing;
+    const urFacing = headingAngle(mid.dancers['up_robin_0'].facing);
+    const dlFacing = headingAngle(mid.dancers['down_lark_0'].facing);
     const diff2 = ((dlFacing - urFacing + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
     expect(Math.abs(diff2)).toBeCloseTo(Math.PI, 0);
   });
@@ -64,11 +64,11 @@ describe('swing', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
     // up_lark (x < 0): across = 90 deg (east)
-    expect(last.dancers['up_lark_0'].facing).toBeCloseTo(EAST, 0);
-    expect(last.dancers['down_robin_0'].facing).toBeCloseTo(EAST, 0);
+    expectFacingCloseTo(last.dancers['up_lark_0'].facing, EAST, 0);
+    expectFacingCloseTo(last.dancers['down_robin_0'].facing, EAST, 0);
     // down_lark (x > 0): across = 270 deg (west)
-    expect(last.dancers['down_lark_0'].facing).toBeCloseTo(WEST, 0);
-    expect(last.dancers['up_robin_0'].facing).toBeCloseTo(WEST, 0);
+    expectFacingCloseTo(last.dancers['down_lark_0'].facing, WEST, 0);
+    expectFacingCloseTo(last.dancers['up_robin_0'].facing, WEST, 0);
   });
 
   it('at the end, the robin is 1.0m to the lark\'s right', () => {
@@ -81,15 +81,16 @@ describe('swing', () => {
     // robin (down_robin) should be 1.0m to lark's right
     const ul = last.dancers['up_lark_0'];
     const dr = last.dancers['down_robin_0'];
-    const larkRightX = Math.cos(ul.facing);
-    const larkRightY = -Math.sin(ul.facing);
+    const ulAngle = headingAngle(ul.facing);
+    const larkRightX = Math.cos(ulAngle);
+    const larkRightY = -Math.sin(ulAngle);
     const dx = dr.pos.x - ul.pos.x;
     const dy = dr.pos.y - ul.pos.y;
     const rightComponent = dx * larkRightX + dy * larkRightY;
     expect(rightComponent).toBeCloseTo(1.0, 1);
     // Forward component should be ~0
-    const fwdX = Math.sin(ul.facing);
-    const fwdY = Math.cos(ul.facing);
+    const fwdX = Math.sin(ulAngle);
+    const fwdY = Math.cos(ulAngle);
     const fwdComponent = dx * fwdX + dy * fwdY;
     expect(fwdComponent).toBeCloseTo(0.0, 1);
   });
@@ -101,10 +102,10 @@ describe('swing', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
     // Both dancers in each pair should face up (0 deg)
-    expect(last.dancers['up_lark_0'].facing).toBeCloseTo(NORTH, 0);
-    expect(last.dancers['up_robin_0'].facing).toBeCloseTo(NORTH, 0);
-    expect(last.dancers['down_lark_0'].facing).toBeCloseTo(NORTH, 0);
-    expect(last.dancers['down_robin_0'].facing).toBeCloseTo(NORTH, 0);
+    expectFacingCloseTo(last.dancers['up_lark_0'].facing, NORTH, 0);
+    expectFacingCloseTo(last.dancers['up_robin_0'].facing, NORTH, 0);
+    expectFacingCloseTo(last.dancers['down_lark_0'].facing, NORTH, 0);
+    expectFacingCloseTo(last.dancers['down_robin_0'].facing, NORTH, 0);
   });
 
   it('errors when pairs have the same role', () => {

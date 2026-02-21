@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../generate';
-import { ProtoDancerIdSchema } from '../types';
+import { ProtoDancerIdSchema, headingAngle } from '../types';
 import { tid, instr, initialKeyframe } from './testUtils';
 
 describe('circle', () => {
@@ -50,7 +50,7 @@ describe('circle', () => {
       const d = mid.dancers[id];
       const TAU = 2 * Math.PI;
       const angleToCenter = ((Math.atan2(-d.pos.x, -d.pos.y)) % TAU + TAU) % TAU;
-      const facing = ((d.facing % TAU) + TAU) % TAU;
+      const facing = ((headingAngle(d.facing) % TAU) + TAU) % TAU;
       expect(facing).toBeCloseTo(angleToCenter, 0);
     }
   });

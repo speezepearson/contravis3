@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { Vector, dancerPosition, makeFinalKeyframe } from '../types';
+import { type Vector, dancerPosition, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../generateUtils';
 
 type OrbitDatum = {
@@ -7,7 +7,7 @@ type OrbitDatum = {
   startPos: Vector;
   partnerPos: Vector;
   semiMinor: number;
-  originalFacing: number;
+  originalFacing: Vector;
 };
 
 function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'do_si_do' }>, scope: Set<ProtoDancerId>) {

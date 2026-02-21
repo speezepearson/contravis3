@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { makeDancerId, parseDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
+import { makeDancerId, parseDancerId, headingVector, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs, isLark } from '../generateUtils';
 import { Vector } from 'vecti';
 
@@ -9,8 +9,8 @@ type GnatPair = {
   larkStart: Vector;
   robinStart: Vector;
   semiMinor: number;
-  larkStartFacing: number;
-  robinStartFacing: number;
+  larkStartFacingRad: number;
+  robinStartFacingRad: number;
 };
 
 function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'box_the_gnat' }>, scope: Set<ProtoDancerId>) {
@@ -35,16 +35,16 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'box_th
     const dist = larkState.pos.subtract(robinState.pos).length();
 
     const delta = robinState.pos.subtract(larkState.pos);
-    const larkStartFacing = Math.atan2(delta.x, delta.y);
+    const larkStartFacingRad = Math.atan2(delta.x, delta.y);
     const robinDelta = larkState.pos.subtract(robinState.pos);
-    const robinStartFacing = Math.atan2(robinDelta.x, robinDelta.y);
+    const robinStartFacingRad = Math.atan2(robinDelta.x, robinDelta.y);
 
     pairs.push({
       lark, robin,
       larkStart: larkState.pos,
       robinStart: robinState.pos,
       semiMinor: dist / 4,
-      larkStartFacing, robinStartFacing,
+      larkStartFacingRad, robinStartFacingRad,
     });
   }
 
@@ -67,8 +67,8 @@ export function finalBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction
     dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, Math.PI);
 
     // Lark turns CW 180°, robin turns CCW 180°
-    dancers[p.lark].facing = normalizeBearing(p.larkStartFacing + Math.PI);
-    dancers[p.robin].facing = normalizeBearing(p.robinStartFacing - Math.PI);
+    dancers[p.lark].facing = headingVector(p.larkStartFacingRad + Math.PI);
+    dancers[p.robin].facing = headingVector(p.robinStartFacingRad - Math.PI);
   }
 
   // Hands are dropped at the end (revert to prev.hands)
@@ -95,10 +95,10 @@ export function generateBoxTheGnat(prev: Keyframe, _final: FinalKeyframe, instr:
       dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
       dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
 
-      const larkFacing = p.larkStartFacing + Math.PI * tEased;
-      const robinFacing = p.robinStartFacing - Math.PI * tEased;
-      dancers[p.lark].facing = normalizeBearing(larkFacing);
-      dancers[p.robin].facing = normalizeBearing(robinFacing);
+      const larkFacing = p.larkStartFacingRad + Math.PI * tEased;
+      const robinFacing = p.robinStartFacingRad - Math.PI * tEased;
+      dancers[p.lark].facing = headingVector(larkFacing);
+      dancers[p.robin].facing = headingVector(robinFacing);
     }
 
     // Gnat hands held during intermediates

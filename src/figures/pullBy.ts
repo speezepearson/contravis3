@@ -1,12 +1,12 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
-import { Vector, makeDancerId, dancerPosition, makeFinalKeyframe } from '../types';
+import { type Vector, makeDancerId, dancerPosition, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../generateUtils';
 
 type SwapDatum = {
   protoId: ProtoDancerId;
   startPos: Vector;
   targetPos: Vector;
-  originalFacing: number;
+  originalFacing: Vector;
 };
 
 function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>) {

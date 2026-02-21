@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { Vector, parseDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
+import { Vector, parseDancerId, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, resolvePairs, isLark } from '../generateUtils';
 import { finalSwing, generateSwing } from './swing';
 
@@ -56,8 +56,8 @@ function computeAfterWalk(prev: Keyframe, pairs: GTPair[], walkBeats: number): K
     const draweeState = prev.dancers[drawee];
     const toDrawee = draweeState.pos.subtract(drawerState.pos);
     const toDrawer = drawerState.pos.subtract(draweeState.pos);
-    dancers[drawer].facing = normalizeBearing(Math.atan2(toDrawee.x, toDrawee.y));
-    dancers[drawee].facing = normalizeBearing(Math.atan2(toDrawer.x, toDrawer.y));
+    dancers[drawer].facing = toDrawee.normalize();
+    dancers[drawee].facing = toDrawer.normalize();
     // Drawee moves halfway to drawer
     dancers[drawee].pos = drawerState.pos.add(draweeState.pos).multiply(0.5);
   }
@@ -71,7 +71,7 @@ function computeDriftData(prev: Keyframe, afterWalk: Keyframe, pairs: GTPair[]):
     const drawerState = prev.dancers[drawer];
     const draweeState = prev.dancers[drawee];
     const toDrawee = draweeState.pos.subtract(drawerState.pos);
-    walkStartDancers[drawer].facing = normalizeBearing(Math.atan2(toDrawee.x, toDrawee.y));
+    walkStartDancers[drawer].facing = toDrawee.normalize();
   }
 
   const driftData: DriftDatum[] = [];
@@ -79,8 +79,9 @@ function computeDriftData(prev: Keyframe, afterWalk: Keyframe, pairs: GTPair[]):
     const drawerState = prev.dancers[drawer];
     const drawerFacing = walkStartDancers[drawer].facing;
     const sign = isLark(drawer) ? 1 : -1;
-    const rightX = sign * Math.cos(drawerFacing);
-    const rightY = sign * -Math.sin(drawerFacing);
+    // "right" from facing direction: (facing.y, -facing.x) for CW 90°
+    const rightX = sign * drawerFacing.y;
+    const rightY = sign * -drawerFacing.x;
     const finalCenter = new Vector(
       drawerState.pos.x + 0.5 * rightX,
       drawerState.pos.y + 0.5 * rightY,
@@ -146,8 +147,8 @@ export function generateGiveAndTakeIntoSwing(prev: Keyframe, _final: FinalKeyfra
     const draweeState = prev.dancers[drawee];
     const toDrawee = draweeState.pos.subtract(drawerState.pos);
     const toDrawer = drawerState.pos.subtract(draweeState.pos);
-    walkStartDancers[drawer].facing = normalizeBearing(Math.atan2(toDrawee.x, toDrawee.y));
-    walkStartDancers[drawee].facing = normalizeBearing(Math.atan2(toDrawer.x, toDrawer.y));
+    walkStartDancers[drawer].facing = toDrawee.normalize();
+    walkStartDancers[drawee].facing = toDrawer.normalize();
   }
   const walkStart: Keyframe = { beat: prev.beat, dancers: walkStartDancers, hands: prev.hands };
 

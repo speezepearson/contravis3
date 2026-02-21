@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { Vector, makeFinalKeyframe } from '../types';
+import { makeFinalKeyframe } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolveHeading } from '../generateUtils';
 
 export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'step' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
@@ -8,10 +8,7 @@ export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { ty
     if (!scope.has(id)) continue;
     const d = prev.dancers[id];
     const heading = resolveHeading(instr.direction, d, id, prev.dancers);
-    dancers[id].pos = new Vector(
-      d.pos.x + Math.sin(heading) * instr.distance,
-      d.pos.y + Math.cos(heading) * instr.distance,
-    );
+    dancers[id].pos = d.pos.add(heading.multiply(instr.distance));
   }
   return makeFinalKeyframe({
     beat: prev.beat + instr.beats,
