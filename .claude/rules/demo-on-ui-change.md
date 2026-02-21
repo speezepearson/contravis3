@@ -9,4 +9,4 @@ globs:
   - "src/main.tsx"
 ---
 
-When creating a pull request, **always** run the `.claude/skills/demo.md` skill to generate a demo document in `demos/` before opening the PR.
+When creating a pull request, **always** run the `demo` skill to generate a demo document in `demos/` before opening the PR.

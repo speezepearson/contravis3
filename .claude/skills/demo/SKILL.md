@@ -1,22 +1,18 @@
-# Demo Skill
+---
+name: demo
+description: >
+  Create a visual demo document showcasing UI changes. Use when creating a
+  pull request that modifies UI files (App.tsx, CommandPane.tsx,
+  SearchableDropdown.tsx, renderer.ts, CSS, or main.tsx). Uses rodney
+  (headless Chrome) and showboat (demo document builder) to capture
+  screenshots and build an executable markdown walkthrough in demos/.
+---
+
+# Demo
 
 Create a visual demo document showcasing UI changes using `rodney` (headless Chrome automation) and `showboat` (executable demo document builder).
 
-## When to use
-
-Use this skill when creating a pull request that modifies the user interface. Trigger when any of these files are changed:
-
-- `src/App.tsx`
-- `src/CommandPane.tsx`
-- `src/SearchableDropdown.tsx`
-- `src/SearchableDropdown.css`
-- `src/renderer.ts`
-- `src/index.css`
-- `src/main.tsx`
-
-## Instructions
-
-### 1. Determine the demo directory name
+## 1. Determine the demo directory name
 
 Choose a short kebab-case name describing the UI change (e.g. `drag-reorder`, `export-button`, `theme-update`). The demo will live at `demos/<name>/`.
 
@@ -24,7 +20,7 @@ Choose a short kebab-case name describing the UI change (e.g. `drag-reorder`, `e
 mkdir -p demos/<name>
 ```
 
-### 2. Build the app and start the dev server
+## 2. Build the app and start the dev server
 
 ```bash
 npm run build
@@ -34,7 +30,7 @@ DEV_PID=$!
 sleep 3
 ```
 
-### 3. Start the headless browser
+## 3. Start the headless browser
 
 ```bash
 uvx rodney start --local
@@ -43,13 +39,13 @@ uvx rodney waitload
 uvx rodney waitstable
 ```
 
-### 4. Initialize the showboat demo document
+## 4. Initialize the showboat demo document
 
 ```bash
 uvx showboat init demos/<name>/demo.md "<Title Describing the Change>"
 ```
 
-### 5. Add an introductory note
+## 5. Add an introductory note
 
 Use `showboat note` to describe what the PR changes and why it matters.
 
@@ -57,7 +53,7 @@ Use `showboat note` to describe what the PR changes and why it matters.
 uvx showboat note demos/<name>/demo.md "Brief description of what changed and why."
 ```
 
-### 6. Capture the UI walkthrough
+## 6. Capture the UI walkthrough
 
 Walk through the change step by step. For each step:
 
@@ -76,7 +72,7 @@ Walk through the change step by step. For each step:
 
 Repeat for each meaningful state you want to showcase. Aim for 3-6 screenshots that tell the story of the change.
 
-### 7. Run verification commands (optional but encouraged)
+## 7. Run verification commands (optional but encouraged)
 
 If relevant, capture test or build output to prove nothing is broken:
 
@@ -85,14 +81,14 @@ uvx showboat exec demos/<name>/demo.md bash "npx vitest run 2>&1 | tail -8"
 uvx showboat exec demos/<name>/demo.md bash "npx tsc --noEmit 2>&1 | tail -3"
 ```
 
-### 8. Clean up
+## 8. Clean up
 
 ```bash
 uvx rodney stop
 kill $DEV_PID 2>/dev/null
 ```
 
-### 9. Commit the demo
+## 9. Commit the demo
 
 Stage and commit the entire `demos/<name>/` directory along with the rest of the PR changes.
 
