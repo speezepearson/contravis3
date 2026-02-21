@@ -1,20 +1,20 @@
-import type { Instruction, AtomicInstruction, Keyframe, HandConnection, ProtoDancerId, InitFormation, InstructionId } from './types';
+import type { Instruction, AtomicInstruction, Keyframe, FinalKeyframe, HandConnection, ProtoDancerId, InitFormation, InstructionId } from './types';
 import { dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists, NORTH, EAST, SOUTH, WEST } from './types';
 import { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 
-import { generateTakeHands } from './figures/takeHands';
-import { generateDropHands } from './figures/dropHands';
-import { generateAllemande } from './figures/allemande';
-import { generateTurn } from './figures/turn';
-import { generateStep } from './figures/step';
-import { generateBalance } from './figures/balance';
-import { generateDoSiDo } from './figures/doSiDo';
-import { generateCircle } from './figures/circle';
-import { generatePullBy } from './figures/pullBy';
-import { generateSwing } from './figures/swing';
-import { generateBoxTheGnat } from './figures/boxTheGnat';
-import { generateGiveAndTakeIntoSwing } from './figures/giveAndTakeIntoSwing';
-import { generateMadRobin } from './figures/madRobin';
+import { finalTakeHands, generateTakeHands } from './figures/takeHands';
+import { finalDropHands, generateDropHands } from './figures/dropHands';
+import { finalAllemande, generateAllemande } from './figures/allemande';
+import { finalTurn, generateTurn } from './figures/turn';
+import { finalStep, generateStep } from './figures/step';
+import { finalBalance, generateBalance } from './figures/balance';
+import { finalDoSiDo, generateDoSiDo } from './figures/doSiDo';
+import { finalCircle, generateCircle } from './figures/circle';
+import { finalPullBy, generatePullBy } from './figures/pullBy';
+import { finalSwing, generateSwing } from './figures/swing';
+import { finalBoxTheGnat, generateBoxTheGnat } from './figures/boxTheGnat';
+import { finalGiveAndTakeIntoSwing, generateGiveAndTakeIntoSwing } from './figures/giveAndTakeIntoSwing';
+import { finalMadRobin, generateMadRobin } from './figures/madRobin';
 
 export { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 
@@ -63,22 +63,48 @@ function initialKeyframe(initFormation: InitFormation = 'improper'): Keyframe {
 
 // --- Process a list of atomic instructions with a given scope ---
 
-function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
+/** Compute the authoritative final keyframe for a figure, independently of intermediates. */
+function computeFinalKeyframe(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): FinalKeyframe {
   switch (instr.type) {
-    case 'take_hands':  return generateTakeHands(prev, instr, scope);
-    case 'drop_hands':  return generateDropHands(prev, instr, scope);
-    case 'allemande':   return generateAllemande(prev, instr, scope);
-    case 'do_si_do':    return generateDoSiDo(prev, instr, scope);
-    case 'circle':      return generateCircle(prev, instr, scope);
-    case 'pull_by':     return generatePullBy(prev, instr, scope);
-    case 'turn':        return generateTurn(prev, instr, scope);
-    case 'step':        return generateStep(prev, instr, scope);
-    case 'balance':     return generateBalance(prev, instr, scope);
-    case 'swing':       return generateSwing(prev, instr, scope);
-    case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
-    case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
-    case 'mad_robin':                return generateMadRobin(prev, instr, scope);
+    case 'take_hands':  return finalTakeHands(prev, instr, scope);
+    case 'drop_hands':  return finalDropHands(prev, instr, scope);
+    case 'allemande':   return finalAllemande(prev, instr, scope);
+    case 'do_si_do':    return finalDoSiDo(prev, instr, scope);
+    case 'circle':      return finalCircle(prev, instr, scope);
+    case 'pull_by':     return finalPullBy(prev, instr, scope);
+    case 'turn':        return finalTurn(prev, instr, scope);
+    case 'step':        return finalStep(prev, instr, scope);
+    case 'balance':     return finalBalance(prev, instr, scope);
+    case 'swing':       return finalSwing(prev, instr, scope);
+    case 'box_the_gnat':             return finalBoxTheGnat(prev, instr, scope);
+    case 'give_and_take_into_swing': return finalGiveAndTakeIntoSwing(prev, instr, scope);
+    case 'mad_robin':                return finalMadRobin(prev, instr, scope);
   }
+}
+
+/** Compute the intermediate keyframes for a figure (not including the final). */
+function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
+  switch (instr.type) {
+    case 'take_hands':  return generateTakeHands(prev, final, instr, scope);
+    case 'drop_hands':  return generateDropHands(prev, final, instr, scope);
+    case 'allemande':   return generateAllemande(prev, final, instr, scope);
+    case 'do_si_do':    return generateDoSiDo(prev, final, instr, scope);
+    case 'circle':      return generateCircle(prev, final, instr, scope);
+    case 'pull_by':     return generatePullBy(prev, final, instr, scope);
+    case 'turn':        return generateTurn(prev, final, instr, scope);
+    case 'step':        return generateStep(prev, final, instr, scope);
+    case 'balance':     return generateBalance(prev, final, instr, scope);
+    case 'swing':       return generateSwing(prev, final, instr, scope);
+    case 'box_the_gnat':             return generateBoxTheGnat(prev, final, instr, scope);
+    case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, final, instr, scope);
+    case 'mad_robin':                return generateMadRobin(prev, final, instr, scope);
+  }
+}
+
+function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
+  const final = computeFinalKeyframe(prev, instr, scope);
+  const intermediates = computeIntermediateKeyframes(prev, final, instr, scope);
+  return [...intermediates, final];
 }
 
 function processInstructions(prev: Keyframe, instructions: AtomicInstruction[], scope: Set<ProtoDancerId>): Keyframe[] {

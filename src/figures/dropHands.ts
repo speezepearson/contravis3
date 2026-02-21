@@ -1,8 +1,8 @@
-import type { Keyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { makeDancerId, parseDancerId } from '../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
+import { makeDancerId, parseDancerId, makeFinalKeyframe } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, resolveRelationship } from '../generateUtils';
 
-export function generateDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'drop_hands' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function finalDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'drop_hands' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
   const target = instr.target;
   let newHands;
 
@@ -26,9 +26,14 @@ export function generateDropHands(prev: Keyframe, instr: Extract<AtomicInstructi
     newHands = prev.hands.filter(h => !pairSet.has(`${h.a}:${h.b}`));
   }
 
-  return [{
+  return makeFinalKeyframe({
     beat: prev.beat + instr.beats,
     dancers: copyDancers(prev.dancers),
     hands: newHands,
-  }];
+  });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function generateDropHands(_prev: Keyframe, _final: FinalKeyframe, _instr: Extract<AtomicInstruction, { type: 'drop_hands' }>, _scope: Set<ProtoDancerId>): Keyframe[] {
+  return [];
 }

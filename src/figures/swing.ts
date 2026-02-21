@@ -1,29 +1,26 @@
-import type { Keyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { makeDancerId, parseDancerId, normalizeBearing } from '../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
+import { makeDancerId, parseDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
 import { copyDancers, resolveFacing, resolvePairs, isLark } from '../generateUtils';
 
-export function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>): Keyframe[] {
-  const FRONT = 0.15;
-  const RIGHT = 0.1;
-  // Phase offset: angle from CoM to lark (in heading convention) when lark faces 0°
-  const PHASE_OFFSET = Math.PI + Math.atan2(RIGHT, FRONT);
+const FRONT = 0.15;
+const RIGHT = 0.1;
+// Phase offset: angle from CoM to lark (in heading convention) when lark faces 0°
+const PHASE_OFFSET = Math.PI + Math.atan2(RIGHT, FRONT);
 
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+type SwingPair = {
+  lark: ProtoDancerId;
+  robin: ProtoDancerId;
+  cx: number;
+  cy: number;
+  f0: number;
+  omega: number;
+  endFacingRad: number;
+  phase2Start: number;
+  phase2Duration: number;
+};
 
+function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>) {
   const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
-
-  // Collect pairs
-  type SwingPair = {
-    lark: ProtoDancerId;
-    robin: ProtoDancerId;
-    cx: number;
-    cy: number;
-    f0: number;
-    omega: number;
-    endFacingRad: number;
-    phase2Start: number;
-    phase2Duration: number;
-  };
 
   const pairs: SwingPair[] = [];
   const processed = new Set<ProtoDancerId>();
@@ -40,46 +37,74 @@ export function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, 
     processed.add(lark);
     processed.add(robin);
 
-    // Compute CoM
     const larkState = prev.dancers[lark];
     const robinState = prev.dancers[robin];
     const cx = (larkState.x + robinState.x) / 2;
     const cy = (larkState.y + robinState.y) / 2;
 
-    // Compute initial facing of lark from angle of CoM→lark
     const larkDx = larkState.x - cx;
     const larkDy = larkState.y - cy;
     const thetaLark = Math.atan2(larkDx, larkDy);
     const f0 = thetaLark - PHASE_OFFSET;
 
-    // Resolve end facing for the lark
     const endFacingRad = resolveFacing(instr.endFacing, larkState, lark, prev.dancers);
 
-    // Compute total rotation: closest to baseRotation that ends at endFacing
     const baseRotation = (Math.PI / 2) * instr.beats;
     const needed = endFacingRad - f0;
     const n = Math.round((baseRotation - needed) / (2 * Math.PI));
     const totalRotation = needed + n * 2 * Math.PI;
     const omega = totalRotation / instr.beats;
 
-    // Phase 2 starts when the lark has 90° (π/2) of rotation left
     const phase2Duration = (Math.PI / 2) / omega;
     const phase2Start = instr.beats - phase2Duration;
 
     pairs.push({ lark, robin, cx, cy, f0, omega, endFacingRad, phase2Start, phase2Duration });
   }
 
-  // Drop all hands involving swing participants, then take lark-right ↔ robin-left
-  const swingHands = prev.hands.filter(h =>
+  // Hands not involving swing participants
+  const nonParticipantHands = prev.hands.filter(h =>
     !processed.has(parseDancerId(h.a).proto) && !processed.has(parseDancerId(h.b).proto)
   );
+  // Swing hands: non-participant + lark-right ↔ robin-left
+  const swingHands = [...nonParticipantHands];
   for (const { lark, robin } of pairs) {
     swingHands.push({ a: makeDancerId(lark, 0), ha: 'right', b: makeDancerId(robin, 0), hb: 'left' });
   }
 
+  return { pairs, processed, nonParticipantHands, swingHands };
+}
+
+export function finalSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
+  const { pairs, nonParticipantHands } = setup(prev, instr, scope);
+
+  const dancers = copyDancers(prev.dancers);
+  for (const { lark, robin, cx, cy, endFacingRad } of pairs) {
+    // Lark position: 0.5m to the left of CoM (from lark's perspective facing endFacing)
+    dancers[lark].x = cx - 0.5 * Math.cos(endFacingRad);
+    dancers[lark].y = cy + 0.5 * Math.sin(endFacingRad);
+    dancers[lark].facing = normalizeBearing(endFacingRad);
+
+    // Robin: 1.0m to lark's right, facing same direction
+    dancers[robin].x = dancers[lark].x + 1.0 * Math.cos(endFacingRad);
+    dancers[robin].y = dancers[lark].y - 1.0 * Math.sin(endFacingRad);
+    dancers[robin].facing = normalizeBearing(endFacingRad);
+  }
+
+  // Swing hands are dropped at the end
+  return makeFinalKeyframe({
+    beat: prev.beat + instr.beats,
+    dancers,
+    hands: nonParticipantHands,
+  });
+}
+
+export function generateSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+  const { pairs, swingHands } = setup(prev, instr, scope);
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
   const result: Keyframe[] = [];
 
-  for (let i = 1; i <= nFrames; i++) {
+  for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
     const elapsed = t * instr.beats;
@@ -97,7 +122,6 @@ export function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, 
         dancers[lark].y = cy - FRONT * Math.cos(larkFacingRad) + RIGHT * Math.sin(larkFacingRad);
         dancers[lark].facing = normalizeBearing(larkFacingRad);
 
-        // Robin faces opposite
         const robinFacingRad = larkFacingRad + Math.PI;
         dancers[robin].x = cx + FRONT * Math.sin(larkFacingRad) + RIGHT * Math.cos(larkFacingRad);
         dancers[robin].y = cy + FRONT * Math.cos(larkFacingRad) - RIGHT * Math.sin(larkFacingRad);
@@ -128,11 +152,7 @@ export function generateSwing(prev: Keyframe, instr: Extract<AtomicInstruction, 
       }
     }
 
-    // Drop swing hands on the final frame
-    const hands = i === nFrames
-      ? swingHands.filter(h => !processed.has(parseDancerId(h.a).proto) || !processed.has(parseDancerId(h.b).proto))
-      : swingHands;
-    result.push({ beat, dancers, hands });
+    result.push({ beat, dancers, hands: swingHands });
   }
 
   return result;
