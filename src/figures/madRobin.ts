@@ -1,11 +1,12 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
 import { parseDancerId, dancerPosition, EAST, WEST, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../generateUtils';
+import { Vector } from 'vecti';
 
 type OrbitDatum = {
   protoId: ProtoDancerId;
-  startPos: { x: number; y: number };
-  partnerPos: { x: number; y: number };
+  startPos: Vector;
+  partnerPos: Vector;
   acrossFacing: number;
 };
 
@@ -35,7 +36,7 @@ function setup(
       checked.add(targetProto);
       const da = prev.dancers[id];
       const db = dancerPosition(targetDancerId, prev.dancers);
-      if (da.x * db.x < -1e-6) {
+      if (da.pos.x * db.pos.x < -1e-6) {
         throw new Error(
           `mad robin: ${id} and ${targetProto} are not on the same side of the set`,
         );
@@ -43,13 +44,13 @@ function setup(
     }
 
     const da = prev.dancers[id];
-    const targetPos = dancerPosition(targetDancerId, prev.dancers);
+    const targetPos = dancerPosition(targetDancerId, prev.dancers).pos;
 
     orbitData.push({
       protoId: id,
-      startPos: { x: da.x, y: da.y },
-      partnerPos: { x: targetPos.x, y: targetPos.y },
-      acrossFacing: da.x < 0 ? EAST : WEST,
+      startPos: da.pos,
+      partnerPos: targetPos,
+      acrossFacing: da.pos.x < 0 ? EAST : WEST,
     });
   }
 
@@ -65,9 +66,7 @@ export function finalMadRobin(
 
   const dancers = copyDancers(prev.dancers);
   for (const od of orbitData) {
-    const pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, totalAngleRad);
-    dancers[od.protoId].x = pos.x;
-    dancers[od.protoId].y = pos.y;
+    dancers[od.protoId].pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, totalAngleRad);
     dancers[od.protoId].facing = od.acrossFacing;
   }
 
@@ -94,9 +93,7 @@ export function generateMadRobin(
     const phi = easeInOut(t) * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
-      const pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, phi);
-      dancers[od.protoId].x = pos.x;
-      dancers[od.protoId].y = pos.y;
+      dancers[od.protoId].pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, phi);
       dancers[od.protoId].facing = od.acrossFacing;
     }
     result.push({ beat, dancers, hands: prev.hands });

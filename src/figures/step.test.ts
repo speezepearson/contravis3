@@ -12,8 +12,8 @@ describe('step', () => {
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
     for (const id of ProtoDancerIdSchema.options) {
-      expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
-      expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y + 1, 5);
+      expect(last.dancers[id].pos.x).toBeCloseTo(init.dancers[id].pos.x, 5);
+      expect(last.dancers[id].pos.y).toBeCloseTo(init.dancers[id].pos.y + 1, 5);
     }
   });
 
@@ -25,8 +25,8 @@ describe('step', () => {
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
     for (const id of ProtoDancerIdSchema.options) {
-      expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
-      expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y - 0.5, 5);
+      expect(last.dancers[id].pos.x).toBeCloseTo(init.dancers[id].pos.x, 5);
+      expect(last.dancers[id].pos.y).toBeCloseTo(init.dancers[id].pos.y - 0.5, 5);
     }
   });
 
@@ -37,8 +37,8 @@ describe('step', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x + 0.5, 5);
-    expect(last.dancers['up_robin_0'].x).toBeCloseTo(init.dancers['up_robin_0'].x - 0.5, 5);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 0.5, 5);
+    expect(last.dancers['up_robin_0'].pos.x).toBeCloseTo(init.dancers['up_robin_0'].pos.x - 0.5, 5);
   });
 
   it('moves dancers out (away from center)', () => {
@@ -48,8 +48,8 @@ describe('step', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x - 0.5, 5);
-    expect(last.dancers['up_robin_0'].x).toBeCloseTo(init.dancers['up_robin_0'].x + 0.5, 5);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x - 0.5, 5);
+    expect(last.dancers['up_robin_0'].pos.x).toBeCloseTo(init.dancers['up_robin_0'].pos.x + 0.5, 5);
   });
 
   it('moves dancers toward a relationship target', () => {
@@ -59,9 +59,9 @@ describe('step', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x + 0.5, 5);
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y, 5);
-    expect(last.dancers['up_robin_0'].x).toBeCloseTo(init.dancers['up_robin_0'].x - 0.5, 5);
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 0.5, 5);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y, 5);
+    expect(last.dancers['up_robin_0'].pos.x).toBeCloseTo(init.dancers['up_robin_0'].pos.x - 0.5, 5);
   });
 
   it('moves dancers in their progression direction', () => {
@@ -71,10 +71,10 @@ describe('step', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y + 1, 5);
-    expect(last.dancers['up_robin_0'].y).toBeCloseTo(init.dancers['up_robin_0'].y + 1, 5);
-    expect(last.dancers['down_lark_0'].y).toBeCloseTo(init.dancers['down_lark_0'].y - 1, 5);
-    expect(last.dancers['down_robin_0'].y).toBeCloseTo(init.dancers['down_robin_0'].y - 1, 5);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
+    expect(last.dancers['up_robin_0'].pos.y).toBeCloseTo(init.dancers['up_robin_0'].pos.y + 1, 5);
+    expect(last.dancers['down_lark_0'].pos.y).toBeCloseTo(init.dancers['down_lark_0'].pos.y - 1, 5);
+    expect(last.dancers['down_robin_0'].pos.y).toBeCloseTo(init.dancers['down_robin_0'].pos.y - 1, 5);
   });
 
   it('negative distance steps in the opposite direction', () => {
@@ -85,8 +85,8 @@ describe('step', () => {
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
     // Negative progression = anti-progression
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y - 1, 5);
-    expect(last.dancers['down_lark_0'].y).toBeCloseTo(init.dancers['down_lark_0'].y + 1, 5);
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y - 1, 5);
+    expect(last.dancers['down_lark_0'].pos.y).toBeCloseTo(init.dancers['down_lark_0'].pos.y + 1, 5);
   });
 
   it('moves dancers forward (relative to their facing)', () => {
@@ -96,21 +96,21 @@ describe('step', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    // Ups face 0° (north/+y), downs face 180° (south/-y)
-    expect(last.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y + 1, 5);
-    expect(last.dancers['down_lark_0'].y).toBeCloseTo(init.dancers['down_lark_0'].y - 1, 5);
+    // Ups face 0 deg (north/+y), downs face 180 deg (south/-y)
+    expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
+    expect(last.dancers['down_lark_0'].pos.y).toBeCloseTo(init.dancers['down_lark_0'].pos.y - 1, 5);
   });
 
-  it('moves dancers right (90° CW from facing)', () => {
+  it('moves dancers right (90 deg CW from facing)', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'right' }, distance: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    // Ups face 0°, right = 90° = east (+x); downs face 180°, right = 270° = west (-x)
-    expect(last.dancers['up_lark_0'].x).toBeCloseTo(init.dancers['up_lark_0'].x + 1, 5);
-    expect(last.dancers['down_lark_0'].x).toBeCloseTo(init.dancers['down_lark_0'].x - 1, 5);
+    // Ups face 0 deg, right = 90 deg = east (+x); downs face 180 deg, right = 270 deg = west (-x)
+    expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 1, 5);
+    expect(last.dancers['down_lark_0'].pos.x).toBeCloseTo(init.dancers['down_lark_0'].pos.x - 1, 5);
   });
 
   it('produces multiple keyframes with easing', () => {

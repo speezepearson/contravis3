@@ -21,17 +21,17 @@ describe('swing', () => {
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
     // up_lark/down_robin pair
-    const initCx1 = (init.dancers['up_lark_0'].x + init.dancers['down_robin_0'].x) / 2;
-    const initCy1 = (init.dancers['up_lark_0'].y + init.dancers['down_robin_0'].y) / 2;
-    const finalCx1 = (last.dancers['up_lark_0'].x + last.dancers['down_robin_0'].x) / 2;
-    const finalCy1 = (last.dancers['up_lark_0'].y + last.dancers['down_robin_0'].y) / 2;
+    const initCx1 = (init.dancers['up_lark_0'].pos.x + init.dancers['down_robin_0'].pos.x) / 2;
+    const initCy1 = (init.dancers['up_lark_0'].pos.y + init.dancers['down_robin_0'].pos.y) / 2;
+    const finalCx1 = (last.dancers['up_lark_0'].pos.x + last.dancers['down_robin_0'].pos.x) / 2;
+    const finalCy1 = (last.dancers['up_lark_0'].pos.y + last.dancers['down_robin_0'].pos.y) / 2;
     expect(finalCx1).toBeCloseTo(initCx1, 2);
     expect(finalCy1).toBeCloseTo(initCy1, 2);
     // up_robin/down_lark pair
-    const initCx2 = (init.dancers['up_robin_0'].x + init.dancers['down_lark_0'].x) / 2;
-    const initCy2 = (init.dancers['up_robin_0'].y + init.dancers['down_lark_0'].y) / 2;
-    const finalCx2 = (last.dancers['up_robin_0'].x + last.dancers['down_lark_0'].x) / 2;
-    const finalCy2 = (last.dancers['up_robin_0'].y + last.dancers['down_lark_0'].y) / 2;
+    const initCx2 = (init.dancers['up_robin_0'].pos.x + init.dancers['down_lark_0'].pos.x) / 2;
+    const initCy2 = (init.dancers['up_robin_0'].pos.y + init.dancers['down_lark_0'].pos.y) / 2;
+    const finalCx2 = (last.dancers['up_robin_0'].pos.x + last.dancers['down_lark_0'].pos.x) / 2;
+    const finalCy2 = (last.dancers['up_robin_0'].pos.y + last.dancers['down_lark_0'].pos.y) / 2;
     expect(finalCx2).toBeCloseTo(initCx2, 2);
     expect(finalCy2).toBeCloseTo(initCy2, 2);
   });
@@ -63,10 +63,10 @@ describe('swing', () => {
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
-    // up_lark (x < 0): across = 90° (east)
+    // up_lark (x < 0): across = 90 deg (east)
     expect(last.dancers['up_lark_0'].facing).toBeCloseTo(EAST, 0);
     expect(last.dancers['down_robin_0'].facing).toBeCloseTo(EAST, 0);
-    // down_lark (x > 0): across = 270° (west)
+    // down_lark (x > 0): across = 270 deg (west)
     expect(last.dancers['down_lark_0'].facing).toBeCloseTo(WEST, 0);
     expect(last.dancers['up_robin_0'].facing).toBeCloseTo(WEST, 0);
   });
@@ -77,14 +77,14 @@ describe('swing', () => {
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
-    // up_lark faces 90° (east), right = south (-y)
+    // up_lark faces 90 deg (east), right = south (-y)
     // robin (down_robin) should be 1.0m to lark's right
     const ul = last.dancers['up_lark_0'];
     const dr = last.dancers['down_robin_0'];
     const larkRightX = Math.cos(ul.facing);
     const larkRightY = -Math.sin(ul.facing);
-    const dx = dr.x - ul.x;
-    const dy = dr.y - ul.y;
+    const dx = dr.pos.x - ul.pos.x;
+    const dy = dr.pos.y - ul.pos.y;
     const rightComponent = dx * larkRightX + dy * larkRightY;
     expect(rightComponent).toBeCloseTo(1.0, 1);
     // Forward component should be ~0
@@ -100,7 +100,7 @@ describe('swing', () => {
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
-    // Both dancers in each pair should face up (0°)
+    // Both dancers in each pair should face up (0 deg)
     expect(last.dancers['up_lark_0'].facing).toBeCloseTo(NORTH, 0);
     expect(last.dancers['up_robin_0'].facing).toBeCloseTo(NORTH, 0);
     expect(last.dancers['down_lark_0'].facing).toBeCloseTo(NORTH, 0);
@@ -108,7 +108,7 @@ describe('swing', () => {
   });
 
   it('errors when pairs have the same role', () => {
-    // opposite: up_lark ↔ down_lark (both larks)
+    // opposite: up_lark <-> down_lark (both larks)
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'swing', relationship: 'opposite', endFacing: { kind: 'direction', value: 'up' } },
     ]);
@@ -125,6 +125,6 @@ describe('swing', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // up_lark starts south of CoM (-0.5, 0). CW from south goes west (decreasing x).
     const early = kfs[2]; // a few frames in
-    expect(early.dancers['up_lark_0'].x).toBeLessThan(-0.5);
+    expect(early.dancers['up_lark_0'].pos.x).toBeLessThan(-0.5);
   });
 });

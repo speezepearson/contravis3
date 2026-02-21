@@ -144,16 +144,15 @@ function neighborInfo(
   let bestScore = Infinity;
 
   for (const o of others) {
-    const dx = o.state.x - myState.x;
-    const dy = o.state.y - myState.y;
-    const dist = Math.hypot(dx, dy);
+    const delta = o.state.pos.subtract(myState.pos);
+    const dist = delta.length();
     if (dist < 0.01) continue;
-    const cosTheta = (ux * dx + uy * dy) / dist;
+    const cosTheta = (ux * delta.x + uy * delta.y) / dist;
     if (cosTheta < 0.3) continue; // must be roughly in that direction
     const score = dist / Math.max(cosTheta, 0.01);
     if (score < bestScore) {
       bestScore = score;
-      const headingRad = normalizeBearing(Math.atan2(dx, dy));
+      const headingRad = normalizeBearing(Math.atan2(delta.x, delta.y));
       const bearingRad = ((headingRad - myState.facing + 3 * Math.PI) % FULL_CW) - Math.PI;
       best = { id: o.id, dist, headingRot: headingRad / FULL_CW, bearingRot: bearingRad / FULL_CW };
     }
@@ -171,7 +170,7 @@ function formatKeyframe(kf: Keyframe): string {
     const d = kf.dancers[protoId];
     const dancerId = makeDancerId(protoId, 0);
     lines.push(`${protoId}:`);
-    lines.push(`  pos: (${d.x.toFixed(3)}, ${d.y.toFixed(3)})  facing: ${facingStr(d.facing)}`);
+    lines.push(`  pos: (${d.pos.x.toFixed(3)}, ${d.pos.y.toFixed(3)})  facing: ${facingStr(d.facing)}`);
 
     // Hand connections
     const myHands = kf.hands.filter(h => h.a === dancerId || h.b === dancerId);

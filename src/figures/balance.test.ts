@@ -11,10 +11,10 @@ describe('balance', () => {
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
     const last = kfs[kfs.length - 1];
-    // Balance: step 0.2 across, then step -0.2 across → net zero
+    // Balance: step 0.2 across, then step -0.2 across -> net zero
     for (const id of ProtoDancerIdSchema.options) {
-      expect(last.dancers[id].x).toBeCloseTo(init.dancers[id].x, 5);
-      expect(last.dancers[id].y).toBeCloseTo(init.dancers[id].y, 5);
+      expect(last.dancers[id].pos.x).toBeCloseTo(init.dancers[id].pos.x, 5);
+      expect(last.dancers[id].pos.y).toBeCloseTo(init.dancers[id].pos.y, 5);
     }
   });
 
@@ -29,7 +29,7 @@ describe('balance', () => {
       Math.abs(kf.beat - 2) < Math.abs(best.beat - 2) ? kf : best
     );
     // At midpoint, dancers should be ~0.2 north of start
-    expect(mid.dancers['up_lark_0'].y).toBeCloseTo(init.dancers['up_lark_0'].y + 0.2, 1);
+    expect(mid.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 0.2, 1);
   });
 
   it('balance produces multiple keyframes', () => {

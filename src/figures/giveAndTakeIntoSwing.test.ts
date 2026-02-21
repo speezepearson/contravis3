@@ -33,7 +33,7 @@ describe('give_and_take_into_swing', () => {
 
   it('drawee walks halfway to drawer in the first beat', () => {
     // Use partner relationship: partners are on opposite sides in improper
-    // up_lark (-0.5,-0.5) ↔ up_robin (0.5,-0.5)
+    // up_lark (-0.5,-0.5) <-> up_robin (0.5,-0.5)
     const instructions = instr([
       faceAcross(),
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'partner', role: 'lark',
@@ -45,8 +45,8 @@ describe('give_and_take_into_swing', () => {
     const beat1 = kfs.reduce((best, kf) =>
       Math.abs(kf.beat - 1) < Math.abs(best.beat - 1) ? kf : best
     );
-    expect(beat1.dancers['up_robin_0'].x).toBeCloseTo(0, 1);
-    expect(beat1.dancers['up_robin_0'].y).toBeCloseTo(-0.5, 1);
+    expect(beat1.dancers['up_robin_0'].pos.x).toBeCloseTo(0, 1);
+    expect(beat1.dancers['up_robin_0'].pos.y).toBeCloseTo(-0.5, 1);
   });
 
   it('center of mass drifts to final position (0.5m to drawer right for lark)', () => {
@@ -58,10 +58,10 @@ describe('give_and_take_into_swing', () => {
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
     expect(error).toBeNull();
     const last = kfs[kfs.length - 1];
-    // Drawer up_lark at (-0.5, -0.5) faces 90° (east). Right = south (0, -1).
+    // Drawer up_lark at (-0.5, -0.5) faces 90 deg (east). Right = south (0, -1).
     // Final CoM for pair (up_lark + up_robin): (-0.5, -0.5) + 0.5*(0, -1) = (-0.5, -1.0)
-    const finalCx = (last.dancers['up_lark_0'].x + last.dancers['up_robin_0'].x) / 2;
-    const finalCy = (last.dancers['up_lark_0'].y + last.dancers['up_robin_0'].y) / 2;
+    const finalCx = (last.dancers['up_lark_0'].pos.x + last.dancers['up_robin_0'].pos.x) / 2;
+    const finalCy = (last.dancers['up_lark_0'].pos.y + last.dancers['up_robin_0'].pos.y) / 2;
     expect(finalCx).toBeCloseTo(-0.5, 1);
     expect(finalCy).toBeCloseTo(-1.0, 1);
   });
@@ -75,10 +75,10 @@ describe('give_and_take_into_swing', () => {
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
     expect(error).toBeNull();
     const last = kfs[kfs.length - 1];
-    // Pair 1 ends on lark's side (x < 0): across = 90°
+    // Pair 1 ends on lark's side (x < 0): across = 90 deg
     expect(last.dancers['up_lark_0'].facing).toBeCloseTo(EAST, 0);
     expect(last.dancers['up_robin_0'].facing).toBeCloseTo(EAST, 0);
-    // Pair 2 ends on lark's side (x > 0): across = 270°
+    // Pair 2 ends on lark's side (x > 0): across = 270 deg
     expect(last.dancers['down_lark_0'].facing).toBeCloseTo(WEST, 0);
     expect(last.dancers['down_robin_0'].facing).toBeCloseTo(WEST, 0);
   });

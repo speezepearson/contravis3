@@ -1,12 +1,13 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
 import { makeDancerId, parseDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs, isLark } from '../generateUtils';
+import { Vector } from 'vecti';
 
 type GnatPair = {
   lark: ProtoDancerId;
   robin: ProtoDancerId;
-  larkStart: { x: number; y: number };
-  robinStart: { x: number; y: number };
+  larkStart: Vector;
+  robinStart: Vector;
   semiMinor: number;
   larkStartFacing: number;
   robinStartFacing: number;
@@ -31,15 +32,17 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'box_th
 
     const larkState = prev.dancers[lark];
     const robinState = prev.dancers[robin];
-    const dist = Math.hypot(larkState.x - robinState.x, larkState.y - robinState.y);
+    const dist = larkState.pos.subtract(robinState.pos).length();
 
-    const larkStartFacing = Math.atan2(robinState.x - larkState.x, robinState.y - larkState.y);
-    const robinStartFacing = Math.atan2(larkState.x - robinState.x, larkState.y - robinState.y);
+    const delta = robinState.pos.subtract(larkState.pos);
+    const larkStartFacing = Math.atan2(delta.x, delta.y);
+    const robinDelta = larkState.pos.subtract(robinState.pos);
+    const robinStartFacing = Math.atan2(robinDelta.x, robinDelta.y);
 
     pairs.push({
       lark, robin,
-      larkStart: { x: larkState.x, y: larkState.y },
-      robinStart: { x: robinState.x, y: robinState.y },
+      larkStart: larkState.pos,
+      robinStart: robinState.pos,
       semiMinor: dist / 4,
       larkStartFacing, robinStartFacing,
     });
@@ -60,12 +63,8 @@ export function finalBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction
   const dancers = copyDancers(prev.dancers);
   for (const p of pairs) {
     // Positions swap via half-ellipse (theta = PI)
-    const larkPos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, Math.PI);
-    const robinPos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, Math.PI);
-    dancers[p.lark].x = larkPos.x;
-    dancers[p.lark].y = larkPos.y;
-    dancers[p.robin].x = robinPos.x;
-    dancers[p.robin].y = robinPos.y;
+    dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, Math.PI);
+    dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, Math.PI);
 
     // Lark turns CW 180°, robin turns CCW 180°
     dancers[p.lark].facing = normalizeBearing(p.larkStartFacing + Math.PI);
@@ -93,12 +92,8 @@ export function generateBoxTheGnat(prev: Keyframe, _final: FinalKeyframe, instr:
 
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
-      const larkPos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
-      const robinPos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
-      dancers[p.lark].x = larkPos.x;
-      dancers[p.lark].y = larkPos.y;
-      dancers[p.robin].x = robinPos.x;
-      dancers[p.robin].y = robinPos.y;
+      dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
+      dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
 
       const larkFacing = p.larkStartFacing + Math.PI * tEased;
       const robinFacing = p.robinStartFacing - Math.PI * tEased;
