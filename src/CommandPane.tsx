@@ -20,7 +20,6 @@ import { AllemandeFields } from './figures/AllemandeFields';
 import { DoSiDoFields } from './figures/DoSiDoFields';
 import { CircleFields } from './figures/CircleFields';
 import { PullByFields } from './figures/PullByFields';
-import { TurnFields } from './figures/TurnFields';
 import { StepFields } from './figures/StepFields';
 import { BalanceFields } from './figures/BalanceFields';
 import { SwingFields } from './figures/SwingFields';
@@ -39,11 +38,11 @@ const exampleDances: { key: string; label: string; dance: Dance }[] = Object.ent
   return { key: filename, label, dance };
 });
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'turn', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'split', 'group'];
+const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'split', 'group'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
-  turn: 'turn', step: 'step', balance: 'balance',
+  step: 'step', balance: 'balance',
   box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
   mad_robin: 'mad robin',
   split: 'split', group: 'group',
@@ -311,12 +310,11 @@ function summarizeAtomic(instr: AtomicInstruction): string {
       return `circle ${instr.direction} ${instr.rotations}x (${instr.beats}b)`;
     case 'pull_by':
       return `${relLabel(instr.relationship)} pull by ${instr.hand} (${instr.beats}b)`;
-    case 'turn': {
-      const offsetStr = instr.offset ? ` +${(instr.offset / (2 * Math.PI)).toFixed(2)} rot` : '';
-      return `turn ${directionToText(instr.target)}${offsetStr} (${instr.beats}b)`;
+    case 'step': {
+      const facingOffsetStr = instr.facingOffset ? ` +${(instr.facingOffset / (2 * Math.PI)).toFixed(2)} rot` : '';
+      const facingStr = directionToText(instr.facing) === 'forward' && !instr.facingOffset ? '' : ` facing ${directionToText(instr.facing)}${facingOffsetStr}`;
+      return `step ${directionToText(instr.direction)} ${instr.distance}${facingStr} (${instr.beats}b)`;
     }
-    case 'step':
-      return `step ${directionToText(instr.direction)} ${instr.distance} (${instr.beats}b)`;
     case 'balance':
       return `balance ${directionToText(instr.direction)} ${instr.distance} (${instr.beats}b)`;
     case 'swing':
@@ -435,7 +433,6 @@ function InlineForm({ initial, onSave, onCancel, allowContainers = true, onPrevi
         case 'do_si_do': return <DoSiDoFields {...common} initial={initial?.type === 'do_si_do' ? initial : undefined} />;
         case 'circle': return <CircleFields {...common} initial={initial?.type === 'circle' ? initial : undefined} />;
         case 'pull_by': return <PullByFields {...common} initial={initial?.type === 'pull_by' ? initial : undefined} />;
-        case 'turn': return <TurnFields {...common} initial={initial?.type === 'turn' ? initial : undefined} />;
         case 'step': return <StepFields {...common} initial={initial?.type === 'step' ? initial : undefined} />;
         case 'balance': return <BalanceFields {...common} initial={initial?.type === 'balance' ? initial : undefined} />;
         case 'swing': return <SwingFields {...common} initial={initial?.type === 'swing' ? initial : undefined} />;

@@ -30,7 +30,7 @@ describe('box_the_gnat', () => {
   it('lark turns CW 180 deg and robin turns CCW 180 deg', () => {
     // First face neighbors toward each other, then box the gnat
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'turn', offset: 0, target: { kind: 'relationship', value: 'neighbor' } },
+      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: 'neighbor' }, facingOffset: 0 },
       { id: tid(2), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);

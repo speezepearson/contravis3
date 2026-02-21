@@ -6,7 +6,6 @@ import { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 import { finalTakeHands, generateTakeHands } from './figures/takeHands';
 import { finalDropHands, generateDropHands } from './figures/dropHands';
 import { finalAllemande, generateAllemande } from './figures/allemande';
-import { finalTurn, generateTurn } from './figures/turn';
 import { finalStep, generateStep } from './figures/step';
 import { finalBalance, generateBalance } from './figures/balance';
 import { finalDoSiDo, generateDoSiDo } from './figures/doSiDo';
@@ -73,7 +72,6 @@ function computeFinalKeyframe(prev: Keyframe, instr: AtomicInstruction, scope: S
     case 'do_si_do':    return finalDoSiDo(prev, instr, scope);
     case 'circle':      return finalCircle(prev, instr, scope);
     case 'pull_by':     return finalPullBy(prev, instr, scope);
-    case 'turn':        return finalTurn(prev, instr, scope);
     case 'step':        return finalStep(prev, instr, scope);
     case 'balance':     return finalBalance(prev, instr, scope);
     case 'swing':       return finalSwing(prev, instr, scope);
@@ -93,7 +91,6 @@ function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, inst
     case 'do_si_do':    return generateDoSiDo(prev, final, instr, scope);
     case 'circle':      return generateCircle(prev, final, instr, scope);
     case 'pull_by':     return generatePullBy(prev, final, instr, scope);
-    case 'turn':        return generateTurn(prev, final, instr, scope);
     case 'step':        return generateStep(prev, final, instr, scope);
     case 'balance':     return generateBalance(prev, final, instr, scope);
     case 'swing':       return generateSwing(prev, final, instr, scope);

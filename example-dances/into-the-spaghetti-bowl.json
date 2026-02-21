@@ -75,9 +75,11 @@
         {
           "id": "a2000000-0000-4000-a000-000000000003",
           "beats": 0,
-          "type": "turn",
-          "target": { "kind": "direction", "value": "across" },
-          "offset": 0
+          "type": "step",
+          "direction": { "kind": "direction", "value": "forward" },
+          "distance": 0,
+          "facing": { "kind": "direction", "value": "across" },
+          "facingOffset": 0
         },
         {
           "id": "a2000000-0000-4000-a000-000000000004",

@@ -16,8 +16,8 @@ describe('generateAllKeyframes', () => {
   describe('instruction sequencing', () => {
     it('beats accumulate across instructions', () => {
       const instructions = instr([
-        { id: tid(1), beats: 4, type: 'turn', offset: 0, target: { kind: 'direction', value: 'up' } },
-        { id: tid(2), beats: 4, type: 'turn', offset: 0, target: { kind: 'direction', value: 'down' } },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'up' }, facingOffset: 0 },
+        { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'down' }, facingOffset: 0 },
       ]);
       const { keyframes: kfs } = generateAllKeyframes(instructions);
       expect(kfs[0].beat).toBe(0);
@@ -38,7 +38,7 @@ describe('generateAllKeyframes', () => {
     it('warns when dancers step apart while holding hands', () => {
       const instructions = instr([
         { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
-        { id: tid(2), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4 },
+        { id: tid(2), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       const warnings = validateHandDistances(instructions, keyframes);
@@ -48,7 +48,7 @@ describe('generateAllKeyframes', () => {
 
     it('no warning when stepping without hands', () => {
       const instructions = instr([
-        { id: tid(1), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4 },
+        { id: tid(1), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       const warnings = validateHandDistances(instructions, keyframes);
@@ -147,7 +147,7 @@ describe('generateAllKeyframes with initFormation', () => {
     it('returns null when dancers end at expected progression positions', () => {
       // Move each dancer 2m in their progression direction (progression=1)
       const instructions = instr([
-        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 3.0 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 3.0, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       expect(validateProgression(keyframes, 'improper', 3)).toBeNull();
@@ -155,7 +155,7 @@ describe('generateAllKeyframes with initFormation', () => {
 
     it('warns when dancers do not end at expected positions', () => {
       const instructions = instr([
-        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 0.5 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 0.5, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       const warning = validateProgression(keyframes, 'improper', 1);
@@ -165,7 +165,7 @@ describe('generateAllKeyframes with initFormation', () => {
 
     it('returns null for progression=0 when dancers stay in place', () => {
       const instructions = instr([
-        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.0 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.0, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       expect(validateProgression(keyframes, 'improper', 0)).toBeNull();
@@ -179,7 +179,7 @@ describe('generateAllKeyframes with initFormation', () => {
       const instructions = instr([{
         id: tid(1), type: 'group', label: 'test group',
         instructions: [
-          { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+          { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
           { id: tid(11), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
         ],
       }]);
@@ -197,7 +197,7 @@ describe('generateAllKeyframes with initFormation', () => {
       // Their neighbor is directly in front -> inside hand fails.
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
-        larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 }],
+        larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
         robins: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' }],
       }]);
       const { keyframes, error } = generateAllKeyframes(instructions);
@@ -213,7 +213,7 @@ describe('generateAllKeyframes with initFormation', () => {
 
     it('preserves keyframes from a successful first instruction when the second top-level instruction fails', () => {
       const instructions = instr([
-        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+        { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
         { id: tid(2), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
       ]);
       const { keyframes, error } = generateAllKeyframes(instructions);
@@ -230,11 +230,11 @@ describe('generateAllKeyframes with initFormation', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
         larks: [
-          { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
-          { id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+          { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
+          { id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
         ],
         robins: [
-          { id: tid(20), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3 },
+          { id: tid(20), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
           { id: tid(21), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
         ],
       }]);

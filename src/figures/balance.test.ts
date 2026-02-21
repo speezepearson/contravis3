@@ -44,7 +44,7 @@ describe('balance', () => {
   it('balance beats accumulate correctly', () => {
     const instructions = instr([
       { id: tid(1), beats: 2, type: 'balance', direction: { kind: 'direction', value: 'forward' }, distance: 0.2 },
-      { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 },
+      { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     expect(kfs[kfs.length - 1].beat).toBeCloseTo(6, 5);
