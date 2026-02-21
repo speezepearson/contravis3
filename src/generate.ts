@@ -1,5 +1,6 @@
 import type { Instruction, AtomicInstruction, Keyframe, HandConnection, ProtoDancerId, InitFormation, InstructionId } from './types';
 import { dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists, NORTH, EAST, SOUTH, WEST } from './types';
+import { assertNever } from './utils';
 import { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 
 import { generateTakeHands } from './figures/takeHands';
@@ -78,6 +79,7 @@ function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scop
     case 'box_the_gnat':             return generateBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, instr, scope);
     case 'mad_robin':                return generateMadRobin(prev, instr, scope);
+    default: return assertNever(instr);
   }
 }
 
