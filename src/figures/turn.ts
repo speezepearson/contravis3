@@ -1,8 +1,8 @@
-import type { Keyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { normalizeBearing } from '../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
+import { normalizeBearing, makeFinalKeyframe } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, resolveFacing } from '../generateUtils';
 
-export function generateTurn(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'turn' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function finalTurn(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'turn' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
   const dancers = copyDancers(prev.dancers);
 
   for (const id of PROTO_DANCER_IDS) {
@@ -11,9 +11,14 @@ export function generateTurn(prev: Keyframe, instr: Extract<AtomicInstruction, {
     dancers[id].facing = normalizeBearing(base + instr.offset);
   }
 
-  return [{
+  return makeFinalKeyframe({
     beat: prev.beat + instr.beats,
     dancers,
     hands: prev.hands,
-  }];
+  });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function generateTurn(_prev: Keyframe, _final: FinalKeyframe, _instr: Extract<AtomicInstruction, { type: 'turn' }>, _scope: Set<ProtoDancerId>): Keyframe[] {
+  return [];
 }

@@ -1,12 +1,19 @@
-import type { Keyframe, AtomicInstruction, ProtoDancerId } from '../types';
-import { parseDancerId, dancerPosition, EAST, WEST } from '../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../types';
+import { parseDancerId, dancerPosition, EAST, WEST, makeFinalKeyframe } from '../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../generateUtils';
 
-export function generateMadRobin(
+type OrbitDatum = {
+  protoId: ProtoDancerId;
+  startPos: { x: number; y: number };
+  partnerPos: { x: number; y: number };
+  acrossFacing: number;
+};
+
+function setup(
   prev: Keyframe,
   instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
   scope: Set<ProtoDancerId>,
-): Keyframe[] {
+) {
   const relationship =
     instr.with === "larks_left"
       ? ("larks_left_robins_right" as const)
@@ -16,16 +23,10 @@ export function generateMadRobin(
   const cw =
     (instr.dir === "larks_in_middle") === (instr.with === "robins_left");
   const totalAngleRad = instr.rotations * 2 * Math.PI * (cw ? 1 : -1);
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
   // Assert same side of set and build orbit data
   const checked = new Set<ProtoDancerId>();
-  const orbitData: {
-    protoId: ProtoDancerId;
-    startPos: { x: number; y: number };
-    partnerPos: { x: number; y: number };
-    acrossFacing: number;
-  }[] = [];
+  const orbitData: OrbitDatum[] = [];
 
   for (const [id, targetDancerId] of pairs) {
     const { proto: targetProto } = parseDancerId(targetDancerId);
@@ -52,8 +53,42 @@ export function generateMadRobin(
     });
   }
 
+  return { totalAngleRad, orbitData };
+}
+
+export function finalMadRobin(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
+  scope: Set<ProtoDancerId>,
+): FinalKeyframe {
+  const { totalAngleRad, orbitData } = setup(prev, instr, scope);
+
+  const dancers = copyDancers(prev.dancers);
+  for (const od of orbitData) {
+    const pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, totalAngleRad);
+    dancers[od.protoId].x = pos.x;
+    dancers[od.protoId].y = pos.y;
+    dancers[od.protoId].facing = od.acrossFacing;
+  }
+
+  return makeFinalKeyframe({
+    beat: prev.beat + instr.beats,
+    dancers,
+    hands: prev.hands,
+  });
+}
+
+export function generateMadRobin(
+  prev: Keyframe,
+  _final: FinalKeyframe,
+  instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
+  scope: Set<ProtoDancerId>,
+): Keyframe[] {
+  const { totalAngleRad, orbitData } = setup(prev, instr, scope);
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
   const result: Keyframe[] = [];
-  for (let i = 1; i <= nFrames; i++) {
+  for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
     const phi = easeInOut(t) * totalAngleRad;

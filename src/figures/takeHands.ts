@@ -1,8 +1,8 @@
-import type { Keyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
-import { makeDancerId, dancerPosition } from '../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
+import { makeDancerId, dancerPosition, makeFinalKeyframe } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, resolveRelationship, resolveInsideHand } from '../generateUtils';
 
-export function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function finalTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
   const newHands: HandConnection[] = [...prev.hands];
   const seen = new Set<string>();
   if (instr.hand === 'inside') {
@@ -35,9 +35,14 @@ export function generateTakeHands(prev: Keyframe, instr: Extract<AtomicInstructi
       }
     }
   }
-  return [{
+  return makeFinalKeyframe({
     beat: prev.beat + instr.beats,
     dancers: copyDancers(prev.dancers),
     hands: newHands,
-  }];
+  });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function generateTakeHands(_prev: Keyframe, _final: FinalKeyframe, _instr: Extract<AtomicInstruction, { type: 'take_hands' }>, _scope: Set<ProtoDancerId>): Keyframe[] {
+  return [];
 }

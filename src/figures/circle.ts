@@ -1,13 +1,12 @@
-import type { Keyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
-import { makeDancerId, normalizeBearing } from '../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../types';
+import { makeDancerId, normalizeBearing, makeFinalKeyframe } from '../types';
 import { PROTO_DANCER_IDS, copyDancers, easeInOut, insideHandInRing } from '../generateUtils';
 
-export function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle' }>, scope: Set<ProtoDancerId>): Keyframe[] {
-  // All scoped dancers orbit around their common center
-  // Left = CW (positive angle), Right = CCW (negative angle)
+type OrbitDatum = { protoId: ProtoDancerId; startAngle: number; radius: number };
+
+function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle' }>, scope: Set<ProtoDancerId>) {
   const sign = instr.direction === 'left' ? 1 : -1;
   const totalAngleRad = sign * instr.rotations * 2 * Math.PI;
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
   // Compute center of all scoped dancers
   let cx = 0, cy = 0, count = 0;
@@ -20,7 +19,7 @@ export function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction,
   cx /= count;
   cy /= count;
 
-  const orbitData: { protoId: ProtoDancerId; startAngle: number; radius: number }[] = [];
+  const orbitData: OrbitDatum[] = [];
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const d = prev.dancers[id];
@@ -49,8 +48,29 @@ export function generateCircle(prev: Keyframe, instr: Extract<AtomicInstruction,
   }
   const hands = [...prev.hands, ...ringHands];
 
+  return { totalAngleRad, cx, cy, orbitData, hands };
+}
+
+export function finalCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
+  const { totalAngleRad, cx, cy, orbitData, hands } = setup(prev, instr, scope);
+
+  const dancers = copyDancers(prev.dancers);
+  for (const od of orbitData) {
+    const angle = od.startAngle + totalAngleRad;
+    dancers[od.protoId].x = cx + od.radius * Math.sin(angle);
+    dancers[od.protoId].y = cy + od.radius * Math.cos(angle);
+    dancers[od.protoId].facing = normalizeBearing(Math.atan2(cx - dancers[od.protoId].x, cy - dancers[od.protoId].y));
+  }
+
+  return makeFinalKeyframe({ beat: prev.beat + instr.beats, dancers, hands });
+}
+
+export function generateCircle(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'circle' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+  const { totalAngleRad, cx, cy, orbitData, hands } = setup(prev, instr, scope);
+  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
+
   const result: Keyframe[] = [];
-  for (let i = 1; i <= nFrames; i++) {
+  for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
     const tEased = easeInOut(t);

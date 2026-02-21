@@ -249,6 +249,14 @@ export const KeyframeSchema = z.object({
 });
 export type Keyframe = z.infer<typeof KeyframeSchema>;
 
+/** A branded Keyframe that represents the authoritative final state of a figure.
+ *  Figure generators receive this to ensure the final state is computed
+ *  independently from intermediate keyframes. */
+export type FinalKeyframe = Keyframe & z.BRAND<'FinalKeyframe'>;
+export function makeFinalKeyframe(kf: Keyframe): FinalKeyframe {
+  return kf as FinalKeyframe;
+}
+
 export function buildDancerRecord(f: (id: ProtoDancerId) => DancerState): Record<ProtoDancerId, DancerState> {
   return {
     up_lark_0: f('up_lark_0'),
