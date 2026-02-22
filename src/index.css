@@ -523,6 +523,8 @@ input[type="range"] {
     border-top: 1px solid #333;
     background: #1a1a2e;
     flex-shrink: 0;
+    position: relative;
+    z-index: 20;
   }
 
   .instruction-drawer {
