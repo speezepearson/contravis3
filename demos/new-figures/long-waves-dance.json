@@ -1,0 +1,35 @@
+{
+  "initFormation": "beckett",
+  "progression": 1,
+  "instructions": [
+    {
+      "id": "d1000000-0000-4000-a000-000000000001",
+      "type": "split",
+      "by": "role",
+      "larks": [
+        {
+          "id": "d1000000-0000-4000-a000-000000000002",
+          "beats": 0,
+          "type": "step",
+          "direction": { "kind": "direction", "value": "forward" },
+          "distance": 0,
+          "facing": { "kind": "direction", "value": "back" },
+          "facingOffset": 0
+        }
+      ],
+      "robins": []
+    },
+    {
+      "id": "d1000000-0000-4000-a000-000000000003",
+      "beats": 0,
+      "type": "long_waves"
+    },
+    {
+      "id": "d1000000-0000-4000-a000-000000000004",
+      "beats": 4,
+      "type": "balance",
+      "direction": { "kind": "direction", "value": "right" },
+      "distance": 0.2
+    }
+  ]
+}

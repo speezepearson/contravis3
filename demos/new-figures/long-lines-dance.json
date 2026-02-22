@@ -1,0 +1,11 @@
+{
+  "initFormation": "beckett",
+  "progression": 1,
+  "instructions": [
+    {
+      "id": "d2000000-0000-4000-a000-000000000001",
+      "beats": 8,
+      "type": "long_lines"
+    }
+  ]
+}
