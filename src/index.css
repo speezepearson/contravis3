@@ -510,6 +510,7 @@ input[type="range"] {
     height: auto;
     flex: 1;
     min-height: 0;
+    overflow: hidden;
   }
 
   .sidebar-column {
@@ -521,6 +522,7 @@ input[type="range"] {
     padding: 8px 12px;
     border-top: 1px solid #333;
     background: #1a1a2e;
+    flex-shrink: 0;
   }
 
   .instruction-drawer {
