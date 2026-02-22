@@ -1,0 +1,25 @@
+{
+  "initFormation": "improper",
+  "progression": 1,
+  "instructions": [
+    {
+      "id": "d0000000-0000-4000-a000-000000000001",
+      "beats": 8,
+      "type": "do_si_do",
+      "relationship": "neighbor",
+      "rotations": 1.25
+    },
+    {
+      "id": "d0000000-0000-4000-a000-000000000003",
+      "beats": 0,
+      "type": "short_waves"
+    },
+    {
+      "id": "d0000000-0000-4000-a000-000000000004",
+      "beats": 4,
+      "type": "balance",
+      "direction": { "kind": "direction", "value": "right" },
+      "distance": 0.2
+    }
+  ]
+}

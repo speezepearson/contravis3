@@ -48,24 +48,7 @@
         {
           "id": "a1000000-0000-4000-a000-000000000007",
           "beats": 0,
-          "type": "take_hands",
-          "relationship": "neighbor",
-          "hand": "right"
-        },
-        {
-          "id": "a1000000-0000-4000-a000-000000000008",
-          "type": "split",
-          "by": "role",
-          "larks": [
-            {
-              "id": "a1000000-0000-4000-a000-000000000009",
-              "beats": 0,
-              "type": "take_hands",
-              "relationship": "opposite",
-              "hand": "left"
-            }
-          ],
-          "robins": []
+          "type": "short_waves"
         }
       ]
     },

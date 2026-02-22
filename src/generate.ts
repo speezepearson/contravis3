@@ -15,6 +15,9 @@ import { finalSwing, generateSwing } from './figures/swing/swing';
 import { finalBoxTheGnat, generateBoxTheGnat } from './figures/boxTheGnat/boxTheGnat';
 import { finalGiveAndTakeIntoSwing, generateGiveAndTakeIntoSwing } from './figures/giveAndTakeIntoSwing/giveAndTakeIntoSwing';
 import { finalMadRobin, generateMadRobin } from './figures/madRobin/madRobin';
+import { finalShortWaves, generateShortWaves } from './figures/shortWaves/shortWaves';
+import { finalLongWaves, generateLongWaves } from './figures/longWaves/longWaves';
+import { finalLongLines, generateLongLines } from './figures/longLines/longLines';
 
 export { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
 
@@ -78,6 +81,9 @@ function computeFinalKeyframe(prev: Keyframe, instr: AtomicInstruction, scope: S
     case 'box_the_gnat':             return finalBoxTheGnat(prev, instr, scope);
     case 'give_and_take_into_swing': return finalGiveAndTakeIntoSwing(prev, instr, scope);
     case 'mad_robin':                return finalMadRobin(prev, instr, scope);
+    case 'short_waves':              return finalShortWaves(prev, instr, scope);
+    case 'long_waves':               return finalLongWaves(prev, instr, scope);
+    case 'long_lines':               return finalLongLines(prev, instr, scope);
     default: return assertNever(instr);
   }
 }
@@ -97,6 +103,9 @@ function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, inst
     case 'box_the_gnat':             return generateBoxTheGnat(prev, final, instr, scope);
     case 'give_and_take_into_swing': return generateGiveAndTakeIntoSwing(prev, final, instr, scope);
     case 'mad_robin':                return generateMadRobin(prev, final, instr, scope);
+    case 'short_waves':              return generateShortWaves(prev, final, instr, scope);
+    case 'long_waves':               return generateLongWaves(prev, final, instr, scope);
+    case 'long_lines':               return generateLongLines(prev, final, instr, scope);
     default: return assertNever(instr);
   }
 }
