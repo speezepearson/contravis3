@@ -11,6 +11,7 @@ import type { GenerateError } from './generate';
 import { z } from 'zod';
 import { assertNever } from './utils';
 import { makeDefaultInstruction, makeInstructionId } from './fieldUtils';
+import { DragHandle } from './DragHandle';
 
 import { TakeHandsFields } from './figures/takeHands/TakeHandsFields';
 import { DropHandsFields } from './figures/dropHands/DropHandsFields';
@@ -336,6 +337,12 @@ function BeatGutter({ instruction, onChange }: { instruction: Instruction; onCha
           }
         }}
       />
+      <DragHandle value={Number(beatsStr) || 0} step={0.5} onDrag={n => {
+        setBeatsStr(String(n));
+        const raw = { ...instruction, beats: n };
+        const result = InstructionSchema.safeParse(raw);
+        if (result.success) onChange(result.data);
+      }} />
       <span className="beat-label">beats</span>
     </span>
   );
@@ -597,6 +604,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
         />
         <label> Progression: </label>
         <input type="text" inputMode="numeric" value={String(progression)} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setProgression(v); }} style={{ width: '3em' }} />
+        <DragHandle value={progression} step={1} onDrag={n => setProgression(n)} />
       </div>
 
       <h2>Instructions</h2>
