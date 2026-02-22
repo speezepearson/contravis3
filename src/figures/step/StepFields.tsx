@@ -1,13 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
-import * as Popover from '@radix-ui/react-popover';
+import { Check } from 'lucide-react';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { parseDirection, directionToText, DIR_OPTIONS } from '../../fieldUtils';
 import { InlineDropdown } from '../../InlineDropdown';
 import { InlineNumber } from '../../InlineNumber';
-import SearchableDropdown from '../../SearchableDropdown';
-import type { SearchableDropdownHandle } from '../../SearchableDropdown';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 
 function facingDisplayText(facingText: string, offsetRot: number): string {
   if (offsetRot === 0) return facingText;
@@ -29,7 +38,7 @@ export function StepFields({ instruction, onChange, onInvalid }: SubFormProps & 
   // Compound facing + offset field
   const [facingOpen, setFacingOpen] = useState(false);
   const [editOffsetRot, setEditOffsetRot] = useState('');
-  const dropdownRef = useRef<SearchableDropdownHandle>(null);
+  const commandInputRef = useRef<HTMLInputElement>(null);
 
   function handleFacingOpenChange(next: boolean) {
     if (next) setEditOffsetRot(String(instruction.facingOffset / (2 * Math.PI)));
@@ -38,7 +47,7 @@ export function StepFields({ instruction, onChange, onInvalid }: SubFormProps & 
 
   useEffect(() => {
     if (facingOpen) {
-      requestAnimationFrame(() => dropdownRef.current?.focus());
+      requestAnimationFrame(() => commandInputRef.current?.focus());
     }
   }, [facingOpen]);
 
@@ -60,39 +69,59 @@ export function StepFields({ instruction, onChange, onInvalid }: SubFormProps & 
   return (<>
     <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.direction)} onChange={v => { const dir = parseDirection(v); if (dir) tryCommit({ direction: dir }); else onInvalid?.(); }} placeholder="e.g. across" />
     {' '}
-    <InlineNumber value={String(instruction.distance)} onTextChange={v => tryCommit({ distance: Number(v) })} onDrag={n => tryCommit({ distance: n })} step={0.5} suffix="m" />
+    <InlineNumber value={String(instruction.distance)} onTextChange={v => tryCommit({ distance: Number(v) })} onDrag={n => tryCommit({ distance: n })} step={0.05} suffix="m" />
     {' facing '}
-    <Popover.Root open={facingOpen} onOpenChange={handleFacingOpenChange}>
-      <Popover.Trigger asChild>
-        <span className="inline-value" tabIndex={0} role="button">
+    <PopoverPrimitive.Root open={facingOpen} onOpenChange={handleFacingOpenChange}>
+      <PopoverPrimitive.Trigger asChild>
+        <span className="inline-value" tabIndex={0} role="combobox" aria-expanded={facingOpen}>
           {facingDisplayText(facingText, offsetRot)}
         </span>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content className="popover-content popover-facing-compound" sideOffset={4} align="start">
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content className="popover-content popover-facing-compound" sideOffset={4} align="start">
           <div className="popover-facing-row">
             <label className="popover-facing-label">Facing</label>
-            <SearchableDropdown
-              ref={dropdownRef}
-              options={DIR_OPTIONS}
-              value={facingText}
-              onChange={handleFacingSelect}
-            />
+            <Command className="rounded-md border border-border">
+              <CommandInput
+                ref={commandInputRef}
+                placeholder="Search..."
+              />
+              <CommandList>
+                <CommandEmpty>No results.</CommandEmpty>
+                <CommandGroup>
+                  {DIR_OPTIONS.map((opt) => (
+                    <CommandItem
+                      key={opt}
+                      value={opt}
+                      onSelect={() => handleFacingSelect(opt)}
+                    >
+                      {opt}
+                      <Check
+                        className={cn(
+                          "ml-auto size-4",
+                          facingText === opt ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
           </div>
           <div className="popover-facing-row">
             <label className="popover-facing-label">Offset</label>
-            <input
+            <Input
               type="text"
               inputMode="decimal"
-              className="popover-number-input"
+              className="w-[6em] text-center tabular-nums"
               value={editOffsetRot}
               onChange={e => handleOffsetChange(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') setFacingOpen(false); }}
             />
             <span className="popover-facing-suffix">rot</span>
           </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   </>);
 }

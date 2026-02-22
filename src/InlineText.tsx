@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import * as Popover from '@radix-ui/react-popover';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
+import { Input } from '@/components/ui/input';
 
 interface Props {
   value: string;
@@ -29,8 +30,8 @@ export function InlineText({ value, onChange, placeholder }: Props) {
   const displayText = value || placeholder || '...';
 
   return (
-    <Popover.Root open={open} onOpenChange={handleOpenChange}>
-      <Popover.Trigger asChild>
+    <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+      <PopoverPrimitive.Trigger asChild>
         <span
           className={`inline-value${!value ? ' inline-value-placeholder' : ''}`}
           tabIndex={0}
@@ -38,20 +39,20 @@ export function InlineText({ value, onChange, placeholder }: Props) {
         >
           {displayText}
         </span>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content className="popover-content" sideOffset={4} align="start">
-          <input
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content className="popover-content" sideOffset={4} align="start">
+          <Input
             ref={inputRef}
             type="text"
-            className="popover-text-input"
+            className="w-[14em]"
             value={editValue}
             onChange={e => { setEditValue(e.target.value); onChange(e.target.value); }}
             onKeyDown={e => { if (e.key === 'Enter') setOpen(false); }}
             placeholder={placeholder}
           />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }
