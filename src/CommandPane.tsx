@@ -509,7 +509,11 @@ export default function CommandPane({ instructions, setInstructions, initFormati
       const [remaining, movedItems] = removeMultipleFromTop(instructions, selectedTopIds);
       // Find insert position in the remaining list
       const overIdx = remaining.findIndex(i => i.id === over.id);
-      const insertIdx = overIdx !== -1 ? overIdx : remaining.length;
+      // When dragging forward, insert *after* the over item (not before)
+      const firstSelectedOrigIdx = instructions.findIndex(i => selectedTopIds.has(i.id));
+      const overOrigIdx = instructions.findIndex(i => i.id === over.id);
+      const draggingForward = firstSelectedOrigIdx < overOrigIdx;
+      const insertIdx = overIdx !== -1 ? overIdx + (draggingForward ? 1 : 0) : remaining.length;
       const newInstructions = [
         ...remaining.slice(0, insertIdx),
         ...movedItems,
