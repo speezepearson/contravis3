@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from 'react';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable, DragOverlay } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { InstructionSchema, DanceSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, ActionTypeSchema, splitLists, splitWithLists, formatDanceParseError } from './types';
@@ -29,7 +29,6 @@ import { ShortWavesFields } from './figures/shortWaves/ShortWavesFields';
 import { LongWavesFields } from './figures/longWaves/LongWavesFields';
 import { LongLinesFields } from './figures/longLines/LongLinesFields';
 import { SplitFields } from './figures/split/SplitFields';
-import { GroupFields } from './figures/group/GroupFields';
 
 const exampleDanceModules = import.meta.glob<Dance>('/example-dances/*.json', { eager: true, import: 'default' });
 const exampleDances: { key: string; label: string; dance: Dance }[] = Object.entries(exampleDanceModules).map(([path, dance]) => {
@@ -40,7 +39,7 @@ const exampleDances: { key: string; label: string; dance: Dance }[] = Object.ent
   return { key: filename, label, dance };
 });
 
-const ACTION_OPTIONS: (ActionType | 'split' | 'group')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'short_waves', 'long_waves', 'long_lines', 'split', 'group'];
+const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'short_waves', 'long_waves', 'long_lines', 'split'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
@@ -48,7 +47,7 @@ const ACTION_LABELS: Record<string, string> = {
   box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
   mad_robin: 'mad robin',
   short_waves: 'short waves', long_waves: 'long waves', long_lines: 'long lines',
-  split: 'split', group: 'group',
+  split: 'split',
 };
 
 function splitGroupLabel(by: SplitBy['by'], list: 'A' | 'B'): string {
@@ -60,12 +59,8 @@ function splitGroupLabel(by: SplitBy['by'], list: 'A' | 'B'): string {
 
 function parseContainerId(id: string):
   | { type: 'top' }
-  | { type: 'group'; groupId: InstructionId }
   | { type: 'split'; splitId: InstructionId; list: 'A' | 'B' }
 {
-  if (id === 'top') return { type: 'top' };
-  if (id.startsWith('group-'))
-    return { type: 'group', groupId: InstructionIdSchema.parse(id.slice(6)) };
   if (id.startsWith('split-') && (id.endsWith('-A') || id.endsWith('-B'))) {
     const list = z.enum(['A', 'B']).parse(id.slice(-1));
     return { type: 'split', splitId: InstructionIdSchema.parse(id.slice(6, -2)), list };
@@ -76,10 +71,6 @@ function parseContainerId(id: string):
 function findInstructionById(instrs: Instruction[], id: InstructionId): Instruction | null {
   for (const i of instrs) {
     if (i.id === id) return i;
-    if (i.type === 'group') {
-      const found = findInstructionById(i.instructions, id);
-      if (found) return found;
-    }
     if (i.type === 'split') {
       const [listA, listB] = splitLists(i);
       for (const s of [...listA, ...listB]) {
@@ -92,7 +83,6 @@ function findInstructionById(instrs: Instruction[], id: InstructionId): Instruct
 
 function instructionContainsId(instr: Instruction, id: InstructionId): boolean {
   if (instr.id === id) return true;
-  if (instr.type === 'group') return instr.instructions.some(c => instructionContainsId(c, id));
   if (instr.type === 'split') { const [listA, listB] = splitLists(instr); return [...listA, ...listB].some(c => c.id === id); }
   return false;
 }
@@ -112,10 +102,6 @@ function removeFromTree(instrs: Instruction[], targetId: InstructionId): [Instru
       const bIdx = listB.findIndex(s => s.id === targetId);
       if (bIdx !== -1) { removed = InstructionSchema.parse(listB[bIdx]); return InstructionSchema.parse({ ...i, ...splitWithLists(i.by, listA, [...listB.slice(0, bIdx), ...listB.slice(bIdx + 1)]) }); }
     }
-    if (i.type === 'group') {
-      const [newChildren, r] = removeFromTree(i.instructions, targetId);
-      if (r) { removed = r; return InstructionSchema.parse({ ...i, instructions: newChildren }); }
-    }
     return i;
   });
   return [mapped, removed];
@@ -129,21 +115,13 @@ function insertIntoContainer(instrs: Instruction[], containerId: string, item: I
     return copy;
   }
   return instrs.map(i => {
-    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) {
-      const copy = [...i.instructions];
-      copy.splice(index, 0, item);
-      return { ...i, instructions: copy };
-    }
-    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
+    if (i.type === 'split' && i.id === parsed.splitId) {
       const [listA, listB] = splitLists(i);
       const list = parsed.list === 'A' ? listA : listB;
       const copy = [...list];
       copy.splice(index, 0, AtomicInstructionSchema.parse(item));
       const newLists = parsed.list === 'A' ? splitWithLists(i.by, copy, listB) : splitWithLists(i.by, listA, copy);
       return { ...i, ...newLists };
-    }
-    if (i.type === 'group') {
-      return { ...i, instructions: insertIntoContainer(i.instructions, containerId, item, index) };
     }
     return i;
   });
@@ -153,18 +131,12 @@ function reorderInContainer(instrs: Instruction[], containerId: string, oldIndex
   const parsed = parseContainerId(containerId);
   if (parsed.type === 'top') return arrayMove(instrs, oldIndex, newIndex);
   return instrs.map(i => {
-    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) {
-      return { ...i, instructions: arrayMove(i.instructions, oldIndex, newIndex) };
-    }
-    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
+    if (i.type === 'split' && i.id === parsed.splitId) {
       const [listA, listB] = splitLists(i);
       const newLists = parsed.list === 'A'
         ? splitWithLists(i.by, arrayMove(listA, oldIndex, newIndex), listB)
         : splitWithLists(i.by, listA, arrayMove(listB, oldIndex, newIndex));
       return { ...i, ...newLists };
-    }
-    if (i.type === 'group') {
-      return { ...i, instructions: reorderInContainer(i.instructions, containerId, oldIndex, newIndex) };
     }
     return i;
   });
@@ -174,14 +146,9 @@ function getContainerItems(instrs: Instruction[], containerId: string): Instruct
   const parsed = parseContainerId(containerId);
   if (parsed.type === 'top') return instrs;
   for (const i of instrs) {
-    if (parsed.type === 'group' && i.type === 'group' && i.id === parsed.groupId) return i.instructions;
-    if (parsed.type === 'split' && i.type === 'split' && i.id === parsed.splitId) {
+    if (i.type === 'split' && i.id === parsed.splitId) {
       const [listA, listB] = splitLists(i);
       return z.array(InstructionSchema).parse(parsed.list === 'A' ? listA : listB);
-    }
-    if (i.type === 'group') {
-      const found = getContainerItems(i.instructions, containerId);
-      if (found !== null) return found;
     }
   }
   return null;
@@ -202,12 +169,36 @@ function replaceInTree(instrs: Instruction[], id: InstructionId, replacement: In
         ),
       });
     }
-    if (i.type === 'group') {
-      if (!i.instructions.some(c => instructionContainsId(c, id))) return i;
-      return InstructionSchema.parse({ ...i, instructions: replaceInTree(i.instructions, id, replacement) });
-    }
     return i;
   });
+}
+
+/** Get a flat ordered list of all instruction IDs (top-level and inside splits). */
+function flatInstructionIds(instrs: Instruction[]): InstructionId[] {
+  const ids: InstructionId[] = [];
+  for (const i of instrs) {
+    ids.push(i.id);
+    if (i.type === 'split') {
+      const [listA, listB] = splitLists(i);
+      for (const s of listA) ids.push(s.id);
+      for (const s of listB) ids.push(s.id);
+    }
+  }
+  return ids;
+}
+
+/** Remove multiple instructions from the top-level list by ID, returning them in order. */
+function removeMultipleFromTop(instrs: Instruction[], ids: Set<InstructionId>): [Instruction[], Instruction[]] {
+  const remaining: Instruction[] = [];
+  const removed: Instruction[] = [];
+  for (const i of instrs) {
+    if (ids.has(i.id)) {
+      removed.push(i);
+    } else {
+      remaining.push(i);
+    }
+  }
+  return [remaining, removed];
 }
 
 /** Given the erroring instruction's ID, compute the set of instruction IDs that
@@ -220,28 +211,10 @@ function computeDimmedIds(instructions: Instruction[], errorId: InstructionId | 
 
   function addAllIds(instr: Instruction) {
     dimmed.add(instr.id);
-    if (instr.type === 'group') {
-      for (const child of instr.instructions) addAllIds(child);
-    }
     if (instr.type === 'split') {
       const [la, lb] = splitLists(instr);
       for (const sub of [...la, ...lb]) dimmed.add(sub.id);
     }
-  }
-
-  function walk(instrs: Instruction[]): boolean {
-    let found = false;
-    for (const instr of instrs) {
-      if (found) { addAllIds(instr); continue; }
-      if (instr.id === errorId) { found = true; continue; }
-      if (instr.type === 'group') {
-        if (walk(instr.instructions)) found = true;
-      } else if (instr.type === 'split') {
-        const [la, lb] = splitLists(instr);
-        if (walkAtomic(la) || walkAtomic(lb)) found = true;
-      }
-    }
-    return found;
   }
 
   function walkAtomic(instrs: AtomicInstruction[]): boolean {
@@ -253,7 +226,16 @@ function computeDimmedIds(instructions: Instruction[], errorId: InstructionId | 
     return found;
   }
 
-  walk(instructions);
+  let found = false;
+  for (const instr of instructions) {
+    if (found) { addAllIds(instr); continue; }
+    if (instr.id === errorId) { found = true; continue; }
+    if (instr.type === 'split') {
+      const [la, lb] = splitLists(instr);
+      if (walkAtomic(la) || walkAtomic(lb)) found = true;
+    }
+  }
+
   return dimmed;
 }
 
@@ -314,7 +296,7 @@ function doesRequireBeatsInput(type: AtomicInstruction['type']): boolean {
 }
 
 function BeatGutter({ instruction, onChange }: { instruction: Instruction; onChange: (instr: Instruction) => void }) {
-  const hasBeat = instruction.type !== 'split' && instruction.type !== 'group' && doesRequireBeatsInput(instruction.type);
+  const hasBeat = instruction.type !== 'split' && doesRequireBeatsInput(instruction.type);
   const currentBeats = hasBeat ? (instruction as AtomicInstruction).beats : 0;
 
   if (!hasBeat) return <span className="beat-gutter" />;
@@ -358,10 +340,10 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
 
   const actionOptions = allowContainers
     ? ACTION_OPTIONS
-    : ACTION_OPTIONS.filter(o => o !== 'split' && o !== 'group');
+    : ACTION_OPTIONS.filter(o => o !== 'split');
 
   function handleActionChange(newAction: string) {
-    const parsed = z.union([ActionTypeSchema, z.literal('split'), z.literal('group')]).parse(newAction);
+    const parsed = z.union([ActionTypeSchema, z.literal('split')]).parse(newAction);
     if (parsed !== instruction.type) {
       onChange(makeDefaultInstruction(parsed, instruction.id));
       setValid(true);
@@ -405,7 +387,6 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
         case 'long_waves': return <LongWavesFields {...common} instruction={instruction} />;
         case 'long_lines': return <LongLinesFields {...common} instruction={instruction} />;
         case 'split': return <SplitFields {...common} instruction={instruction} />;
-        case 'group': return <GroupFields {...common} instruction={instruction} />;
         default: assertNever(instruction);
       }})()}
     </span>
@@ -418,6 +399,51 @@ export default function CommandPane({ instructions, setInstructions, initFormati
   const [newlyAddedId, setNewlyAddedId] = useState<InstructionId | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [pasteFeedback, setPasteFeedback] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<InstructionId>>(new Set());
+  const [activeDragId, setActiveDragId] = useState<InstructionId | null>(null);
+  const lastClickedIdRef = useRef<InstructionId | null>(null);
+
+  // Clear selection when instructions change externally (e.g. load dance)
+  const prevInstructionsRef = useRef(instructions);
+  useEffect(() => {
+    // Only clear if the instruction list was replaced wholesale (e.g. loading a dance)
+    if (prevInstructionsRef.current !== instructions) {
+      const prevIds = new Set(flatInstructionIds(prevInstructionsRef.current));
+      const curIds = new Set(flatInstructionIds(instructions));
+      // If the set of IDs changed dramatically, clear selection
+      const overlap = [...prevIds].filter(id => curIds.has(id)).length;
+      if (overlap < prevIds.size * 0.5 && prevIds.size > 0) {
+        setSelectedIds(new Set());
+      }
+      prevInstructionsRef.current = instructions;
+    }
+  }, [instructions]);
+
+  const allFlatIds = useMemo(() => flatInstructionIds(instructions), [instructions]);
+
+  const handleCheckboxClick = useCallback((id: InstructionId, event: React.MouseEvent) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (event.shiftKey && lastClickedIdRef.current) {
+        // Range select: find indices in flat list
+        const lastIdx = allFlatIds.indexOf(lastClickedIdRef.current);
+        const curIdx = allFlatIds.indexOf(id);
+        if (lastIdx !== -1 && curIdx !== -1) {
+          const lo = Math.min(lastIdx, curIdx);
+          const hi = Math.max(lastIdx, curIdx);
+          for (let i = lo; i <= hi; i++) {
+            next.add(allFlatIds[i]);
+          }
+        } else {
+          if (next.has(id)) next.delete(id); else next.add(id);
+        }
+      } else {
+        if (next.has(id)) next.delete(id); else next.add(id);
+      }
+      return next;
+    });
+    lastClickedIdRef.current = id;
+  }, [allFlatIds]);
 
   // Clear newlyAddedId after render so autofocus fires only once
   useEffect(() => {
@@ -446,13 +472,43 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     setInstructions(newTree);
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveDragId(InstructionIdSchema.parse(event.active.id));
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveDragId(null);
     const { active, over } = event;
     if (!over) return;
 
     const srcContainer = z.string().catch('top').parse(active.data.current?.sortable?.containerId);
     const overSortableContainer = z.string().optional().parse(over.data.current?.sortable?.containerId);
     const destContainer = overSortableContainer ?? String(over.id);
+    const draggedId = InstructionIdSchema.parse(active.id);
+    const isMultiDrag = selectedIds.has(draggedId) && selectedIds.size > 1;
+
+    if (active.id === over.id && !isMultiDrag) return;
+
+    // Multi-drag: move all selected top-level items together
+    if (isMultiDrag && srcContainer === 'top' && (destContainer === 'top' || overSortableContainer === 'top')) {
+      // Collect selected top-level items in order
+      const selectedTopIds = new Set(
+        instructions.filter(i => selectedIds.has(i.id)).map(i => i.id)
+      );
+      if (selectedTopIds.size === 0) return;
+
+      const [remaining, movedItems] = removeMultipleFromTop(instructions, selectedTopIds);
+      // Find insert position in the remaining list
+      const overIdx = remaining.findIndex(i => i.id === over.id);
+      const insertIdx = overIdx !== -1 ? overIdx : remaining.length;
+      const newInstructions = [
+        ...remaining.slice(0, insertIdx),
+        ...movedItems,
+        ...remaining.slice(insertIdx),
+      ];
+      setInstructions(newInstructions);
+      return;
+    }
 
     if (active.id === over.id) return;
 
@@ -467,13 +523,11 @@ export default function CommandPane({ instructions, setInstructions, initFormati
       return;
     }
 
-    const draggedId = InstructionIdSchema.parse(active.id);
     const draggedInstr = findInstructionById(instructions, draggedId);
     if (!draggedInstr) return;
 
     const destParsed = parseContainerId(destContainer);
-    if (destParsed.type === 'split' && (draggedInstr.type === 'group' || draggedInstr.type === 'split')) return;
-    if (destParsed.type === 'group' && instructionContainsId(draggedInstr, destParsed.groupId)) return;
+    if (destParsed.type === 'split' && draggedInstr.type === 'split') return;
     if (destParsed.type === 'split' && instructionContainsId(draggedInstr, destParsed.splitId)) return;
 
     const [treeWithout, removed] = removeFromTree(instructions, draggedId);
@@ -543,10 +597,12 @@ export default function CommandPane({ instructions, setInstructions, initFormati
   }
 
   function renderInstruction(instr: Instruction, dragHandleProps: Record<string, unknown>, options?: { extraClass?: string; inSplit?: boolean }) {
+    const isSelected = selectedIds.has(instr.id);
+    const isDraggedAway = activeDragId !== null && selectedIds.has(activeDragId) && selectedIds.size > 1 && isSelected && instr.id !== activeDragId;
     return (
       <>
         <div
-          className={`instruction-item${options?.extraClass ? ' ' + options.extraClass : ''}${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}`}
+          className={`instruction-item${options?.extraClass ? ' ' + options.extraClass : ''}${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}${isSelected ? ' selected' : ''}${isDraggedAway ? ' dragged-away' : ''}`}
           onMouseEnter={() => onHoverInstruction?.(instr.id)}
           onMouseLeave={() => onHoverInstruction?.(null)}
         >
@@ -559,6 +615,14 @@ export default function CommandPane({ instructions, setInstructions, initFormati
             allowContainers={!options?.inSplit}
           />
           <button className="delete-btn" onClick={() => handleRemove(instr.id)} title="Delete">{'\u00D7'}</button>
+          <input
+            type="checkbox"
+            className="select-checkbox"
+            checked={isSelected}
+            onClick={e => handleCheckboxClick(instr.id, e)}
+            onChange={() => {}} // controlled by onClick for shift-click support
+            title="Select"
+          />
           <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
         </div>
         {warnings.get(instr.id) && (
@@ -606,7 +670,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
 
       <h2>Instructions</h2>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="instruction-list">
           <SortableContext id="top" items={instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {renderAddGap('top', 0)}
@@ -617,7 +681,6 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                     <>
                       {renderInstruction(instr, dragHandleProps)}
                       {instr.type === 'split' && renderSplitBody(instr)}
-                      {instr.type === 'group' && renderGroupBody(instr)}
                     </>
                   )}
                 </SortableItem>
@@ -649,35 +712,16 @@ export default function CommandPane({ instructions, setInstructions, initFormati
           />
           {pasteFeedback && <div className="paste-error">{pasteFeedback}</div>}
         </div>
+        {activeDragId && selectedIds.has(activeDragId) && selectedIds.size > 1 && (
+          <DragOverlay>
+            <div className="drag-overlay-badge">
+              {selectedIds.size} items
+            </div>
+          </DragOverlay>
+        )}
       </DndContext>
     </div>
   );
-
-  function renderGroupBody(group: Extract<Instruction, { type: 'group' }>) {
-    const containerId = `group-${group.id}`;
-    return (
-      <div className="group-body">
-        <SortableContext id={containerId} items={group.instructions.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {renderAddGap(containerId, 0)}
-          {group.instructions.map((child, i) => (
-            <Fragment key={child.id}>
-              <SortableItem id={child.id}>
-                {(dragHandleProps) => (
-                  <>
-                    {renderInstruction(child, dragHandleProps)}
-                    {child.type === 'split' && renderSplitBody(child)}
-                    {child.type === 'group' && renderGroupBody(child)}
-                  </>
-                )}
-              </SortableItem>
-              {renderAddGap(containerId, i + 1)}
-            </Fragment>
-          ))}
-        </SortableContext>
-        <DropZone containerId={containerId} />
-      </div>
-    );
-  }
 
   function renderSplitBody(split: Extract<Instruction, { type: 'split' }>) {
     const [splitListA, splitListB] = splitLists(split);

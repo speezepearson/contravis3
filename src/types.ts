@@ -100,24 +100,21 @@ export function splitWithLists(by: SplitBy['by'], listA: AtomicInstruction[], li
   return { by: 'position', ups: listA, downs: listB };
 }
 
-// Instruction is recursive (group contains Instruction[]), so we define the
-// type manually with the brand baked in and annotate the schema accordingly.
+// We define the type manually with the brand baked in and annotate the schema accordingly.
 export type Instruction = (
   | AtomicInstruction
   | { id: InstructionId; type: 'split' } & SplitBy
-  | { id: InstructionId; type: 'group'; label: string; instructions: Instruction[] }
 ) & z.BRAND<'Instruction'>;
 
 // The `as unknown as` double-cast bridges the gap between the unbranded
 // schema output and our branded Instruction type.  At runtime z.lazy
 // validates the full recursive structure; the cast only affects the
 // compile-time type so that parse() returns branded Instructions.
-export const InstructionSchema: z.ZodType<Instruction> = z.lazy(() => z.union([
+export const InstructionSchema: z.ZodType<Instruction> = z.union([
   AtomicInstructionSchema,
   z.object({ id: InstructionIdSchema, type: z.literal('split'), by: z.literal('role'), larks: z.array(AtomicInstructionSchema), robins: z.array(AtomicInstructionSchema) }),
   z.object({ id: InstructionIdSchema, type: z.literal('split'), by: z.literal('position'), ups: z.array(AtomicInstructionSchema), downs: z.array(AtomicInstructionSchema) }),
-  z.object({ id: InstructionIdSchema, type: z.literal('group'), label: z.string(), instructions: z.array(InstructionSchema) }),
-])) as unknown as z.ZodType<Instruction>;
+]) as unknown as z.ZodType<Instruction>;
 
 export function instructionDuration(instr: Instruction): number {
   if (instr.type === 'split') {
@@ -125,8 +122,6 @@ export function instructionDuration(instr: Instruction): number {
     return Math.max(listA.reduce((s, i) => s + i.beats, 0),
                     listB.reduce((s, i) => s + i.beats, 0));
   }
-  if (instr.type === 'group')
-    return instr.instructions.reduce((s, i) => s + instructionDuration(i), 0);
   return instr.beats;
 }
 
@@ -159,10 +154,7 @@ export function formatDanceParseError(error: z.ZodError, raw: unknown): string {
     if (typeof rawInstr !== 'object' || rawInstr === null) return 0;
     const obj = rawInstr as Record<string, unknown>;
     if (typeof obj.beats === 'number') return obj.beats;
-    // groups / splits: sum children
-    if (obj.type === 'group' && Array.isArray(obj.instructions)) {
-      return (obj.instructions as unknown[]).reduce((s: number, c) => s + instrBeats(c), 0);
-    }
+    // splits: sum children
     if (obj.type === 'split') {
       const listA = Array.isArray(obj.larks) ? obj.larks : Array.isArray(obj.ups) ? obj.ups : [];
       const listB = Array.isArray(obj.robins) ? obj.robins : Array.isArray(obj.downs) ? obj.downs : [];
