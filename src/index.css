@@ -588,6 +588,7 @@ input[type="range"] {
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column;
+    height: 100dvh; /* dynamic viewport height: accounts for mobile URL bar */
   }
 
   .vis-column {
