@@ -4,6 +4,7 @@ import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import { z } from 'zod';
 import type { SubFormProps } from '../../fieldUtils';
+import { DragHandle } from '../../DragHandle';
 
 const MAD_ROBIN_DIR_OPTIONS = ['larks_in_middle', 'robins_in_middle'];
 const MAD_ROBIN_DIR_LABELS: Record<string, string> = { larks_in_middle: 'larks in middle', robins_in_middle: 'robins in middle' };
@@ -29,6 +30,7 @@ export function MadRobinFields({ instruction, onChange, onInvalid }: SubFormProp
     <SearchableDropdown options={MAD_ROBIN_WITH_OPTIONS} value={withDir} onChange={v => { const w = z.enum(['larks_left', 'robins_left']).parse(v); setWithDir(w); tryCommit({ with: w }); }} getLabel={v => MAD_ROBIN_WITH_LABELS[v] ?? v} />
     {' '}
     <input type="text" inputMode="decimal" className="inline-number" value={rotations} onChange={e => { setRotations(e.target.value); tryCommit({ rotations: Number(e.target.value) }); }} />
+    <DragHandle value={Number(rotations) || 0} step={0.25} onDrag={n => { setRotations(String(n)); tryCommit({ rotations: n }); }} />
     {'x'}
   </>);
 }
