@@ -16,10 +16,10 @@ export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep 
   const inputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ x: number; value: number; moved: boolean } | null>(null);
 
-  function handleOpenChange(next: boolean) {
+  const handleOpenChange = useCallback((next: boolean) => {
     if (next) setEditValue(value);
     setOpen(next);
-  }
+  }, [value]);
 
   useEffect(() => {
     if (open) {
@@ -50,14 +50,13 @@ export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep 
     const wasDrag = dragRef.current?.moved ?? false;
     dragRef.current = null;
     if (!wasDrag) {
-      setEditValue(value);
-      setOpen(true);
+      handleOpenChange(true);
     }
-  }, [value]);
+  }, [handleOpenChange]);
 
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
-      <Popover.Trigger asChild>
+      <Popover.Anchor asChild>
         <span
           className="inline-value inline-value-number"
           onPointerDown={handlePointerDown}
@@ -68,7 +67,7 @@ export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep 
         >
           {value}{suffix ?? ''}
         </span>
-      </Popover.Trigger>
+      </Popover.Anchor>
       <Popover.Portal>
         <Popover.Content className="popover-content" sideOffset={4} align="start">
           <input

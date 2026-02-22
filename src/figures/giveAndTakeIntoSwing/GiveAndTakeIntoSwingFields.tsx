@@ -15,10 +15,10 @@ export function GiveAndTakeIntoSwingFields({ instruction, onChange, onInvalid }:
   }
 
   return (<>
-    <InlineDropdown options={ROLE_OPTIONS} value={instruction.role} onChange={v => tryCommit({ role: RoleSchema.parse(v) })} getLabel={v => v + 's give'} />
-    {' \u2192 '}
+    <InlineDropdown options={ROLE_OPTIONS} value={instruction.role} onChange={v => tryCommit({ role: RoleSchema.parse(v) })} getLabel={v => v + 's'} />
+    {' draw your '}
     <InlineDropdown options={RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={v => tryCommit({ relationship: RelationshipSchema.parse(v) })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
-    {' \u2192 '}
+    {' across and swing, end facing '}
     <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.endFacing)} onChange={v => { const f = parseDirection(v); if (f) tryCommit({ endFacing: f }); else onInvalid?.(); }} placeholder="e.g. across" />
   </>);
 }

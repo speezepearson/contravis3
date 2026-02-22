@@ -263,6 +263,32 @@ input[type="range"] {
   border-color: #a0c4ff;
 }
 
+/* Compound facing popover (step figure) */
+
+.popover-facing-compound {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.popover-facing-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.popover-facing-label {
+  font-size: 12px;
+  color: #999;
+  min-width: 42px;
+}
+
+.popover-facing-suffix {
+  font-size: 12px;
+  color: #999;
+}
+
 /* Inline instruction form — displays as a horizontal sentence */
 
 .inline-form {

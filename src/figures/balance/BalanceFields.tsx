@@ -18,6 +18,6 @@ export function BalanceFields({ instruction, onChange, onInvalid }: SubFormProps
   return (<>
     <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.direction)} onChange={v => { const dir = parseDirection(v); if (dir) tryCommit({ direction: dir }); else onInvalid?.(); }} placeholder="e.g. across" />
     {' '}
-    <InlineNumber value={String(instruction.distance)} onTextChange={v => tryCommit({ distance: Number(v) })} onDrag={n => tryCommit({ distance: n })} step={0.5} />
+    <InlineNumber value={String(instruction.distance)} onTextChange={v => tryCommit({ distance: Number(v) })} onDrag={n => tryCommit({ distance: n })} step={0.5} suffix="m" />
   </>);
 }
