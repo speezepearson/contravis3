@@ -332,7 +332,7 @@ export default function App() {
     ? Math.round((beat - minBeat) / (maxBeat - minBeat) * 1000)
     : 0;
 
-  const controlsBlock = (
+  const desktopControlsBlock = (
     <>
       <div className="controls">
         <button onClick={togglePlay}>
@@ -390,6 +390,13 @@ export default function App() {
     </>
   );
 
+  const commandPaneProps = {
+    instructions, setInstructions, initFormation, setInitFormation, progression,
+    setProgression: (p: number) => { progressionRef.current = p; setProgression(p); },
+    activeId: activeInstructionId(instructions, beat),
+    warnings, generateError, progressionWarning, onHoverInstruction: handleHoverInstruction,
+  };
+
   return (
     <div className="app-layout">
       {localStorageError && (
@@ -408,25 +415,55 @@ export default function App() {
       {/* Desktop sidebar */}
       <div className="sidebar-column">
         <div className="sidebar-instructions">
-          <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onHoverInstruction={handleHoverInstruction} />
+          <CommandPane {...commandPaneProps} />
         </div>
         <div className="sidebar-controls">
-          {controlsBlock}
+          {desktopControlsBlock}
         </div>
       </div>
 
-      {/* Mobile controls overlay */}
+      {/* Mobile: compact controls bar */}
       <div className="mobile-controls">
-        {controlsBlock}
-        <button className="drawer-toggle" onClick={() => setDrawerOpen(!drawerOpen)}>
-          {drawerOpen ? '\u25BC Hide Instructions' : '\u25B2 Show Instructions'}
+        <div className="controls">
+          <button onClick={togglePlay}>
+            {playing ? '\u23F8 Pause' : '\u25B6 Play'}
+          </button>
+          <button onClick={downloadGif} disabled={exporting || keyframes.length === 0} className="gif-btn">
+            {exporting ? 'Exporting\u2026' : 'GIF'}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1000}
+            value={scrubberValue}
+            onChange={e => scrub(Number(e.target.value))}
+          />
+          <div className="beat-display">Beat {beat.toFixed(1)}</div>
+        </div>
+        <div className="controls">
+          <span className="speed-display">{bpm} BPM</span>
+          <input
+            type="range"
+            min={60}
+            max={120}
+            value={bpm}
+            onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
+          />
+        </div>
+        <button className="drawer-toggle" onClick={() => setDrawerOpen(true)}>
+          {'\u25B2 Edit Instructions'}
         </button>
       </div>
 
-      {/* Mobile instruction drawer */}
-      <div className={`instruction-drawer ${drawerOpen ? 'open' : ''}`}>
-        <CommandPane instructions={instructions} setInstructions={setInstructions} initFormation={initFormation} setInitFormation={setInitFormation} progression={progression} setProgression={p => { progressionRef.current = p; setProgression(p); }} activeId={activeInstructionId(instructions, beat)} warnings={warnings} generateError={generateError} progressionWarning={progressionWarning} onHoverInstruction={handleHoverInstruction} />
-      </div>
+      {/* Mobile: full-screen instruction editor */}
+      {drawerOpen && (
+        <div className="instruction-drawer open">
+          <button className="drawer-toggle" onClick={() => setDrawerOpen(false)}>
+            {'\u25BC Back to Visualization'}
+          </button>
+          <CommandPane {...commandPaneProps} />
+        </div>
+      )}
     </div>
   );
 }
