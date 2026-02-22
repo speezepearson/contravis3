@@ -679,8 +679,14 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                 <SortableItem id={instr.id}>
                   {(dragHandleProps) => (
                     <>
-                      {renderInstruction(instr, dragHandleProps)}
-                      {instr.type === 'split' && renderSplitBody(instr)}
+                      {instr.type === 'split' ? (
+                        <div className={`split-wrapper${selectedIds.has(instr.id) ? ' selected' : ''}`}>
+                          {renderInstruction(instr, dragHandleProps)}
+                          {renderSplitBody(instr)}
+                        </div>
+                      ) : (
+                        renderInstruction(instr, dragHandleProps)
+                      )}
                     </>
                   )}
                 </SortableItem>
