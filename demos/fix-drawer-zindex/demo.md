@@ -1,46 +1,46 @@
-# Fix: Mobile instruction drawer no longer blocks Hide button
+# Mobile: two-mode layout (compact controls vs full-screen editor)
 
-*2026-02-22T20:00:19Z by Showboat 0.6.0*
-<!-- showboat-id: e4d8ea9e-268d-4770-a26e-80da253680b7 -->
+*2026-02-22T20:09:37Z by Showboat 0.6.0*
+<!-- showboat-id: f5b0a64c-4cf1-4925-9246-0ea05e5863ce -->
 
-On mobile, the instruction drawer (position: fixed, z-index: 10) was stacking on top of the mobile controls when opened, making the Hide Instructions toggle button unclickable. Fixed by giving .mobile-controls position: relative and z-index: 20 so it stays above the drawer.
+Replaced the old overlay drawer with two mutually exclusive mobile modes: a compact controls bar (play, scrubber, BPM, GIF export, Edit Instructions button) and a full-screen instruction editor. Step buttons and the lark/robin/up/down legend are removed from mobile.
 
-## Step 1: Mobile view — controls and Show Instructions button visible
+## Compact controls mode
 
 ```bash {image}
 demos/fix-drawer-zindex/screenshot-1.png
 ```
 
-![ff19d4b5-2026-02-22](ff19d4b5-2026-02-22.png)
+![e1d5da35-2026-02-22](e1d5da35-2026-02-22.png)
 
-## Step 2: Drawer open — instructions visible, Hide button still clickable
+## Full-screen instruction editor (after tapping Edit Instructions)
 
 ```bash {image}
 demos/fix-drawer-zindex/screenshot-2.png
 ```
 
-![0e377ecf-2026-02-22](0e377ecf-2026-02-22.png)
+![af554fbe-2026-02-22](af554fbe-2026-02-22.png)
 
-## Step 3: After clicking Hide — drawer closes successfully
+## Back to visualization (after tapping Back to Visualization)
 
 ```bash {image}
 demos/fix-drawer-zindex/screenshot-3.png
 ```
 
-![95f7f88d-2026-02-22](95f7f88d-2026-02-22.png)
+![85dfa3e2-2026-02-22](85dfa3e2-2026-02-22.png)
 
 ```bash
 npx vitest run 2>&1 | tail -8
 ```
 
 ```output
- [32m✓[39m src/figures/circle/circle.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m src/SearchableDropdown.test.tsx [2m([22m[2m24 tests[22m[2m)[22m[33m 903[2mms[22m[39m
+ [32m✓[39m src/figures/longWaves/longWaves.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/SearchableDropdown.test.tsx [2m([22m[2m24 tests[22m[2m)[22m[33m 978[2mms[22m[39m
 
 [2m Test Files [22m [1m[32m21 passed[39m[22m[90m (21)[39m
 [2m      Tests [22m [1m[32m189 passed[39m[22m[90m (189)[39m
-[2m   Start at [22m 20:01:19
-[2m   Duration [22m 7.07s[2m (transform 5.73s, setup 0ms, import 14.69s, tests 1.23s, environment 4.46s)[22m
+[2m   Start at [22m 20:10:19
+[2m   Duration [22m 8.72s[2m (transform 7.01s, setup 0ms, import 18.27s, tests 1.36s, environment 5.45s)[22m
 
 ```
 
