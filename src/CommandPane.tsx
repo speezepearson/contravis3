@@ -316,7 +316,6 @@ function doesRequireBeatsInput(type: AtomicInstruction['type']): boolean {
 function BeatGutter({ instruction, onChange }: { instruction: Instruction; onChange: (instr: Instruction) => void }) {
   const hasBeat = instruction.type !== 'split' && instruction.type !== 'group' && doesRequireBeatsInput(instruction.type);
   const currentBeats = hasBeat ? (instruction as AtomicInstruction).beats : 0;
-  const [beatsStr, setBeatsStr] = useState(String(currentBeats));
 
   if (!hasBeat) return <span className="beat-gutter" />;
 
@@ -329,16 +328,12 @@ function BeatGutter({ instruction, onChange }: { instruction: Instruction; onCha
   return (
     <span className="beat-gutter">
       <InlineNumber
-        value={beatsStr}
+        value={String(currentBeats)}
         onTextChange={v => {
-          setBeatsStr(v);
           const n = Number(v);
           if (!isNaN(n)) commitBeats(n);
         }}
-        onDrag={n => {
-          setBeatsStr(String(n));
-          commitBeats(n);
-        }}
+        onDrag={n => commitBeats(n)}
         step={0.5}
         suffix=" beats"
       />

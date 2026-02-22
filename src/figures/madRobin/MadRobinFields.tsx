@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import { z } from 'zod';
@@ -13,22 +12,19 @@ const MAD_ROBIN_WITH_LABELS: Record<string, string> = { larks_left: "larks' left
 
 export function MadRobinFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'mad_robin' }> }) {
   const { id } = instruction;
-  const [dir, setDir] = useState<'larks_in_middle' | 'robins_in_middle'>(instruction.dir);
-  const [withDir, setWithDir] = useState<'larks_left' | 'robins_left'>(instruction.with);
-  const [rotations, setRotations] = useState(String(instruction.rotations));
 
   function tryCommit(overrides: Record<string, unknown>) {
-    const raw = { id, type: 'mad_robin', beats: instruction.beats, dir, with: withDir, rotations: Number(rotations), ...overrides };
+    const raw = { id, type: 'mad_robin', beats: instruction.beats, dir: instruction.dir, with: instruction.with, rotations: instruction.rotations, ...overrides };
     const result = InstructionSchema.safeParse(raw);
     if (result.success) onChange(result.data);
     else onInvalid?.();
   }
 
   return (<>
-    <InlineDropdown options={MAD_ROBIN_DIR_OPTIONS} value={dir} onChange={v => { const d = z.enum(['larks_in_middle', 'robins_in_middle']).parse(v); setDir(d); tryCommit({ dir: d }); }} getLabel={v => MAD_ROBIN_DIR_LABELS[v] ?? v} />
+    <InlineDropdown options={MAD_ROBIN_DIR_OPTIONS} value={instruction.dir} onChange={v => tryCommit({ dir: z.enum(['larks_in_middle', 'robins_in_middle']).parse(v) })} getLabel={v => MAD_ROBIN_DIR_LABELS[v] ?? v} />
     {' '}
-    <InlineDropdown options={MAD_ROBIN_WITH_OPTIONS} value={withDir} onChange={v => { const w = z.enum(['larks_left', 'robins_left']).parse(v); setWithDir(w); tryCommit({ with: w }); }} getLabel={v => MAD_ROBIN_WITH_LABELS[v] ?? v} />
+    <InlineDropdown options={MAD_ROBIN_WITH_OPTIONS} value={instruction.with} onChange={v => tryCommit({ with: z.enum(['larks_left', 'robins_left']).parse(v) })} getLabel={v => MAD_ROBIN_WITH_LABELS[v] ?? v} />
     {' '}
-    <InlineNumber value={rotations} onTextChange={v => { setRotations(v); tryCommit({ rotations: Number(v) }); }} onDrag={n => { setRotations(String(n)); tryCommit({ rotations: n }); }} step={0.25} suffix="x" />
+    <InlineNumber value={String(instruction.rotations)} onTextChange={v => tryCommit({ rotations: Number(v) })} onDrag={n => tryCommit({ rotations: n })} step={0.25} suffix="x" />
   </>);
 }

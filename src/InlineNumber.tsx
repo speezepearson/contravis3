@@ -12,8 +12,14 @@ interface Props {
 
 export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep = 50, suffix }: Props) {
   const [open, setOpen] = useState(false);
+  const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ x: number; value: number; moved: boolean } | null>(null);
+
+  function handleOpenChange(next: boolean) {
+    if (next) setEditValue(value);
+    setOpen(next);
+  }
 
   useEffect(() => {
     if (open) {
@@ -44,12 +50,13 @@ export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep 
     const wasDrag = dragRef.current?.moved ?? false;
     dragRef.current = null;
     if (!wasDrag) {
+      setEditValue(value);
       setOpen(true);
     }
-  }, []);
+  }, [value]);
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
         <span
           className="inline-value inline-value-number"
@@ -69,8 +76,8 @@ export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep 
             type="text"
             inputMode="decimal"
             className="popover-number-input"
-            value={value}
-            onChange={e => onTextChange(e.target.value)}
+            value={editValue}
+            onChange={e => { setEditValue(e.target.value); onTextChange(e.target.value); }}
             onKeyDown={e => { if (e.key === 'Enter') setOpen(false); }}
           />
         </Popover.Content>

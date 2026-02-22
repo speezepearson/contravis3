@@ -1,16 +1,14 @@
-import { useState } from 'react';
 import { InstructionSchema, RelationshipSchema } from '../../types';
-import type { Relationship, AtomicInstruction } from '../../types';
+import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../../fieldUtils';
 import { InlineDropdown } from '../../InlineDropdown';
 
 export function BoxTheGnatFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'box_the_gnat' }> }) {
   const { id } = instruction;
-  const [relationship, setRelationship] = useState<Relationship>(instruction.relationship);
 
   function tryCommit(overrides: Record<string, unknown>) {
-    const raw = { id, type: 'box_the_gnat', beats: instruction.beats, relationship, ...overrides };
+    const raw = { id, type: 'box_the_gnat', beats: instruction.beats, relationship: instruction.relationship, ...overrides };
     const result = InstructionSchema.safeParse(raw);
     if (result.success) onChange(result.data);
     else onInvalid?.();
@@ -18,6 +16,6 @@ export function BoxTheGnatFields({ instruction, onChange, onInvalid }: SubFormPr
 
   return (<>
     {'with your '}
-    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={v => tryCommit({ relationship: RelationshipSchema.parse(v) })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
   </>);
 }

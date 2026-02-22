@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { InstructionSchema, HandSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
@@ -8,19 +7,17 @@ import { InlineNumber } from '../../InlineNumber';
 
 export function CircleFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'circle' }> }) {
   const { id } = instruction;
-  const [direction, setDirection] = useState<'left' | 'right'>(instruction.direction);
-  const [rotations, setRotations] = useState(String(instruction.rotations));
 
   function tryCommit(overrides: Record<string, unknown>) {
-    const raw = { id, type: 'circle', beats: instruction.beats, direction, rotations: Number(rotations), ...overrides };
+    const raw = { id, type: 'circle', beats: instruction.beats, direction: instruction.direction, rotations: instruction.rotations, ...overrides };
     const result = InstructionSchema.safeParse(raw);
     if (result.success) onChange(result.data);
     else onInvalid?.();
   }
 
   return (<>
-    <InlineDropdown options={CIRCLE_DIR_OPTIONS} value={direction} onChange={v => { const d = HandSchema.parse(v); setDirection(d); tryCommit({ direction: d }); }} getLabel={v => v} />
+    <InlineDropdown options={CIRCLE_DIR_OPTIONS} value={instruction.direction} onChange={v => tryCommit({ direction: HandSchema.parse(v) })} getLabel={v => v} />
     {' '}
-    <InlineNumber value={rotations} onTextChange={v => { setRotations(v); tryCommit({ rotations: Number(v) }); }} onDrag={n => { setRotations(String(n)); tryCommit({ rotations: n }); }} step={0.25} suffix="x" />
+    <InlineNumber value={String(instruction.rotations)} onTextChange={v => tryCommit({ rotations: Number(v) })} onDrag={n => tryCommit({ rotations: n })} step={0.25} suffix="x" />
   </>);
 }

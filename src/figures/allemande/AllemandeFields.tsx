@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { InstructionSchema, RelationshipSchema, HandSchema } from '../../types';
-import type { Relationship, AtomicInstruction } from '../../types';
+import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS, HAND_OPTIONS } from '../../fieldUtils';
 import { InlineDropdown } from '../../InlineDropdown';
@@ -8,22 +7,19 @@ import { InlineNumber } from '../../InlineNumber';
 
 export function AllemandeFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'allemande' }> }) {
   const { id } = instruction;
-  const [relationship, setRelationship] = useState<Relationship>(instruction.relationship);
-  const [handedness, setHandedness] = useState<'left' | 'right'>(instruction.handedness);
-  const [rotations, setRotations] = useState(String(instruction.rotations));
 
   function tryCommit(overrides: Record<string, unknown>) {
-    const raw = { id, type: 'allemande', beats: instruction.beats, relationship, handedness, rotations: Number(rotations), ...overrides };
+    const raw = { id, type: 'allemande', beats: instruction.beats, relationship: instruction.relationship, handedness: instruction.handedness, rotations: instruction.rotations, ...overrides };
     const result = InstructionSchema.safeParse(raw);
     if (result.success) onChange(result.data);
     else onInvalid?.();
   }
 
   return (<>
-    <InlineDropdown options={HAND_OPTIONS} value={handedness} onChange={v => { const h = HandSchema.parse(v); setHandedness(h); tryCommit({ handedness: h }); }} getLabel={v => v} />
+    <InlineDropdown options={HAND_OPTIONS} value={instruction.handedness} onChange={v => tryCommit({ handedness: HandSchema.parse(v) })} getLabel={v => v} />
     {' '}
-    <InlineNumber value={rotations} onTextChange={v => { setRotations(v); tryCommit({ rotations: Number(v) }); }} onDrag={n => { setRotations(String(n)); tryCommit({ rotations: n }); }} step={0.25} suffix="x" />
+    <InlineNumber value={String(instruction.rotations)} onTextChange={v => tryCommit({ rotations: Number(v) })} onDrag={n => tryCommit({ rotations: n })} step={0.25} suffix="x" />
     {' with your '}
-    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={v => tryCommit({ relationship: RelationshipSchema.parse(v) })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
   </>);
 }
