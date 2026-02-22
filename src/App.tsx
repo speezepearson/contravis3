@@ -29,10 +29,6 @@ function loadDanceFromLocalStorage(): { dance: Dance } | { error: string } | nul
 function findInstructionById(instrs: Instruction[], id: InstructionId): Instruction | null {
   for (const i of instrs) {
     if (i.id === id) return i;
-    if (i.type === 'group') {
-      const found = findInstructionById(i.instructions, id);
-      if (found) return found;
-    }
     if (i.type === 'split') {
       const [listA, listB] = splitLists(i);
       for (const s of [...listA, ...listB]) {
@@ -48,10 +44,7 @@ function activeInstructionId(instructions: Instruction[], beat: number): Instruc
   let activeId: InstructionId | null = null;
   for (const instr of instructions) {
     if (currentBeat > beat + 1e-9) break;
-    if (instr.type === 'group') {
-      const childId = activeInstructionId(instr.instructions, beat - currentBeat);
-      if (childId !== null) activeId = childId;
-    } else if (instr.type === 'split') {
+    if (instr.type === 'split') {
       const rel = beat - currentBeat;
       const [listA, listB] = splitLists(instr);
       let b = 0;

@@ -173,16 +173,13 @@ describe('generateAllKeyframes with initFormation', () => {
   });
 
   describe('partial keyframe preservation on error', () => {
-    it('preserves keyframes from earlier instructions in a group when a later child fails', () => {
-      // A group with a successful step followed by a failing take_hands (inside hand with neighbor
+    it('preserves keyframes from earlier instructions when a later instruction fails', () => {
+      // A successful step followed by a failing take_hands (inside hand with neighbor
       // in improper formation -> error because neighbor is directly in front).
-      const instructions = instr([{
-        id: tid(1), type: 'group', label: 'test group',
-        instructions: [
-          { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
-          { id: tid(11), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
-        ],
-      }]);
+      const instructions = instr([
+        { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
+        { id: tid(11), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+      ]);
       const { keyframes, error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
       expect(error!.instructionId).toBe(tid(11));

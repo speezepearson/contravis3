@@ -13,7 +13,7 @@ export interface SubFormProps {
 
 /** Create a default instruction for a given type. Used when adding new instructions
  *  or when the user changes the action type dropdown. */
-export function makeDefaultInstruction(type: ActionType | 'split' | 'group', id: InstructionId): Instruction {
+export function makeDefaultInstruction(type: ActionType | 'split', id: InstructionId): Instruction {
   switch (type) {
     case 'step':
       return InstructionSchema.parse({ id, type: 'step', beats: 0, direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 });
@@ -47,8 +47,6 @@ export function makeDefaultInstruction(type: ActionType | 'split' | 'group', id:
       return InstructionSchema.parse({ id, type: 'long_lines', beats: 8 });
     case 'split':
       return InstructionSchema.parse({ id, type: 'split', by: 'role', larks: [], robins: [] });
-    case 'group':
-      return InstructionSchema.parse({ id, type: 'group', label: 'Untitled', instructions: [] });
     default:
       return assertNever(type);
   }
