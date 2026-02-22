@@ -402,6 +402,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
   const [selectedIds, setSelectedIds] = useState<Set<InstructionId>>(new Set());
   const [activeDragId, setActiveDragId] = useState<InstructionId | null>(null);
   const lastClickedIdRef = useRef<InstructionId | null>(null);
+  const lastClickWasSelectRef = useRef(true);
 
   // Clear selection when instructions change externally (e.g. load dance)
   const prevInstructionsRef = useRef(instructions);
@@ -425,20 +426,28 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (event.shiftKey && lastClickedIdRef.current) {
-        // Range select: find indices in flat list
+        // Range select/deselect: mirror the action of the last non-shift click
         const lastIdx = allFlatIds.indexOf(lastClickedIdRef.current);
         const curIdx = allFlatIds.indexOf(id);
         if (lastIdx !== -1 && curIdx !== -1) {
           const lo = Math.min(lastIdx, curIdx);
           const hi = Math.max(lastIdx, curIdx);
           for (let i = lo; i <= hi; i++) {
-            next.add(allFlatIds[i]);
+            if (lastClickWasSelectRef.current) {
+              next.add(allFlatIds[i]);
+            } else {
+              next.delete(allFlatIds[i]);
+            }
           }
         } else {
-          if (next.has(id)) next.delete(id); else next.add(id);
+          const selecting = !next.has(id);
+          if (selecting) next.add(id); else next.delete(id);
+          lastClickWasSelectRef.current = selecting;
         }
       } else {
-        if (next.has(id)) next.delete(id); else next.add(id);
+        const selecting = !next.has(id);
+        if (selecting) next.add(id); else next.delete(id);
+        lastClickWasSelectRef.current = selecting;
       }
       return next;
     });
