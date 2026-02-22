@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import SearchableDropdown from '../../SearchableDropdown';
 import { InstructionSchema, RelationshipSchema } from '../../types';
 import type { Relationship, AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../../fieldUtils';
-import { DragHandle } from '../../DragHandle';
+import { InlineDropdown } from '../../InlineDropdown';
+import { InlineNumber } from '../../InlineNumber';
 
 export function DoSiDoFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'do_si_do' }> }) {
   const { id } = instruction;
@@ -19,9 +19,8 @@ export function DoSiDoFields({ instruction, onChange, onInvalid }: SubFormProps 
   }
 
   return (<>
-    <input type="text" inputMode="decimal" className="inline-number" value={rotations} onChange={e => { setRotations(e.target.value); tryCommit({ rotations: Number(e.target.value) }); }} />
-    <DragHandle value={Number(rotations) || 0} step={0.25} onDrag={n => { setRotations(String(n)); tryCommit({ rotations: n }); }} />
-    {'x with your '}
-    <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineNumber value={rotations} onTextChange={v => { setRotations(v); tryCommit({ rotations: Number(v) }); }} onDrag={n => { setRotations(String(n)); tryCommit({ rotations: n }); }} step={0.25} suffix="x" />
+    {' with your '}
+    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
   </>);
 }

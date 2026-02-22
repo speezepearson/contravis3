@@ -3,15 +3,15 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDro
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import SearchableDropdown from './SearchableDropdown';
-import type { SearchableDropdownHandle } from './SearchableDropdown';
 import { InstructionSchema, DanceSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, ActionTypeSchema, splitLists, splitWithLists, formatDanceParseError } from './types';
 import type { Instruction, AtomicInstruction, SplitBy, ActionType, InitFormation, InstructionId, Dance } from './types';
 import type { GenerateError } from './generate';
 import { z } from 'zod';
 import { assertNever } from './utils';
 import { makeDefaultInstruction, makeInstructionId } from './fieldUtils';
-import { DragHandle } from './DragHandle';
+import { InlineDropdown } from './InlineDropdown';
+import type { InlineDropdownHandle } from './InlineDropdown';
+import { InlineNumber } from './InlineNumber';
 
 import { TakeHandsFields } from './figures/takeHands/TakeHandsFields';
 import { DropHandsFields } from './figures/dropHands/DropHandsFields';
@@ -320,30 +320,28 @@ function BeatGutter({ instruction, onChange }: { instruction: Instruction; onCha
 
   if (!hasBeat) return <span className="beat-gutter" />;
 
+  function commitBeats(n: number) {
+    const raw = { ...instruction, beats: n };
+    const result = InstructionSchema.safeParse(raw);
+    if (result.success) onChange(result.data);
+  }
+
   return (
     <span className="beat-gutter">
-      <input
-        type="text"
-        inputMode="decimal"
-        className="inline-number"
+      <InlineNumber
         value={beatsStr}
-        onChange={e => {
-          setBeatsStr(e.target.value);
-          const n = Number(e.target.value);
-          if (!isNaN(n)) {
-            const raw = { ...instruction, beats: n };
-            const result = InstructionSchema.safeParse(raw);
-            if (result.success) onChange(result.data);
-          }
+        onTextChange={v => {
+          setBeatsStr(v);
+          const n = Number(v);
+          if (!isNaN(n)) commitBeats(n);
         }}
+        onDrag={n => {
+          setBeatsStr(String(n));
+          commitBeats(n);
+        }}
+        step={0.5}
+        suffix=" beats"
       />
-      <DragHandle value={Number(beatsStr) || 0} step={0.5} onDrag={n => {
-        setBeatsStr(String(n));
-        const raw = { ...instruction, beats: n };
-        const result = InstructionSchema.safeParse(raw);
-        if (result.success) onChange(result.data);
-      }} />
-      <span className="beat-label">beats</span>
     </span>
   );
 }
@@ -356,7 +354,7 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
   autoFocusAction?: boolean;
   allowContainers?: boolean;
 }) {
-  const actionRef = useRef<SearchableDropdownHandle>(null);
+  const actionRef = useRef<InlineDropdownHandle>(null);
   const [valid, setValid] = useState(true);
 
   useEffect(() => {
@@ -388,7 +386,7 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
 
   return (
     <span className={`inline-form${valid ? '' : ' invalid'}`}>
-      <SearchableDropdown
+      <InlineDropdown
         ref={actionRef}
         options={actionOptions}
         value={instruction.type}
@@ -596,15 +594,19 @@ export default function CommandPane({ instructions, setInstructions, initFormati
       )}
       <div className="formation-selector">
         <label>Formation: </label>
-        <SearchableDropdown
+        <InlineDropdown
           options={InitFormationSchema.options}
           value={initFormation}
           onChange={v => setInitFormation(InitFormationSchema.parse(v))}
           getLabel={v => v.charAt(0).toUpperCase() + v.slice(1)}
         />
         <label> Progression: </label>
-        <input type="text" inputMode="numeric" value={String(progression)} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setProgression(v); }} style={{ width: '3em' }} />
-        <DragHandle value={progression} step={1} onDrag={n => setProgression(n)} />
+        <InlineNumber
+          value={String(progression)}
+          onTextChange={v => { const n = parseInt(v); if (!isNaN(n)) setProgression(n); }}
+          onDrag={n => setProgression(n)}
+          step={1}
+        />
       </div>
 
       <h2>Instructions</h2>
@@ -667,7 +669,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
               <SortableItem id={child.id}>
                 {(dragHandleProps) => (
                   <>
-                    {renderInstruction(child, dragHandleProps, { extraClass: 'group-child-item' })}
+                    {renderInstruction(child, dragHandleProps)}
                     {child.type === 'split' && renderSplitBody(child)}
                     {child.type === 'group' && renderGroupBody(child)}
                   </>
@@ -697,7 +699,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
                 {subList.map(sub => (
                   <SortableItem key={sub.id} id={sub.id}>
                     {(dragHandleProps) =>
-                      renderInstruction(InstructionSchema.parse(sub), dragHandleProps, { extraClass: 'split-sub-item', inSplit: true })
+                      renderInstruction(InstructionSchema.parse(sub), dragHandleProps, { inSplit: true })
                     }
                   </SortableItem>
                 ))}

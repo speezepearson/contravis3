@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import SearchableDropdown from '../../SearchableDropdown';
 import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { parseDirection, directionToText, DIR_OPTIONS } from '../../fieldUtils';
-import { DragHandle } from '../../DragHandle';
+import { InlineDropdown } from '../../InlineDropdown';
+import { InlineNumber } from '../../InlineNumber';
 
 export function BalanceFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'balance' }> }) {
   const { id } = instruction;
@@ -20,9 +20,8 @@ export function BalanceFields({ instruction, onChange, onInvalid }: SubFormProps
   }
 
   return (<>
-    <SearchableDropdown options={DIR_OPTIONS} value={dirText} onChange={v => { setDirText(v); const dir = parseDirection(v); if (dir) tryCommit({ direction: dir }); else onInvalid?.(); }} placeholder="e.g. across" />
+    <InlineDropdown options={DIR_OPTIONS} value={dirText} onChange={v => { setDirText(v); const dir = parseDirection(v); if (dir) tryCommit({ direction: dir }); else onInvalid?.(); }} placeholder="e.g. across" />
     {' '}
-    <input type="text" inputMode="decimal" className="inline-number" value={distance} onChange={e => { setDistance(e.target.value); tryCommit({ distance: Number(e.target.value) }); }} />
-    <DragHandle value={Number(distance) || 0} step={0.5} onDrag={n => { setDistance(String(n)); tryCommit({ distance: n }); }} />
+    <InlineNumber value={distance} onTextChange={v => { setDistance(v); tryCommit({ distance: Number(v) }); }} onDrag={n => { setDistance(String(n)); tryCommit({ distance: n }); }} step={0.5} />
   </>);
 }

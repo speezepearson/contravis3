@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import SearchableDropdown from '../../SearchableDropdown';
 import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { parseDirection, directionToText, DIR_OPTIONS } from '../../fieldUtils';
-import { DragHandle } from '../../DragHandle';
+import { InlineDropdown } from '../../InlineDropdown';
+import { InlineNumber } from '../../InlineNumber';
 
 export function StepFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'step' }> }) {
   const { id } = instruction;
@@ -25,15 +25,12 @@ export function StepFields({ instruction, onChange, onInvalid }: SubFormProps & 
   }
 
   return (<>
-    <SearchableDropdown options={DIR_OPTIONS} value={dirText} onChange={v => { setDirText(v); const dir = parseDirection(v); if (dir) tryCommit({ direction: dir }); else onInvalid?.(); }} placeholder="e.g. across" />
+    <InlineDropdown options={DIR_OPTIONS} value={dirText} onChange={v => { setDirText(v); const dir = parseDirection(v); if (dir) tryCommit({ direction: dir }); else onInvalid?.(); }} placeholder="e.g. across" />
     {' '}
-    <input type="text" inputMode="decimal" className="inline-number" value={distance} onChange={e => { setDistance(e.target.value); tryCommit({ distance: Number(e.target.value) }); }} />
-    <DragHandle value={Number(distance) || 0} step={0.5} onDrag={n => { setDistance(String(n)); tryCommit({ distance: n }); }} />
+    <InlineNumber value={distance} onTextChange={v => { setDistance(v); tryCommit({ distance: Number(v) }); }} onDrag={n => { setDistance(String(n)); tryCommit({ distance: n }); }} step={0.5} />
     {' facing '}
-    <SearchableDropdown options={DIR_OPTIONS} value={facingText} onChange={v => { setFacingText(v); const f = parseDirection(v); if (f) tryCommit({ facing: f }); else onInvalid?.(); }} placeholder="e.g. forward" />
+    <InlineDropdown options={DIR_OPTIONS} value={facingText} onChange={v => { setFacingText(v); const f = parseDirection(v); if (f) tryCommit({ facing: f }); else onInvalid?.(); }} placeholder="e.g. forward" />
     {'+'}
-    <input type="text" inputMode="decimal" className="inline-number" value={facingOffsetRot} onChange={e => { setFacingOffsetRot(e.target.value); tryCommit({ facingOffset: (Number(e.target.value) || 0) * 2 * Math.PI }); }} />
-    <DragHandle value={Number(facingOffsetRot) || 0} step={0.25} onDrag={n => { setFacingOffsetRot(String(n)); tryCommit({ facingOffset: n * 2 * Math.PI }); }} />
-    {'rot'}
+    <InlineNumber value={facingOffsetRot} onTextChange={v => { setFacingOffsetRot(v); tryCommit({ facingOffset: (Number(v) || 0) * 2 * Math.PI }); }} onDrag={n => { setFacingOffsetRot(String(n)); tryCommit({ facingOffset: n * 2 * Math.PI }); }} step={0.25} suffix="rot" />
   </>);
 }

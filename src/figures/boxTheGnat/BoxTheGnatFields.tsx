@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import SearchableDropdown from '../../SearchableDropdown';
 import { InstructionSchema, RelationshipSchema } from '../../types';
 import type { Relationship, AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../../fieldUtils';
+import { InlineDropdown } from '../../InlineDropdown';
 
 export function BoxTheGnatFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'box_the_gnat' }> }) {
   const { id } = instruction;
@@ -18,6 +18,6 @@ export function BoxTheGnatFields({ instruction, onChange, onInvalid }: SubFormPr
 
   return (<>
     {'with your '}
-    <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
   </>);
 }

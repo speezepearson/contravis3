@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import SearchableDropdown from '../../SearchableDropdown';
 import { InstructionSchema, RelationshipSchema, HandSchema } from '../../types';
 import type { Relationship, AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS, HAND_OPTIONS } from '../../fieldUtils';
+import { InlineDropdown } from '../../InlineDropdown';
 
 export function PullByFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'pull_by' }> }) {
   const { id } = instruction;
@@ -18,8 +18,8 @@ export function PullByFields({ instruction, onChange, onInvalid }: SubFormProps 
   }
 
   return (<>
-    <SearchableDropdown options={HAND_OPTIONS} value={hand} onChange={v => { const h = HandSchema.parse(v); setHand(h); tryCommit({ hand: h }); }} getLabel={v => v} />
+    <InlineDropdown options={HAND_OPTIONS} value={hand} onChange={v => { const h = HandSchema.parse(v); setHand(h); tryCommit({ hand: h }); }} getLabel={v => v} />
     {' with your '}
-    <SearchableDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={relationship} onChange={v => { const r = RelationshipSchema.parse(v); setRelationship(r); tryCommit({ relationship: r }); }} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
   </>);
 }

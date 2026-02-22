@@ -166,6 +166,103 @@ input[type="range"] {
   margin-bottom: 12px;
 }
 
+/* --- Inline values: bold colored text that opens popovers --- */
+
+.inline-value {
+  display: inline;
+  font-weight: 600;
+  color: #a0c4ff;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0 2px;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+
+.inline-value:hover {
+  background: rgba(160, 196, 255, 0.12);
+}
+
+.inline-value:focus-visible {
+  outline: 2px solid #a0c4ff;
+  outline-offset: 1px;
+}
+
+.inline-value-placeholder {
+  color: #666;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.inline-value-number {
+  cursor: ew-resize;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Popover content --- */
+
+.popover-content {
+  background: #2a2a4a;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  min-width: 140px;
+  animation: popover-in 0.12s ease-out;
+}
+
+@keyframes popover-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.popover-content .searchable-dropdown {
+  width: 100%;
+}
+
+.popover-content .searchable-dropdown input {
+  width: 100%;
+  background: #1e1e3a;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.popover-content .searchable-dropdown input:focus {
+  outline: none;
+  border-color: #a0c4ff;
+}
+
+.popover-number-input,
+.popover-text-input {
+  background: #1e1e3a;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  width: 100%;
+}
+
+.popover-number-input {
+  width: 6em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.popover-text-input {
+  width: 14em;
+}
+
+.popover-number-input:focus,
+.popover-text-input:focus {
+  outline: none;
+  border-color: #a0c4ff;
+}
+
 /* Inline instruction form — displays as a horizontal sentence */
 
 .inline-form {
@@ -174,7 +271,7 @@ input[type="range"] {
   flex-wrap: wrap;
   gap: 2px;
   font-size: 0.82em;
-  color: #ccc;
+  color: #999;
   flex: 1;
   margin: 0 6px;
 }
@@ -183,72 +280,6 @@ input[type="range"] {
   outline: 2px solid #ff3333;
   outline-offset: 2px;
   border-radius: 3px;
-}
-
-.inline-form .searchable-dropdown {
-  display: inline-block;
-  width: auto;
-}
-
-.inline-form .searchable-dropdown input {
-  width: auto;
-  min-width: 40px;
-  font-size: inherit;
-  padding: 1px 4px;
-}
-
-.inline-form input.inline-number {
-  background: #2a2a4a;
-  color: #e0e0e0;
-  border: 1px solid #444;
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-size: inherit;
-  width: 3.5em;
-  text-align: center;
-}
-
-/* Draggable number handle — sits after number inputs */
-
-.number-drag-handle {
-  display: inline-block;
-  width: 8px;
-  height: 12px;
-  cursor: ew-resize;
-  vertical-align: middle;
-  position: relative;
-  opacity: 0.3;
-  margin-left: 1px;
-  margin-right: 1px;
-  transition: opacity 0.15s;
-}
-
-.number-drag-handle:hover {
-  opacity: 0.8;
-}
-
-.number-drag-handle::after {
-  content: '';
-  position: absolute;
-  top: 1px;
-  left: 2px;
-  width: 4px;
-  height: 10px;
-  background: repeating-linear-gradient(
-    90deg,
-    #888 0px, #888 1px,
-    transparent 1px, transparent 3px
-  );
-}
-
-.inline-form input.inline-text {
-  background: #2a2a4a;
-  color: #e0e0e0;
-  border: 1px solid #444;
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-size: inherit;
-  width: 10em;
 }
 
 .instruction-list {
@@ -286,21 +317,6 @@ input[type="range"] {
   gap: 2px;
   font-size: 0.82em;
   color: #888;
-}
-
-.beat-gutter .inline-number {
-  background: #2a2a4a;
-  color: #e0e0e0;
-  border: 1px solid #444;
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-size: inherit;
-  width: 2.5em;
-  text-align: center;
-}
-
-.beat-label {
-  font-size: 0.9em;
 }
 
 /* Delete button + drag handle on the far right */
@@ -389,11 +405,13 @@ input[type="range"] {
   color: #aaa;
 }
 
-/* Split nesting */
+/* Split nesting — border-left indicator, no indentation */
 
 .split-body {
-  margin-left: 12px;
-  padding-left: 8px;
+  position: relative;
+  border-left: 2px solid rgba(160, 196, 255, 0.25);
+  margin-left: -2px;
+  padding-left: 0;
   margin-top: 4px;
   margin-bottom: 4px;
 }
@@ -409,21 +427,15 @@ input[type="range"] {
   font-weight: 600;
 }
 
-.split-sub-item {
-  margin-left: 4px;
-}
-
-/* Group nesting */
+/* Group nesting — border-left indicator, no indentation */
 
 .group-body {
-  margin-left: 12px;
-  padding-left: 8px;
+  position: relative;
+  border-left: 2px solid rgba(160, 196, 255, 0.25);
+  margin-left: -2px;
+  padding-left: 0;
   margin-top: 4px;
   margin-bottom: 4px;
-}
-
-.group-child-item {
-  margin-left: 4px;
 }
 
 /* Drop zones for cross-container drag */
