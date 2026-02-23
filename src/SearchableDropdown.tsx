@@ -11,9 +11,10 @@ interface Props {
   onChange: (value: string) => void;
   placeholder?: string;
   getLabel?: (value: string) => string;
+  onHighlight?: (value: string | null) => void;
 }
 
-const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function SearchableDropdown({ options, value, onChange, placeholder, getLabel }, ref) {
+const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function SearchableDropdown({ options, value, onChange, placeholder, getLabel, onHighlight }, ref) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [searchText, setSearchText] = useState('');
@@ -75,6 +76,7 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
     if (e.relatedTarget instanceof Node && containerRef.current?.contains(e.relatedTarget)) return;
     setOpen(false);
     setHighlightIndex(-1);
+    onHighlight?.(null);
     if (getLabel) {
       setSearchText('');
     } else {
@@ -91,11 +93,15 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (filtered.length === 0) return;
-      setHighlightIndex(prev => (prev + 1) % filtered.length);
+      const newIdx = (highlightIndex + 1) % filtered.length;
+      setHighlightIndex(newIdx);
+      onHighlight?.(filtered[newIdx]);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (filtered.length === 0) return;
-      setHighlightIndex(prev => (prev - 1 + filtered.length) % filtered.length);
+      const newIdx = (highlightIndex - 1 + filtered.length) % filtered.length;
+      setHighlightIndex(newIdx);
+      onHighlight?.(filtered[newIdx]);
     } else if (e.key === 'Enter' || e.key === 'Tab') {
       if (highlightIndex >= 0 && highlightIndex < filtered.length) {
         e.preventDefault();
@@ -103,10 +109,12 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
       }
       setOpen(false);
       setHighlightIndex(-1);
+      onHighlight?.(null);
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setOpen(false);
       setHighlightIndex(-1);
+      onHighlight?.(null);
       if (getLabel) setSearchText('');
     }
   }
@@ -115,6 +123,7 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
     onChange(opt);
     setOpen(false);
     setHighlightIndex(-1);
+    onHighlight?.(null);
     if (getLabel) setSearchText('');
   }
 
@@ -154,6 +163,7 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
               role="option"
               aria-selected={i === highlightIndex}
               className={i === highlightIndex ? 'highlighted' : ''}
+              onMouseEnter={() => onHighlight?.(opt)}
               onMouseDown={e => {
                 e.preventDefault(); // prevent blur
                 selectOption(opt);
