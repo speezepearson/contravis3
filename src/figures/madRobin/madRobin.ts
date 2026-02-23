@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, Relationship } from '../../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { type Vector, parseDancerId, dancerPosition, EAST, WEST, makeFinalKeyframe } from '../../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../../generateUtils';
 
@@ -14,14 +14,13 @@ function setup(
   instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
   scope: Set<ProtoDancerId>,
 ) {
-  const relationship: Relationship = { base: 'neighbor', offset: 0 };
-  const pairs = resolvePairs(relationship, prev.dancers, scope, {});
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
 
   const cw =
     (instr.dir === "larks_in_middle") === (instr.with === "robins_left");
   const totalAngleRad = instr.rotations * 2 * Math.PI * (cw ? 1 : -1);
 
-  // Assert same side of set and build orbit data
+  // Assert pairs are close enough to orbit together
   const checked = new Set<ProtoDancerId>();
   const orbitData: OrbitDatum[] = [];
 
@@ -32,9 +31,10 @@ function setup(
       checked.add(targetProto);
       const da = prev.dancers[id];
       const db = dancerPosition(targetDancerId, prev.dancers);
-      if (da.pos.x * db.pos.x < -1e-6) {
+      const dist = da.pos.subtract(db.pos).length();
+      if (dist > 1.8) {
         throw new Error(
-          `mad robin: ${id} and ${targetProto} are not on the same side of the set`,
+          `mad robin: ${id} and ${targetProto} are ${dist.toFixed(2)}m apart (max 1.8m)`,
         );
       }
     }

@@ -73,6 +73,7 @@
       "id": "a2000000-0000-4000-a000-000000000004",
       "beats": 4,
       "type": "mad_robin",
+      "relationship": {"base": "neighbor", "offset": 0},
       "dir": "robins_in_middle",
       "with": "larks_left",
       "rotations": 1
@@ -81,6 +82,7 @@
       "id": "b1000000-0000-4000-a000-000000000001",
       "beats": 8,
       "type": "mad_robin",
+      "relationship": {"base": "neighbor", "offset": 0},
       "dir": "robins_in_middle",
       "with": "robins_left",
       "rotations": 1
