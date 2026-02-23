@@ -11,6 +11,7 @@ import { finalBalance, generateBalance } from './figures/balance/balance';
 import { finalDoSiDo, generateDoSiDo } from './figures/doSiDo/doSiDo';
 import { finalCircle, generateCircle } from './figures/circle/circle';
 import { finalPullBy, generatePullBy } from './figures/pullBy/pullBy';
+import { finalPassBy, generatePassBy } from './figures/passBy/passBy';
 import { finalSwing, generateSwing } from './figures/swing/swing';
 import { finalBoxTheGnat, generateBoxTheGnat } from './figures/boxTheGnat/boxTheGnat';
 import { finalGiveAndTakeIntoSwing, generateGiveAndTakeIntoSwing } from './figures/giveAndTakeIntoSwing/giveAndTakeIntoSwing';
@@ -75,6 +76,7 @@ function computeFinalKeyframe(prev: Keyframe, instr: AtomicInstruction, scope: S
     case 'do_si_do':    return finalDoSiDo(prev, instr, scope);
     case 'circle':      return finalCircle(prev, instr, scope);
     case 'pull_by':     return finalPullBy(prev, instr, scope);
+    case 'pass_by':     return finalPassBy(prev, instr, scope);
     case 'step':        return finalStep(prev, instr, scope);
     case 'balance':     return finalBalance(prev, instr, scope);
     case 'swing':       return finalSwing(prev, instr, scope);
@@ -97,6 +99,7 @@ function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, inst
     case 'do_si_do':    return generateDoSiDo(prev, final, instr, scope);
     case 'circle':      return generateCircle(prev, final, instr, scope);
     case 'pull_by':     return generatePullBy(prev, final, instr, scope);
+    case 'pass_by':     return generatePassBy(prev, final, instr, scope);
     case 'step':        return generateStep(prev, final, instr, scope);
     case 'balance':     return generateBalance(prev, final, instr, scope);
     case 'swing':       return generateSwing(prev, final, instr, scope);

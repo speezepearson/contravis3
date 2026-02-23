@@ -20,6 +20,7 @@ import { AllemandeFields } from './figures/allemande/AllemandeFields';
 import { DoSiDoFields } from './figures/doSiDo/DoSiDoFields';
 import { CircleFields } from './figures/circle/CircleFields';
 import { PullByFields } from './figures/pullBy/PullByFields';
+import { PassByFields } from './figures/passBy/PassByFields';
 import { StepFields } from './figures/step/StepFields';
 import { BalanceFields } from './figures/balance/BalanceFields';
 import { SwingFields } from './figures/swing/SwingFields';
@@ -40,10 +41,10 @@ const exampleDances: { key: string; label: string; dance: Dance }[] = Object.ent
   return { key: filename, label, dance };
 });
 
-const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'short_waves', 'long_waves', 'long_lines', 'split'];
+const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'pass_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'short_waves', 'long_waves', 'long_lines', 'split'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
-  do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by',
+  do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by', pass_by: 'pass by',
   step: 'step', balance: 'balance',
   box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
   mad_robin: 'mad robin',
@@ -287,6 +288,7 @@ function doesRequireBeatsInput(type: AtomicInstruction['type']): boolean {
     case 'give_and_take_into_swing': return true;
     case 'mad_robin': return true;
     case 'pull_by': return true;
+    case 'pass_by': return true;
     case 'step': return true;
     case 'swing': return true;
     case 'take_hands': return false;
@@ -380,6 +382,7 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
         case 'do_si_do': return <DoSiDoFields {...common} instruction={instruction} />;
         case 'circle': return <CircleFields {...common} instruction={instruction} />;
         case 'pull_by': return <PullByFields {...common} instruction={instruction} />;
+        case 'pass_by': return <PassByFields {...common} instruction={instruction} />;
         case 'step': return <StepFields {...common} instruction={instruction} />;
         case 'balance': return <BalanceFields {...common} instruction={instruction} />;
         case 'swing': return <SwingFields {...common} instruction={instruction} />;

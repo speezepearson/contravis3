@@ -29,6 +29,8 @@ export function makeDefaultInstruction(type: ActionType | 'split', id: Instructi
       return InstructionSchema.parse({ id, type: 'circle', beats: 8, direction: 'left', rotations: 1 });
     case 'pull_by':
       return InstructionSchema.parse({ id, type: 'pull_by', beats: 2, relationship: { base: 'neighbor', offset: 0 }, hand: 'right' });
+    case 'pass_by':
+      return InstructionSchema.parse({ id, type: 'pass_by', beats: 2, relationship: { base: 'neighbor', offset: 0 }, hand: 'right' });
     case 'balance':
       return InstructionSchema.parse({ id, type: 'balance', beats: 4, direction: { kind: 'direction', value: 'across' }, distance: 0.5 });
     case 'swing':
