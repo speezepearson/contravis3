@@ -1,13 +1,11 @@
-import { useContext } from 'react';
 import { InstructionSchema, TakeHandSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
-import { FULL_RELATIONSHIP_OPTIONS, encodeRelationship, decodeRelationship, relationshipOptionLabel, TAKE_HAND_OPTIONS } from '../../fieldUtils';
+import { FULL_RELATIONSHIP_OPTIONS, TAKE_HAND_OPTIONS } from '../../fieldUtils';
 import { InlineDropdown } from '../../InlineDropdown';
-import { RelationshipHighlightContext } from '../../RelationshipHighlightContext';
+import { RelationshipDropdown } from '../../RelationshipDropdown';
 
 export function TakeHandsFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'take_hands' }> }) {
-  const highlightRelationship = useContext(RelationshipHighlightContext);
   const { id } = instruction;
 
   function tryCommit(overrides: Record<string, unknown>) {
@@ -20,6 +18,6 @@ export function TakeHandsFields({ instruction, onChange, onInvalid }: SubFormPro
   return (<>
     <InlineDropdown options={TAKE_HAND_OPTIONS} value={instruction.hand} onChange={v => tryCommit({ hand: TakeHandSchema.parse(v) })} getLabel={v => v} />
     {' with your '}
-    <InlineDropdown options={FULL_RELATIONSHIP_OPTIONS} value={encodeRelationship(instruction.relationship)} onChange={v => tryCommit({ relationship: decodeRelationship(v) })} getLabel={relationshipOptionLabel} onHighlight={highlightRelationship} />
+    <RelationshipDropdown options={FULL_RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={rel => tryCommit({ relationship: rel })} />
   </>);
 }
