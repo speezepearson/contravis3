@@ -8,7 +8,7 @@ describe('long_lines', () => {
     // Left column (x=-0.5): up_lark(E), down_robin(E) - same direction, opposite role, same x
     // Right column (x=0.5): up_robin(W), down_lark(W) - same direction, opposite role, same x
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
+      { id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
       { id: tid(2), beats: 8, type: 'long_lines' },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
@@ -23,7 +23,7 @@ describe('long_lines', () => {
 
   it('dancers reach x=±0.2 at midpoint', () => {
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
+      { id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
       { id: tid(2), beats: 8, type: 'long_lines' },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
@@ -60,7 +60,7 @@ describe('long_lines', () => {
 
   it('generates intermediate keyframes', () => {
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
+      { id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
       { id: tid(2), beats: 8, type: 'long_lines' },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);

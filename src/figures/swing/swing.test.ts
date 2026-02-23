@@ -6,7 +6,7 @@ import { tid, instr, initialKeyframe, expectFacingCloseTo } from '../testUtils';
 describe('swing', () => {
   it('produces multiple keyframes spanning the beat count', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
+      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     expect(kfs.length).toBeGreaterThan(2);
@@ -15,7 +15,7 @@ describe('swing', () => {
 
   it('CoM at the end equals CoM at the beginning', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
+      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -38,7 +38,7 @@ describe('swing', () => {
 
   it('during phase 1, the two dancers face opposite directions', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
+      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // Check at beat 4 (midpoint, solidly in phase 1)
@@ -59,7 +59,7 @@ describe('swing', () => {
 
   it('at the end, both dancers face the endFacing', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
+      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -73,7 +73,7 @@ describe('swing', () => {
 
   it('at the end, the robin is 1.0m to the lark\'s right', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
+      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -97,7 +97,7 @@ describe('swing', () => {
 
   it('partner swing works with endFacing up', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'partner', offset: 0 }, endFacing: { kind: 'direction', value: 'up' } },
+      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'partner', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -111,13 +111,13 @@ describe('swing', () => {
   it('rejects opposite as a foil relationship', () => {
     // FoilRelationshipSchema only allows 'partner' and 'neighbor'; 'opposite' should fail to parse
     expect(() => instr([
-      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'opposite', offset: 0 }, endFacing: { kind: 'direction', value: 'up' } },
+      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'opposite', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 } },
     ])).toThrow();
   });
 
   it('orbits clockwise (lark moves westward from initial south-of-CoM position)', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
+      { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // up_lark starts south of CoM (-0.5, 0). CW from south goes west (decreasing x).

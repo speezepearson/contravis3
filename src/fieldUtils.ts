@@ -16,7 +16,7 @@ export interface SubFormProps {
 export function makeDefaultInstruction(type: ActionType | 'split', id: InstructionId): Instruction {
   switch (type) {
     case 'step':
-      return InstructionSchema.parse({ id, type: 'step', beats: 0, direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 } });
+      return InstructionSchema.parse({ id, type: 'step', beats: 0, direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 } });
     case 'take_hands':
       return InstructionSchema.parse({ id, type: 'take_hands', beats: 0, relationship: { base: 'neighbor', offset: 0 }, hand: 'right' });
     case 'drop_hands':
@@ -30,13 +30,13 @@ export function makeDefaultInstruction(type: ActionType | 'split', id: Instructi
     case 'pull_by':
       return InstructionSchema.parse({ id, type: 'pull_by', beats: 2, relationship: { base: 'neighbor', offset: 0 }, hand: 'right' });
     case 'balance':
-      return InstructionSchema.parse({ id, type: 'balance', beats: 4, direction: { kind: 'direction', value: 'across' }, distance: 0.5 });
+      return InstructionSchema.parse({ id, type: 'balance', beats: 4, direction: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 }, distance: 0.5 });
     case 'swing':
-      return InstructionSchema.parse({ id, type: 'swing', beats: 8, relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } });
+      return InstructionSchema.parse({ id, type: 'swing', beats: 8, relationship: { base: 'neighbor', offset: 0 }, endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } });
     case 'box_the_gnat':
       return InstructionSchema.parse({ id, type: 'box_the_gnat', beats: 4, relationship: { base: 'neighbor', offset: 0 } });
     case 'give_and_take_into_swing':
-      return InstructionSchema.parse({ id, type: 'give_and_take_into_swing', beats: 16, relationship: { base: 'neighbor', offset: 0 }, role: 'lark', endFacing: { kind: 'direction', value: 'across' } });
+      return InstructionSchema.parse({ id, type: 'give_and_take_into_swing', beats: 16, relationship: { base: 'neighbor', offset: 0 }, role: 'lark', endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } });
     case 'mad_robin':
       return InstructionSchema.parse({ id, type: 'mad_robin', beats: 8, relationship: { base: 'neighbor', offset: 0 }, dir: 'larks_in_middle', rotations: 1 });
     case 'short_waves':

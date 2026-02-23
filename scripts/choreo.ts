@@ -524,7 +524,7 @@ insert:
 
   Examples:
     choreo insert my_dance.json '{"type":"circle","beats":8,"direction":"left","rotations":1}'
-    choreo insert my_dance.json '{"type":"swing","beats":8,"relationship":"neighbor","endFacing":{"kind":"direction","value":"across"}}' --after 550e8400-e29b-41d4-a716-446655440000
+    choreo insert my_dance.json '{"type":"swing","beats":8,"relationship":"neighbor","endFacing":{"dir":{"kind":"direction","value":"across"},"offsetRad":0}}' --after 550e8400-e29b-41d4-a716-446655440000
 
 inspect:
   choreo inspect <file> [options]

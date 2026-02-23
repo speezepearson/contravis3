@@ -1,9 +1,10 @@
 import { InstructionSchema, RoleSchema } from '../../types';
-import type { AtomicInstruction } from '../../types';
+import type { AtomicInstruction, OffsetRelativeDirection } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
-import { parseDirection, directionToText, FULL_FOIL_RELATIONSHIP_OPTIONS, DIR_OPTIONS, ROLE_OPTIONS } from '../../fieldUtils';
+import { FULL_FOIL_RELATIONSHIP_OPTIONS, ROLE_OPTIONS } from '../../fieldUtils';
 import { InlineDropdown } from '../../InlineDropdown';
 import { RelationshipDropdown } from '../../RelationshipDropdown';
+import { InlineDirection } from '../../InlineDirection';
 
 export function GiveAndTakeIntoSwingFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }> }) {
   const { id } = instruction;
@@ -20,6 +21,6 @@ export function GiveAndTakeIntoSwingFields({ instruction, onChange, onInvalid }:
     {' draw your '}
     <RelationshipDropdown options={FULL_FOIL_RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={rel => tryCommit({ relationship: rel })} />
     {' across and swing, end facing '}
-    <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.endFacing)} onChange={v => { const f = parseDirection(v); if (f) tryCommit({ endFacing: f }); else onInvalid?.(); }} placeholder="e.g. across" />
+    <InlineDirection value={instruction.endFacing} onChange={(endFacing: OffsetRelativeDirection) => tryCommit({ endFacing })} label="End facing" />
   </>);
 }

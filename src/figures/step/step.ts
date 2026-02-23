@@ -1,17 +1,15 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { makeFinalKeyframe, headingAngle, headingVector } from '../../types';
-import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolveHeading, resolveFacing } from '../../generateUtils';
+import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolveOffsetDirection } from '../../generateUtils';
 
 export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'step' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
   const dancers = copyDancers(prev.dancers);
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
     const d = prev.dancers[id];
-    const heading = resolveHeading(instr.direction, d, id, prev.dancers);
+    const heading = resolveOffsetDirection(instr.direction, d, id, prev.dancers);
     dancers[id].pos = d.pos.add(heading.multiply(instr.distance));
-    const base = resolveFacing(instr.facing.dir, d, id, prev.dancers);
-    // offset is CW radians; vecti rotateByRadians is CCW, so negate
-    dancers[id].facing = base.rotateByRadians(-instr.facing.offsetRad);
+    dancers[id].facing = resolveOffsetDirection(instr.facing, d, id, prev.dancers);
   }
   return makeFinalKeyframe({
     beat: prev.beat + instr.beats,

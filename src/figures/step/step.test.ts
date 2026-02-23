@@ -14,7 +14,7 @@ function stepInstr(overrides: Record<string, unknown>) {
 describe('step', () => {
   it('moves dancers up by distance', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 }, distance: 1 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -27,7 +27,7 @@ describe('step', () => {
 
   it('moves dancers down by distance', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'down' }, offsetRad: 0 }, distance: 0.5 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -40,7 +40,7 @@ describe('step', () => {
 
   it('moves dancers across (toward center of set)', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 }, distance: 0.5 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -51,7 +51,7 @@ describe('step', () => {
 
   it('moves dancers out (away from center)', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'out' }, distance: 0.5 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'out' }, offsetRad: 0 }, distance: 0.5 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -62,7 +62,7 @@ describe('step', () => {
 
   it('moves dancers toward a relationship target', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, distance: 0.5 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, offsetRad: 0 }, distance: 0.5 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -74,7 +74,7 @@ describe('step', () => {
 
   it('moves dancers in their progression direction', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 1 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'progression' }, offsetRad: 0 }, distance: 1 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -87,7 +87,7 @@ describe('step', () => {
 
   it('negative distance steps in the opposite direction', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: -1 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'progression' }, offsetRad: 0 }, distance: -1 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -99,7 +99,7 @@ describe('step', () => {
 
   it('moves dancers forward (relative to their facing)', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 1 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 1 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -111,7 +111,7 @@ describe('step', () => {
 
   it('moves dancers right (90 deg CW from facing)', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'right' }, distance: 1 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'right' }, offsetRad: 0 }, distance: 1 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -123,7 +123,7 @@ describe('step', () => {
 
   it('produces multiple keyframes with easing', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 }, distance: 1 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     expect(kfs.length).toBeGreaterThan(2);
@@ -133,7 +133,7 @@ describe('step', () => {
   it('preserves hands through step', () => {
     const instructions = instr([
       { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
-      stepInstr({ id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }),
+      stepInstr({ id: tid(2), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 }, distance: 1 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -144,7 +144,7 @@ describe('step', () => {
 
   it('changes facing to up (0 degrees)', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -155,7 +155,7 @@ describe('step', () => {
 
   it('changes facing to down (180 degrees)', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'down' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'down' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -166,7 +166,7 @@ describe('step', () => {
 
   it('changes facing to across', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -178,7 +178,7 @@ describe('step', () => {
 
   it('changes facing to out', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'out' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'out' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -190,7 +190,7 @@ describe('step', () => {
 
   it('changes facing to progression direction', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'progression' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'progression' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -202,7 +202,7 @@ describe('step', () => {
 
   it('facing forward preserves current facing', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0 }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -212,7 +212,7 @@ describe('step', () => {
 
   it('facing back reverses current facing', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'back' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'back' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -222,7 +222,7 @@ describe('step', () => {
 
   it('facing right turns 90 CW from current facing', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'right' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'right' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -232,7 +232,7 @@ describe('step', () => {
 
   it('facing left turns 90 CCW from current facing', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'left' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'left' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -242,7 +242,7 @@ describe('step', () => {
 
   it('facingOffset rotates clockwise by given radians from facing', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: Math.PI / 2 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: Math.PI / 2 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -254,7 +254,7 @@ describe('step', () => {
 
   it('negative facingOffset means counter-clockwise', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: -Math.PI / 2 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: -Math.PI / 2 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -264,7 +264,7 @@ describe('step', () => {
 
   it('applies facingOffset radians clockwise on top of facing direction', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'up' }, offsetRad: Math.PI / 2 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction', value: 'up' }, offsetRad: Math.PI / 2 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -275,7 +275,7 @@ describe('step', () => {
 
   it('changes facing toward a relationship target', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -287,7 +287,7 @@ describe('step', () => {
 
   it('moves and changes facing simultaneously', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 }, distance: 1, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();

@@ -6,7 +6,7 @@ import { tid, instr, initialKeyframe } from '../testUtils';
 describe('balance', () => {
   it('dancers end at their starting position after a balance', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'balance', direction: { kind: 'direction', value: 'across' }, distance: 0.2 },
+      { id: tid(1), beats: 4, type: 'balance', direction: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 }, distance: 0.2 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -20,7 +20,7 @@ describe('balance', () => {
 
   it('dancers are displaced at the midpoint of a balance', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'balance', direction: { kind: 'direction', value: 'up' }, distance: 0.2 },
+      { id: tid(1), beats: 4, type: 'balance', direction: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 }, distance: 0.2 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -34,7 +34,7 @@ describe('balance', () => {
 
   it('balance produces multiple keyframes', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'balance', direction: { kind: 'direction', value: 'right' }, distance: 0.2 },
+      { id: tid(1), beats: 4, type: 'balance', direction: { dir: { kind: 'direction', value: 'right' }, offsetRad: 0 }, distance: 0.2 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     expect(kfs.length).toBeGreaterThan(2);
@@ -43,8 +43,8 @@ describe('balance', () => {
 
   it('balance beats accumulate correctly', () => {
     const instructions = instr([
-      { id: tid(1), beats: 2, type: 'balance', direction: { kind: 'direction', value: 'forward' }, distance: 0.2 },
-      { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 } },
+      { id: tid(1), beats: 2, type: 'balance', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0.2 },
+      { id: tid(2), beats: 4, type: 'step', direction: { dir: { kind: 'direction', value: 'up' }, offsetRad: 0 }, distance: 1, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     expect(kfs[kfs.length - 1].beat).toBeCloseTo(6, 5);

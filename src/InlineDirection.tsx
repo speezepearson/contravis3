@@ -6,19 +6,20 @@ import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
 import { useInstructionEdit } from './InstructionEditContext';
 
-function facingDisplayText(facingText: string, offsetRot: number): string {
-  if (offsetRot === 0) return facingText;
+function displayText(dirText: string, offsetRot: number): string {
+  if (offsetRot === 0) return dirText;
   const abs = Math.abs(offsetRot);
   const dir = offsetRot > 0 ? 'cw' : 'ccw';
-  return `${facingText} + ${abs} rot ${dir}`;
+  return `${dirText} + ${abs} rot ${dir}`;
 }
 
 interface Props {
   value: OffsetRelativeDirection;
   onChange: (value: OffsetRelativeDirection) => void;
+  label?: string;
 }
 
-export function InlineFacing({ value, onChange }: Props) {
+export function InlineDirection({ value, onChange, label = 'Direction' }: Props) {
   const [open, setOpen] = useState(false);
   const [editOffsetRot, setEditOffsetRot] = useState('');
   const dropdownRef = useRef<SearchableDropdownHandle>(null);
@@ -49,24 +50,24 @@ export function InlineFacing({ value, onChange }: Props) {
     onChange({ ...value, offsetRad: n * 2 * Math.PI });
   }
 
-  const facingText = directionToText(value.dir);
+  const dirText = directionToText(value.dir);
   const offsetRot = value.offsetRad / (2 * Math.PI);
 
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
         <span className="inline-value" tabIndex={0} role="button">
-          {facingDisplayText(facingText, offsetRot)}
+          {displayText(dirText, offsetRot)}
         </span>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content className="popover-content popover-facing-compound" sideOffset={4} align="start">
           <div className="popover-facing-row">
-            <label className="popover-facing-label">Facing</label>
+            <label className="popover-facing-label">{label}</label>
             <SearchableDropdown
               ref={dropdownRef}
               options={DIR_OPTIONS}
-              value={facingText}
+              value={dirText}
               onChange={handleDirSelect}
             />
           </div>

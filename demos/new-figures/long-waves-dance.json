@@ -11,7 +11,7 @@
           "id": "d1000000-0000-4000-a000-000000000002",
           "beats": 0,
           "type": "step",
-          "direction": { "kind": "direction", "value": "forward" },
+          "direction": { "dir": { "kind": "direction", "value": "forward" }, "offsetRad": 0 },
           "distance": 0,
           "facing": { "dir": { "kind": "direction", "value": "back" }, "offsetRad": 0 }
         }
@@ -27,7 +27,7 @@
       "id": "d1000000-0000-4000-a000-000000000004",
       "beats": 4,
       "type": "balance",
-      "direction": { "kind": "direction", "value": "right" },
+      "direction": { "dir": { "kind": "direction", "value": "right" }, "offsetRad": 0 },
       "distance": 0.2
     }
   ]

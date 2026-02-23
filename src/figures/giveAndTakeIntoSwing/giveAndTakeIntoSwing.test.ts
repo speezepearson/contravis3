@@ -6,7 +6,7 @@ import { tid, instr, expectFacingCloseTo } from '../testUtils';
 describe('give_and_take_into_swing', () => {
   // Set up: turn everyone to face across, so pairs are on opposite sides of the set
   function faceAcross() {
-    return { id: tid(99), beats: 0, type: 'step' as const, direction: { kind: 'direction' as const, value: 'forward' as const }, distance: 0, facing: { dir: { kind: 'direction' as const, value: 'across' as const }, offsetRad: 0 } };
+    return { id: tid(99), beats: 0, type: 'step' as const, direction: { dir: { kind: 'direction' as const, value: 'forward' as const }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'direction' as const, value: 'across' as const }, offsetRad: 0 } };
   }
 
   it('rejects opposite as a foil relationship', () => {
@@ -14,7 +14,7 @@ describe('give_and_take_into_swing', () => {
     expect(() => instr([
       faceAcross(),
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'opposite', offset: 0 }, role: 'lark',
-        endFacing: { kind: 'direction', value: 'across' } },
+        endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ])).toThrow();
   });
 
@@ -22,7 +22,7 @@ describe('give_and_take_into_swing', () => {
     // In initial improper, neighbors are on the same side (both at x=-0.5 or x=0.5)
     const instructions = instr([
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'neighbor', offset: 0 }, role: 'lark',
-        endFacing: { kind: 'direction', value: 'across' } },
+        endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { error } = generateAllKeyframes(instructions);
     expect(error).not.toBeNull();
@@ -35,7 +35,7 @@ describe('give_and_take_into_swing', () => {
     const instructions = instr([
       faceAcross(),
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
-        endFacing: { kind: 'direction', value: 'across' } },
+        endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
     expect(error).toBeNull();
@@ -51,7 +51,7 @@ describe('give_and_take_into_swing', () => {
     const instructions = instr([
       faceAcross(),
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
-        endFacing: { kind: 'direction', value: 'across' } },
+        endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
     expect(error).toBeNull();
@@ -68,7 +68,7 @@ describe('give_and_take_into_swing', () => {
     const instructions = instr([
       faceAcross(),
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
-        endFacing: { kind: 'direction', value: 'across' } },
+        endFacing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
     expect(error).toBeNull();

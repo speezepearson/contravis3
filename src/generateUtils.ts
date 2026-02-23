@@ -1,4 +1,4 @@
-import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId, BaseRelationship } from './types';
+import type { Relationship, RelativeDirection, OffsetRelativeDirection, DancerState, ProtoDancerId, DancerId, BaseRelationship } from './types';
 import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST } from './types';
 import { assertNever } from './utils';
 
@@ -139,6 +139,14 @@ export function resolveHeading(dir: RelativeDirection, d: DancerState, id: Proto
 /** Resolve a RelativeDirection to an absolute facing vector. */
 export function resolveFacing(dir: RelativeDirection, d: DancerState, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): Vector {
   return resolveHeading(dir, d, id, dancers);
+}
+
+/** Resolve an OffsetRelativeDirection to a unit vector, applying the rotational offset. */
+export function resolveOffsetDirection(odir: OffsetRelativeDirection, d: DancerState, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): Vector {
+  const base = resolveHeading(odir.dir, d, id, dancers);
+  if (odir.offsetRad === 0) return base;
+  // offsetRad is CW radians; vecti rotateByRadians is CCW, so negate
+  return base.rotateByRadians(-odir.offsetRad);
 }
 
 /** Determine a dancer's inside hand (the hand closer to the target).

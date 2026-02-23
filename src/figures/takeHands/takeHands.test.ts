@@ -61,7 +61,7 @@ describe('take_hands', () => {
     // Facing east (90°), north = left → up_lark uses left.
     // down_robin (at -0.5, 0.5) faces east (90°), up_lark is south → right.
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, offsetRad: 0 } },
+      { id: tid(1), beats: 0, type: 'step', direction: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 }, distance: 0, facing: { dir: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, offsetRad: 0 } },
       { id: tid(2), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);

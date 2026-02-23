@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { Vector, makeDancerId, parseDancerId, headingAngle, headingVector, makeFinalKeyframe } from '../../types';
-import { copyDancers, resolveFacing, resolvePairs, isLark } from '../../generateUtils';
+import { copyDancers, resolveOffsetDirection, resolvePairs, isLark } from '../../generateUtils';
 
 const FRONT = 0.15;
 const RIGHT = 0.1;
@@ -44,7 +44,7 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'swing'
     const thetaLark = Math.atan2(larkDelta.x, larkDelta.y);
     const f0 = thetaLark - PHASE_OFFSET;
 
-    const endFacingRad = headingAngle(resolveFacing(instr.endFacing, larkState, lark, prev.dancers));
+    const endFacingRad = headingAngle(resolveOffsetDirection(instr.endFacing, larkState, lark, prev.dancers));
 
     const baseRotation = (Math.PI / 2) * instr.beats;
     const needed = endFacingRad - f0;

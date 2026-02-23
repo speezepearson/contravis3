@@ -8,7 +8,7 @@
       "id": "a1000000-0000-4000-a000-000000000001",
       "beats": 8,
       "type": "balance",
-      "direction": { "kind": "direction", "value": "forward" },
+      "direction": { "dir": { "kind": "direction", "value": "forward" }, "offsetRad": 0 },
       "distance": 0.5
     },
     {
@@ -50,7 +50,7 @@
       "id": "a2000000-0000-4000-a000-000000000001",
       "beats": 8,
       "type": "balance",
-      "direction": { "kind": "direction", "value": "forward" },
+      "direction": { "dir": { "kind": "direction", "value": "forward" }, "offsetRad": 0 },
       "distance": 0.5
     },
     {
@@ -64,7 +64,7 @@
       "id": "a2000000-0000-4000-a000-000000000003",
       "beats": 0,
       "type": "step",
-      "direction": { "kind": "direction", "value": "forward" },
+      "direction": { "dir": { "kind": "direction", "value": "forward" }, "offsetRad": 0 },
       "distance": 0,
       "facing": { "dir": { "kind": "direction", "value": "across" }, "offsetRad": 0 }
     },
@@ -111,7 +111,7 @@
       "beats": 16,
       "type": "swing",
       "relationship": {"base": "partner", "offset": 0},
-      "endFacing": { "kind": "direction", "value": "across" }
+      "endFacing": { "dir": { "kind": "direction", "value": "across" }, "offsetRad": 0 }
     }
   ]
 }
