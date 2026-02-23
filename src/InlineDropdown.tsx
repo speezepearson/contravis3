@@ -2,6 +2,7 @@ import { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 're
 import * as Popover from '@radix-ui/react-popover';
 import SearchableDropdown from './SearchableDropdown';
 import type { SearchableDropdownHandle } from './SearchableDropdown';
+import { useInstructionEdit } from './InstructionEditContext';
 
 export interface InlineDropdownHandle {
   focus: () => void;
@@ -21,6 +22,7 @@ export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function I
 ) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<SearchableDropdownHandle>(null);
+  const { onPopoverOpen } = useInstructionEdit();
 
   useImperativeHandle(ref, () => ({
     focus: () => setOpen(true),
@@ -43,7 +45,7 @@ export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function I
   }
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root open={open} onOpenChange={next => { setOpen(next); if (next) onPopoverOpen?.(); }}>
       <Popover.Trigger asChild>
         <span
           className={`inline-value${!value ? ' inline-value-placeholder' : ''}`}

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import * as Popover from '@radix-ui/react-popover';
+import { useInstructionEdit } from './InstructionEditContext';
 
 interface Props {
   value: string;
@@ -15,11 +16,12 @@ export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep 
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ x: number; value: number; moved: boolean } | null>(null);
+  const { onPopoverOpen } = useInstructionEdit();
 
   const handleOpenChange = useCallback((next: boolean) => {
-    if (next) setEditValue(value);
+    if (next) { setEditValue(value); onPopoverOpen?.(); }
     setOpen(next);
-  }, [value]);
+  }, [value, onPopoverOpen]);
 
   useEffect(() => {
     if (open) {
