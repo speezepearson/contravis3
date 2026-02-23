@@ -8,7 +8,7 @@ export function finalTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction,
   if (instr.hand === 'inside') {
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
-      const target = resolveRelationship(instr.relationship, id, prev.dancers);
+      const target = resolveRelationship(instr.relationship, id);
       const aId = makeDancerId(id, 0);
       const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
       if (!seen.has(key)) {
@@ -24,7 +24,7 @@ export function finalTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction,
     const hands: ('left' | 'right')[] = instr.hand === 'both' ? ['left', 'right'] : [instr.hand];
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
-      const target = resolveRelationship(instr.relationship, id, prev.dancers);
+      const target = resolveRelationship(instr.relationship, id);
       const aId = makeDancerId(id, 0);
       const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
       if (!seen.has(key)) {

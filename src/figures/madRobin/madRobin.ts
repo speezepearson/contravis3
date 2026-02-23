@@ -14,17 +14,28 @@ function setup(
   instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
   scope: Set<ProtoDancerId>,
 ) {
-  const relationship =
-    instr.with === "larks_left"
-      ? ("larks_left_robins_right" as const)
-      : ("larks_right_robins_left" as const);
-  const pairs = resolvePairs(relationship, prev.dancers, scope, {});
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
 
-  const cw =
-    (instr.dir === "larks_in_middle") === (instr.with === "robins_left");
+  // Determine orbit direction from the position of a "middle" role dancer:
+  // they need to orbit toward x=0 (center of the set).
+  const middleRole = instr.dir === "larks_in_middle" ? "lark" : "robin";
+  let cw = true;
+  for (const [id, targetDancerId] of pairs) {
+    if (id.includes(middleRole)) {
+      const s = prev.dancers[id].pos;
+      const t = dancerPosition(targetDancerId, prev.dancers).pos;
+      const dy = (s.y - t.y) / 2; // offset from orbit center
+      // Positive phi moves middle dancer in x by semiMinor * dy / semiMajor.
+      // For them to head toward x=0, we need sign(phi) = sign(-s.x * dy).
+      if (Math.abs(s.x * dy) > 1e-9) {
+        cw = s.x * dy < 0;
+      }
+      break;
+    }
+  }
   const totalAngleRad = instr.rotations * 2 * Math.PI * (cw ? 1 : -1);
 
-  // Assert same side of set and build orbit data
+  // Assert pairs are close enough to orbit together
   const checked = new Set<ProtoDancerId>();
   const orbitData: OrbitDatum[] = [];
 
@@ -35,9 +46,10 @@ function setup(
       checked.add(targetProto);
       const da = prev.dancers[id];
       const db = dancerPosition(targetDancerId, prev.dancers);
-      if (da.pos.x * db.pos.x < -1e-6) {
+      const dist = da.pos.subtract(db.pos).length();
+      if (dist > 1.8) {
         throw new Error(
-          `mad robin: ${id} and ${targetProto} are not on the same side of the set`,
+          `mad robin: ${id} and ${targetProto} are ${dist.toFixed(2)}m apart (max 1.8m)`,
         );
       }
     }

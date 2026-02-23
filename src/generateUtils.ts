@@ -1,12 +1,12 @@
-import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId } from './types';
-import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, headingAngle } from './types';
+import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId, BaseRelationship } from './types';
+import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST } from './types';
 import { assertNever } from './utils';
 
 export const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
 
 const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
 
-const STATIC_RELATIONSHIPS: Record<'partner' | 'neighbor' | 'opposite', Record<ProtoDancerId, ProtoDancerId>> = {
+const STATIC_RELATIONSHIPS: Record<BaseRelationship, Record<ProtoDancerId, ProtoDancerId>> = {
   partner:  { up_lark_0: 'up_robin_0', up_robin_0: 'up_lark_0', down_lark_0: 'down_robin_0', down_robin_0: 'down_lark_0' },
   neighbor: { up_lark_0: 'down_robin_0', up_robin_0: 'down_lark_0', down_lark_0: 'up_robin_0', down_robin_0: 'up_lark_0' },
   opposite: { up_lark_0: 'down_lark_0', up_robin_0: 'down_robin_0', down_lark_0: 'up_lark_0', down_robin_0: 'up_robin_0' },
@@ -28,61 +28,8 @@ export function copyDancers(dancers: Record<ProtoDancerId, DancerState>): Record
 
 /** Resolve a relationship from a specific dancer's perspective.
  *  Returns the DancerId of the target, which may be in an adjacent hands-four. */
-export function resolveRelationship(relationship: Relationship, id: ProtoDancerId, dancers: Record<ProtoDancerId, DancerState>): DancerId {
-  switch (relationship) {
-    case 'partner': case 'neighbor': case 'opposite':
-      return makeDancerId(STATIC_RELATIONSHIPS[relationship][id], 0);
-    case 'on_right': case 'on_left': case 'in_front':
-    case 'larks_left_robins_right': case 'larks_right_robins_left': {
-      const isLark = SPLIT_GROUPS.role[0].has(id);
-      const BIAS = 0.777 * Math.PI / 2; // ~70°, bias towards "in front"
-      const angleOffset =
-        relationship === 'on_right' ? BIAS :
-        relationship === 'on_left' ? -BIAS :
-        relationship === 'in_front' ? 0 :
-        relationship === 'larks_left_robins_right' ? (isLark ? -BIAS : BIAS) :
-        relationship === 'larks_right_robins_left' ? (isLark ? BIAS : -BIAS) :
-        assertNever(relationship);
-      const d = dancers[id];
-      const headingRad = headingAngle(d.facing) + angleOffset;
-      const ux = Math.sin(headingRad);
-      const uy = Math.cos(headingRad);
-
-      let bestScore = Infinity;
-      let bestTarget: DancerId | null = null;
-
-      for (const otherId of PROTO_DANCER_IDS) {
-        if (otherId === id) continue;
-        const dyBase = dancers[otherId].pos.y - d.pos.y;
-        const oBest = Math.round(-dyBase / 2);
-        for (let o = oBest - 2; o <= oBest + 2; o++) {
-          const targetId = makeDancerId(otherId, o);
-          const targetPos = dancerPosition(targetId, dancers);
-          const dx = targetPos.pos.x - d.pos.x;
-          const dy = targetPos.pos.y - d.pos.y;
-          const r = Math.sqrt(dx * dx + dy * dy);
-          if (r > 1.2 || r < 1e-9) continue;
-
-          const cosTheta = (ux * dx + uy * dy) / r;
-          if (cosTheta < 0) continue;
-          const cos2Theta = 2 * cosTheta * cosTheta - 1;
-          if (cos2Theta < 0.01) continue;
-
-          const score = r / cos2Theta;
-          if (score < bestScore) {
-            bestScore = score;
-            bestTarget = targetId;
-          }
-        }
-      }
-
-      if (bestTarget === null) {
-        throw new Error(`resolveRelationship: no valid candidate for '${relationship}' from ${id}`);
-      }
-      return bestTarget;
-    }
-    default: return assertNever(relationship);
-  }
+export function resolveRelationship(relationship: Relationship, id: ProtoDancerId): DancerId {
+  return makeDancerId(STATIC_RELATIONSHIPS[relationship.base][id], relationship.offset);
 }
 
 /** Resolve a relationship for all scoped dancers, returning a Map from each
@@ -91,35 +38,36 @@ export function resolveRelationship(relationship: Relationship, id: ProtoDancerI
  *  (optionally) paired dancers have same/different roles. */
 export function resolvePairs(
   relationship: Relationship,
-  dancers: Record<ProtoDancerId, DancerState>,
+  _dancers: Record<ProtoDancerId, DancerState>,
   scope: Set<ProtoDancerId>,
   { pairRoles }: { pairRoles?: "same" | "different" },
 ): Map<ProtoDancerId, DancerId> {
   const result = new Map<ProtoDancerId, DancerId>();
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
-    result.set(id, resolveRelationship(relationship, id, dancers));
+    result.set(id, resolveRelationship(relationship, id));
   }
 
   const [larks] = SPLIT_GROUPS.role;
   for (const [id, targetDancerId] of result) {
     const { proto: targetProto } = parseDancerId(targetDancerId);
 
+    const relLabel = `${relationship.base}(offset=${relationship.offset})`;
     if (!scope.has(targetProto)) {
       throw new Error(
-        `${id}'s ${relationship} resolves to ${targetDancerId}, whose proto ${targetProto} is not in scope`,
+        `${id}'s ${relLabel} resolves to ${targetDancerId}, whose proto ${targetProto} is not in scope`,
       );
     }
 
     const reverseTarget = result.get(targetProto);
     if (reverseTarget === undefined) {
       throw new Error(
-        `${relationship} is not symmetric: ${id} → ${targetProto} but ${targetProto} has no resolution`,
+        `${relLabel} is not symmetric: ${id} → ${targetProto} but ${targetProto} has no resolution`,
       );
     }
     if (parseDancerId(reverseTarget).proto !== id) {
       throw new Error(
-        `${relationship} is not symmetric: ${id} → ${targetProto} but ${targetProto} → ${parseDancerId(reverseTarget).proto}`,
+        `${relLabel} is not symmetric: ${id} → ${targetProto} but ${targetProto} → ${parseDancerId(reverseTarget).proto}`,
       );
     }
 
@@ -182,7 +130,7 @@ export function resolveHeading(dir: RelativeDirection, d: DancerState, id: Proto
     }
   }
   // relationship: toward the matched partner
-  const targetDancerId = resolveRelationship(dir.value, id, dancers);
+  const targetDancerId = resolveRelationship(dir.value, id);
   const t = dancerPosition(targetDancerId, dancers);
   return t.pos.subtract(d.pos).normalize();
 }

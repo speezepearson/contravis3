@@ -1,7 +1,7 @@
-import { InstructionSchema, RelationshipSchema } from '../../types';
+import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
-import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../../fieldUtils';
+import { FULL_FOIL_RELATIONSHIP_OPTIONS, encodeRelationship, decodeRelationship, relationshipOptionLabel } from '../../fieldUtils';
 import { InlineDropdown } from '../../InlineDropdown';
 
 export function BoxTheGnatFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'box_the_gnat' }> }) {
@@ -16,6 +16,6 @@ export function BoxTheGnatFields({ instruction, onChange, onInvalid }: SubFormPr
 
   return (<>
     {'with your '}
-    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={v => tryCommit({ relationship: RelationshipSchema.parse(v) })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineDropdown options={FULL_FOIL_RELATIONSHIP_OPTIONS} value={encodeRelationship(instruction.relationship)} onChange={v => tryCommit({ relationship: decodeRelationship(v) })} getLabel={relationshipOptionLabel} />
   </>);
 }

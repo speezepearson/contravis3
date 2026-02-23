@@ -63,7 +63,7 @@ describe('step', () => {
 
   it('moves dancers toward a relationship target', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'relationship', value: 'partner' }, distance: 0.5 }),
+      stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, distance: 0.5 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -133,7 +133,7 @@ describe('step', () => {
 
   it('preserves hands through step', () => {
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
+      { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
       stepInstr({ id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
@@ -276,7 +276,7 @@ describe('step', () => {
 
   it('changes facing toward a relationship target', () => {
     const instructions = instr([
-      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: 'partner' }, facingOffset: 0 }),
+      stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, facingOffset: 0 }),
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];

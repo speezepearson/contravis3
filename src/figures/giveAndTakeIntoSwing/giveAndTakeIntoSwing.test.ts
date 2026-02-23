@@ -9,21 +9,19 @@ describe('give_and_take_into_swing', () => {
     return { id: tid(99), beats: 0, type: 'step' as const, direction: { kind: 'direction' as const, value: 'forward' as const }, distance: 0, facing: { kind: 'direction' as const, value: 'across' as const }, facingOffset: 0 };
   }
 
-  it('errors when pairs have the same role', () => {
-    const instructions = instr([
+  it('rejects opposite as a foil relationship', () => {
+    // FoilRelationshipSchema only allows 'partner' and 'neighbor'; 'opposite' should fail to parse
+    expect(() => instr([
       faceAcross(),
-      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'opposite', role: 'lark',
+      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'opposite', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
-    ]);
-    const { error } = generateAllKeyframes(instructions);
-    expect(error).not.toBeNull();
-    expect(error!.message).toMatch(/opposite roles/);
+    ])).toThrow();
   });
 
   it('errors when pairs are on the same side of the set', () => {
     // In initial improper, neighbors are on the same side (both at x=-0.5 or x=0.5)
     const instructions = instr([
-      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'neighbor', role: 'lark',
+      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'neighbor', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
     ]);
     const { error } = generateAllKeyframes(instructions);
@@ -36,7 +34,7 @@ describe('give_and_take_into_swing', () => {
     // up_lark (-0.5,-0.5) <-> up_robin (0.5,-0.5)
     const instructions = instr([
       faceAcross(),
-      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'partner', role: 'lark',
+      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
@@ -52,7 +50,7 @@ describe('give_and_take_into_swing', () => {
   it('center of mass drifts to final position (0.5m to drawer right for lark)', () => {
     const instructions = instr([
       faceAcross(),
-      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'partner', role: 'lark',
+      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
@@ -69,7 +67,7 @@ describe('give_and_take_into_swing', () => {
   it('at the end, both dancers face the endFacing', () => {
     const instructions = instr([
       faceAcross(),
-      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: 'partner', role: 'lark',
+      { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);

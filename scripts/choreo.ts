@@ -463,7 +463,7 @@ function summarizeInstruction(instr: Instruction): string {
     case 'swing': return `${instr.relationship} endFacing=${JSON.stringify(instr.endFacing)}`;
     case 'box_the_gnat': return `${instr.relationship}`;
     case 'give_and_take_into_swing': return `${instr.relationship} ${instr.role}`;
-    case 'mad_robin': return `${instr.dir} ${instr.with} ${instr.rotations}x`;
+    case 'mad_robin': return `${JSON.stringify(instr.relationship)} ${instr.dir} ${instr.rotations}x`;
   }
 }
 

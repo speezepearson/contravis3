@@ -98,8 +98,8 @@ describe('split', () => {
   it('split merges hands from both sub-timelines', () => {
     const instructions = instr([{
       id: tid(1), type: 'split', by: 'role',
-      larks: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'right' }],
-      robins: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: 'opposite', hand: 'left' }],
+      larks: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: { base: 'opposite', offset: 0 }, hand: 'right' }],
+      robins: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: { base: 'opposite', offset: 0 }, hand: 'left' }],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -132,7 +132,7 @@ describe('split', () => {
   it('split with allemande in one list and step in the other', () => {
     const instructions = instr([{
       id: tid(1), type: 'split', by: 'position',
-      ups: [{ id: tid(10), beats: 8, type: 'allemande', relationship: 'partner', handedness: 'right', rotations: 1 }],
+      ups: [{ id: tid(10), beats: 8, type: 'allemande', relationship: { base: 'partner', offset: 0 }, handedness: 'right', rotations: 1 }],
       downs: [{ id: tid(11), beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
     }]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);

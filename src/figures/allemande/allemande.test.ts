@@ -6,7 +6,7 @@ import { tid, instr, initialKeyframe } from '../testUtils';
 describe('allemande', () => {
   it('produces multiple keyframes for the arc', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+      { id: tid(1), beats: 8, type: 'allemande', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     expect(kfs.length).toBeGreaterThan(2);
@@ -16,7 +16,7 @@ describe('allemande', () => {
 
   it('dancers return to approximately their starting positions after 1 full rotation', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+      { id: tid(1), beats: 8, type: 'allemande', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -27,7 +27,7 @@ describe('allemande', () => {
 
   it('dancers swap positions after half rotation', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 0.5 },
+      { id: tid(1), beats: 4, type: 'allemande', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', rotations: 0.5 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -39,7 +39,7 @@ describe('allemande', () => {
 
   it('allemande right: right shoulder faces partner (facing is 90 deg CCW from direction to partner)', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+      { id: tid(1), beats: 8, type: 'allemande', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // Check a mid-animation frame
@@ -58,7 +58,7 @@ describe('allemande', () => {
 
   it('allemande left: left shoulder faces partner (facing is 90 deg CW from direction to partner)', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 1 },
+      { id: tid(1), beats: 8, type: 'allemande', relationship: { base: 'neighbor', offset: 0 }, handedness: 'left', rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const midIdx = Math.floor(kfs.length / 2);
@@ -75,7 +75,7 @@ describe('allemande', () => {
 
   it('allemande right adds right hand connections', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'right', rotations: 1 },
+      { id: tid(1), beats: 8, type: 'allemande', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // All allemande keyframes should have hand connections
@@ -86,7 +86,7 @@ describe('allemande', () => {
 
   it('allemande left adds left hand connections', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'allemande', relationship: 'partner', handedness: 'left', rotations: 0.5 },
+      { id: tid(1), beats: 4, type: 'allemande', relationship: { base: 'partner', offset: 0 }, handedness: 'left', rotations: 0.5 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const mid = kfs[Math.floor(kfs.length / 2)];
@@ -98,7 +98,7 @@ describe('allemande', () => {
     // Allemande left with neighbors: up_lark neighbors down_robin
     // CCW orbit: up_lark (at -0.5,-0.5) should move east first (toward +x)
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'allemande', relationship: 'neighbor', handedness: 'left', rotations: 0.5 },
+      { id: tid(1), beats: 8, type: 'allemande', relationship: { base: 'neighbor', offset: 0 }, handedness: 'left', rotations: 0.5 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // After half rotation CCW, up_lark should be roughly where down_robin was

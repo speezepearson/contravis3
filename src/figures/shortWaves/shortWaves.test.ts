@@ -6,7 +6,7 @@ describe('short_waves', () => {
   it('takes inside hands in short wavy lines after do-si-do 1.25', () => {
     // Reproduce the otters-allemande A1 ending: do-si-do 1.25 with neighbor → short waves
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1.25 },
+      { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1.25 },
       { id: tid(2), beats: 0, type: 'short_waves' },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
@@ -40,7 +40,7 @@ describe('short_waves', () => {
       // In initial improper: up_lark(-0.5,-0.5,N), up_robin(0.5,-0.5,N), down_lark(0.5,0.5,S), down_robin(-0.5,0.5,S)
       // After do-si-do 1.25, dancers end up in wavy lines where neighbors face opposite
       // This is the standard short waves setup - it should succeed
-      { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1.25 },
+      { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1.25 },
       { id: tid(2), beats: 0, type: 'short_waves' },
     ]);
     const { error } = generateAllKeyframes(instructions);
@@ -50,11 +50,11 @@ describe('short_waves', () => {
   it('works in the full otters-allemande A1 sequence', () => {
     // Full A1: take hands, balance, box the gnat, drop hands, do-si-do 1.25, short waves
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'right' },
-      { id: tid(2), beats: 4, type: 'balance', direction: { kind: 'relationship', value: 'neighbor' }, distance: 0.2 },
-      { id: tid(3), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
-      { id: tid(4), beats: 0, type: 'drop_hands', target: 'neighbor' },
-      { id: tid(5), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1.25 },
+      { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
+      { id: tid(2), beats: 4, type: 'balance', direction: { kind: 'relationship', value: { base: 'neighbor', offset: 0 } }, distance: 0.2 },
+      { id: tid(3), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
+      { id: tid(4), beats: 0, type: 'drop_hands', target: { base: 'neighbor', offset: 0 } },
+      { id: tid(5), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1.25 },
       { id: tid(6), beats: 0, type: 'short_waves' },
     ]);
     const { keyframes: kfs, error } = generateAllKeyframes(instructions);
