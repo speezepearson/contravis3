@@ -1,0 +1,32 @@
+{
+    "initFormation": "improper",
+    "progression": 1,
+    "instructions": [
+      {
+        "id": "c0000001-0000-4000-8000-000000000001",
+        "beats": 8,
+        "type": "shoulder_round",
+        "relationship": { "base": "neighbor", "offset": 0 },
+        "handedness": "right",
+        "endFacing": "larks_up_robins_down"
+      },
+      {
+        "id": "c0000001-0000-4000-8000-000000000002",
+        "beats": 1,
+        "type": "step",
+        "direction": { "kind": "direction", "value": "forward" },
+        "distance": 0.5,
+        "facing": { "kind": "direction", "value": "forward" },
+        "facingOffset": 0
+      },
+      {
+        "id": "c0000001-0000-4000-8000-000000000003",
+        "beats": 1,
+        "type": "step",
+        "direction": { "kind": "direction", "value": "right" },
+        "distance": 0.25,
+        "facing": { "kind": "direction", "value": "forward" },
+        "facingOffset": 0
+      }
+    ]
+  }
