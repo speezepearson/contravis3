@@ -87,6 +87,56 @@ export function parseBaseRelationship(base: string): { base: BaseRelationship; o
   return { base: BaseRelationshipSchema.parse(base), offset: 0 };
 }
 
+// --- Relationship encoding for the relationship dropdown ---
+
+/** Encode a relationship as "base:offset" for use as a dropdown option key. */
+export function encodeRelationship(rel: { base: string; offset: number }): string {
+  return `${rel.base}:${rel.offset}`;
+}
+
+/** Decode a "base:offset" string back to a relationship object. */
+export function decodeRelationship(encoded: string): { base: string; offset: number } {
+  const i = encoded.lastIndexOf(':');
+  return { base: encoded.slice(0, i), offset: parseInt(encoded.slice(i + 1)) };
+}
+
+/** Human-readable label for a relationship: "partner", "next neighbor", "shadow +2", etc. */
+export function relationshipLabel(rel: { base: string; offset: number }): string {
+  if (rel.base === 'partner' && rel.offset === 0) return 'partner';
+  if (rel.base === 'partner') return `shadow ${rel.offset > 0 ? '+' : ''}${rel.offset}`;
+  if (rel.offset === 0) return rel.base;
+  if (rel.offset === 1) return `next ${rel.base}`;
+  if (rel.offset === -1) return `prev ${rel.base}`;
+  return rel.offset > 0 ? `next x${rel.offset} ${rel.base}` : `prev x${Math.abs(rel.offset)} ${rel.base}`;
+}
+
+/** Label function for encoded relationship option keys. */
+export function relationshipOptionLabel(encoded: string): string {
+  return relationshipLabel(decodeRelationship(encoded));
+}
+
+function buildRelationshipOptions(bases: string[]): string[] {
+  const options: string[] = [];
+  for (const base of bases) {
+    options.push(`${base}:0`);
+    if (base !== 'partner') {
+      for (let i = 1; i <= 8; i++) {
+        options.push(`${base}:${i}`, `${base}:${-i}`);
+      }
+    }
+  }
+  // shadow (partner with non-zero offset)
+  for (let i = 1; i <= 8; i++) {
+    options.push(`partner:${i}`, `partner:${-i}`);
+  }
+  return options;
+}
+
+/** All relationship options including opposite, for figures using Relationship. */
+export const FULL_RELATIONSHIP_OPTIONS = buildRelationshipOptions(['partner', 'neighbor', 'opposite']);
+/** Relationship options without opposite, for figures using FoilRelationship. */
+export const FULL_FOIL_RELATIONSHIP_OPTIONS = buildRelationshipOptions(['partner', 'neighbor']);
+
 export const DROP_TARGET_OPTIONS: string[] = ['partner', 'neighbor', 'opposite', 'right', 'left', 'both'];
 export const DROP_TARGET_LABELS: Record<string, string> = {
   partner: 'partner hands', neighbor: 'neighbor hands', opposite: 'opposite hands',

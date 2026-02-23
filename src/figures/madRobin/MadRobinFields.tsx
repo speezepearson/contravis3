@@ -1,8 +1,8 @@
-import { InstructionSchema, FoilBaseRelationshipSchema } from '../../types';
+import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import { z } from 'zod';
 import type { SubFormProps } from '../../fieldUtils';
-import { FOIL_RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS } from '../../fieldUtils';
+import { FULL_FOIL_RELATIONSHIP_OPTIONS, encodeRelationship, decodeRelationship, relationshipOptionLabel } from '../../fieldUtils';
 import { InlineDropdown } from '../../InlineDropdown';
 import { InlineNumber } from '../../InlineNumber';
 
@@ -21,7 +21,7 @@ export function MadRobinFields({ instruction, onChange, onInvalid }: SubFormProp
 
   return (<>
     {'your '}
-    <InlineDropdown options={FOIL_RELATIONSHIP_OPTIONS} value={instruction.relationship.base} onChange={v => tryCommit({ relationship: { base: FoilBaseRelationshipSchema.parse(v), offset: instruction.relationship.offset } })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineDropdown options={FULL_FOIL_RELATIONSHIP_OPTIONS} value={encodeRelationship(instruction.relationship)} onChange={v => tryCommit({ relationship: decodeRelationship(v) })} getLabel={relationshipOptionLabel} />
     {' '}
     <InlineDropdown options={MAD_ROBIN_DIR_OPTIONS} value={instruction.dir} onChange={v => tryCommit({ dir: z.enum(['larks_in_middle', 'robins_in_middle']).parse(v) })} getLabel={v => MAD_ROBIN_DIR_LABELS[v] ?? v} />
     {' '}
