@@ -32,8 +32,22 @@ sleep 3
 
 ## 3. Start the headless browser
 
+Try `rodney start --local` first. If it fails because it can't find a browser binary, launch the Playwright-bundled Chrome manually and connect rodney to it:
+
 ```bash
+# Option A: rodney finds its own Chrome
 uvx rodney start --local
+
+# Option B: rodney can't find a browser — use Playwright's Chrome instead
+/root/.cache/ms-playwright/chromium-1194/chrome-linux/chrome \
+  --headless --no-sandbox --disable-gpu --remote-debugging-port=9222 &
+sleep 2
+uvx rodney connect localhost:9222
+```
+
+Then navigate to the app:
+
+```bash
 uvx rodney open http://localhost:5199
 uvx rodney waitload
 uvx rodney waitstable
