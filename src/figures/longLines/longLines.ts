@@ -1,6 +1,6 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection, DancerId } from '../../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
 import { Vector, makeDancerId, parseDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
-import { PROTO_DANCER_IDS, copyDancers, isLark, easeInOut } from '../../generateUtils';
+import { PROTO_DANCER_IDS, copyDancers, isLark, easeInOut, resolveInsideHand, findNeighborOnSide, angleBetweenFacings } from '../../generateUtils';
 
 /**
  * Long lines forward and back: 8 beats by default.
@@ -14,59 +14,6 @@ import { PROTO_DANCER_IDS, copyDancers, isLark, easeInOut } from '../../generate
  * Then dancers step toward the middle of the set (until x=±0.2) for half the
  * beats, then back out (until x=±0.5) for the other half.
  */
-
-function findNeighborOnSide(
-  id: ProtoDancerId,
-  side: 'left' | 'right',
-  dancers: Record<ProtoDancerId, import('../../types').DancerState>,
-): { dancerId: DancerId; dist: number } | null {
-  const d = dancers[id];
-  const sideVec = side === 'right'
-    ? { x: d.facing.y, y: -d.facing.x }
-    : { x: -d.facing.y, y: d.facing.x };
-
-  let best: { dancerId: DancerId; dist: number } | null = null;
-
-  for (const otherId of PROTO_DANCER_IDS) {
-    if (otherId === id) continue;
-    const dyBase = dancers[otherId].pos.y - d.pos.y;
-    const oBest = Math.round(-dyBase / 2);
-    for (let o = oBest - 2; o <= oBest + 2; o++) {
-      const targetId = makeDancerId(otherId, o);
-      const target = dancerPosition(targetId, dancers);
-      const dx = target.pos.x - d.pos.x;
-      const dy = target.pos.y - d.pos.y;
-      const r = Math.sqrt(dx * dx + dy * dy);
-      if (r < 1e-9 || r > 1.5) continue;
-
-      const dot = sideVec.x * dx + sideVec.y * dy;
-      if (dot <= 1e-9) continue;
-
-      if (!best || r < best.dist) {
-        best = { dancerId: targetId, dist: r };
-      }
-    }
-  }
-
-  return best;
-}
-
-function angleBetweenFacings(a: import('../../types').Vector, b: import('../../types').Vector): number {
-  const dot = a.x * b.x + a.y * b.y;
-  return Math.acos(Math.max(-1, Math.min(1, dot)));
-}
-
-function resolveInsideHand(
-  dancer: import('../../types').DancerState,
-  target: import('../../types').DancerState,
-): 'left' | 'right' {
-  const delta = target.pos.subtract(dancer.pos);
-  const cross = dancer.facing.x * delta.y - dancer.facing.y * delta.x;
-  if (Math.abs(cross) < 1e-9) {
-    throw new Error('Cannot determine inside hand: target is neither to the left nor to the right');
-  }
-  return cross < 0 ? 'right' : 'left';
-}
 
 function assertAndTakeHands(
   prev: Keyframe,

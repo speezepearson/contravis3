@@ -170,3 +170,50 @@ export function insideHandInRing(dancer: DancerState, target: DancerState, dance
 export function isLark(id: ProtoDancerId): boolean {
   return id === 'up_lark_0' || id === 'down_lark_0';
 }
+
+/** Find the nearest neighbor on a given side (left or right) of a dancer.
+ *  Searches across periodic boundaries. Returns null if none found within 1.5m. */
+export function findNeighborOnSide(
+  id: ProtoDancerId,
+  side: 'left' | 'right',
+  dancers: Record<ProtoDancerId, DancerState>,
+): { dancerId: DancerId; dist: number } | null {
+  const d = dancers[id];
+  // "right" in dancer-relative coords: rotate facing 90° CW → (facing.y, -facing.x)
+  // "left" → (-facing.y, facing.x)
+  const sideVec = side === 'right'
+    ? { x: d.facing.y, y: -d.facing.x }
+    : { x: -d.facing.y, y: d.facing.x };
+
+  let best: { dancerId: DancerId; dist: number } | null = null;
+
+  for (const otherId of PROTO_DANCER_IDS) {
+    if (otherId === id) continue;
+    const dyBase = dancers[otherId].pos.y - d.pos.y;
+    const oBest = Math.round(-dyBase / 2);
+    for (let o = oBest - 2; o <= oBest + 2; o++) {
+      const targetId = makeDancerId(otherId, o);
+      const target = dancerPosition(targetId, dancers);
+      const dx = target.pos.x - d.pos.x;
+      const dy = target.pos.y - d.pos.y;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r < 1e-9 || r > 1.5) continue;
+
+      // Check that target is on the correct side (positive dot product with side vector)
+      const dot = sideVec.x * dx + sideVec.y * dy;
+      if (dot <= 1e-9) continue;
+
+      if (!best || r < best.dist) {
+        best = { dancerId: targetId, dist: r };
+      }
+    }
+  }
+
+  return best;
+}
+
+/** Angle between two unit facing vectors, in radians [0, π]. */
+export function angleBetweenFacings(a: Vector, b: Vector): number {
+  const dot = a.x * b.x + a.y * b.y;
+  return Math.acos(Math.max(-1, Math.min(1, dot)));
+}
