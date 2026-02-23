@@ -80,7 +80,7 @@ export const AtomicInstructionSchema = z.discriminatedUnion('type', [
   z.object({ ...baseFields, type: z.literal('swing'), relationship: FoilRelationshipSchema, endFacing: RelativeDirectionSchema }),
   z.object({ ...baseFields, type: z.literal('box_the_gnat'), relationship: FoilRelationshipSchema }),
   z.object({ ...baseFields, type: z.literal('give_and_take_into_swing'), relationship: FoilRelationshipSchema, role: RoleSchema, endFacing: RelativeDirectionSchema }),
-  z.object({ ...baseFields, type: z.literal('mad_robin'), relationship: FoilRelationshipSchema, dir: z.enum(['larks_in_middle', 'robins_in_middle']), with: z.enum(['larks_left', 'robins_left']), rotations: z.number() }),
+  z.object({ ...baseFields, type: z.literal('mad_robin'), relationship: FoilRelationshipSchema, dir: z.enum(['larks_in_middle', 'robins_in_middle']), rotations: z.number() }),
   z.object({ ...baseFields, type: z.literal('short_waves') }),
   z.object({ ...baseFields, type: z.literal('long_waves') }),
   z.object({ ...baseFields, type: z.literal('long_lines') }),

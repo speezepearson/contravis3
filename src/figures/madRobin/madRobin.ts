@@ -16,8 +16,23 @@ function setup(
 ) {
   const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
 
-  const cw =
-    (instr.dir === "larks_in_middle") === (instr.with === "robins_left");
+  // Determine orbit direction from the position of a "middle" role dancer:
+  // they need to orbit toward x=0 (center of the set).
+  const middleRole = instr.dir === "larks_in_middle" ? "lark" : "robin";
+  let cw = true;
+  for (const [id, targetDancerId] of pairs) {
+    if (id.includes(middleRole)) {
+      const s = prev.dancers[id].pos;
+      const t = dancerPosition(targetDancerId, prev.dancers).pos;
+      const dy = (s.y - t.y) / 2; // offset from orbit center
+      // Positive phi moves middle dancer in x by semiMinor * dy / semiMajor.
+      // For them to head toward x=0, we need sign(phi) = sign(-s.x * dy).
+      if (Math.abs(s.x * dy) > 1e-9) {
+        cw = s.x * dy < 0;
+      }
+      break;
+    }
+  }
   const totalAngleRad = instr.rotations * 2 * Math.PI * (cw ? 1 : -1);
 
   // Assert pairs are close enough to orbit together

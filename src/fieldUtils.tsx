@@ -38,7 +38,7 @@ export function makeDefaultInstruction(type: ActionType | 'split', id: Instructi
     case 'give_and_take_into_swing':
       return InstructionSchema.parse({ id, type: 'give_and_take_into_swing', beats: 16, relationship: { base: 'neighbor', offset: 0 }, role: 'lark', endFacing: { kind: 'direction', value: 'across' } });
     case 'mad_robin':
-      return InstructionSchema.parse({ id, type: 'mad_robin', beats: 8, relationship: { base: 'neighbor', offset: 0 }, dir: 'larks_in_middle', with: 'larks_left', rotations: 1 });
+      return InstructionSchema.parse({ id, type: 'mad_robin', beats: 8, relationship: { base: 'neighbor', offset: 0 }, dir: 'larks_in_middle', rotations: 1 });
     case 'short_waves':
       return InstructionSchema.parse({ id, type: 'short_waves', beats: 0 });
     case 'long_waves':

@@ -75,7 +75,6 @@
       "type": "mad_robin",
       "relationship": {"base": "neighbor", "offset": 0},
       "dir": "robins_in_middle",
-      "with": "larks_left",
       "rotations": 1
     },
     {
@@ -84,7 +83,6 @@
       "type": "mad_robin",
       "relationship": {"base": "neighbor", "offset": 0},
       "dir": "robins_in_middle",
-      "with": "robins_left",
       "rotations": 1
     },
     {
