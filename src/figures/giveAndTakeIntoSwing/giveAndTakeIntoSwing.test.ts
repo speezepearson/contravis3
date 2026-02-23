@@ -24,7 +24,7 @@ describe('give_and_take_into_swing', () => {
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'neighbor', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { error } = generateAllKeyframes(instructions);
+    const { error } = generateAllKeyframes(instructions, 'improper');
     expect(error).not.toBeNull();
     expect(error!.message).toMatch(/same side/i);
   });
@@ -37,7 +37,7 @@ describe('give_and_take_into_swing', () => {
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+    const { keyframes: kfs, error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
     // At beat 1, drawee (up_robin) should be halfway from (0.5,-0.5) to (-0.5,-0.5) = (0,-0.5)
     const beat1 = kfs.reduce((best, kf) =>
@@ -53,7 +53,7 @@ describe('give_and_take_into_swing', () => {
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+    const { keyframes: kfs, error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
     const last = kfs[kfs.length - 1];
     // Drawer up_lark at (-0.5, -0.5) faces 90 deg (east). Right = south (0, -1).
@@ -70,7 +70,7 @@ describe('give_and_take_into_swing', () => {
       { id: tid(1), beats: 16, type: 'give_and_take_into_swing', relationship: { base: 'partner', offset: 0 }, role: 'lark',
         endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+    const { keyframes: kfs, error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
     const last = kfs[kfs.length - 1];
     // Pair 1 ends on lark's side (x < 0): across = 90 deg

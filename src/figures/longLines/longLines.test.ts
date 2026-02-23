@@ -11,7 +11,7 @@ describe('long_lines', () => {
       { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 },
       { id: tid(2), beats: 8, type: 'long_lines' },
     ]);
-    const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+    const { keyframes: kfs, error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
     const last = kfs[kfs.length - 1];
     // Dancers return to starting positions after forward and back
@@ -26,7 +26,7 @@ describe('long_lines', () => {
       { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 },
       { id: tid(2), beats: 8, type: 'long_lines' },
     ]);
-    const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+    const { keyframes: kfs, error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
     // Find the midpoint keyframe (beat 4)
     const mid = kfs.find(kf => Math.abs(kf.beat - 4) < 0.01);
@@ -43,7 +43,7 @@ describe('long_lines', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'long_lines' },
     ]);
-    const { error } = generateAllKeyframes(instructions);
+    const { error } = generateAllKeyframes(instructions, 'improper');
     expect(error).not.toBeNull();
     expect(error!.message).toMatch(/long_lines/);
   });
@@ -54,7 +54,7 @@ describe('long_lines', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'long_lines' },
     ]);
-    const { error } = generateAllKeyframes(instructions);
+    const { error } = generateAllKeyframes(instructions, 'improper');
     expect(error).not.toBeNull();
   });
 
@@ -63,7 +63,7 @@ describe('long_lines', () => {
       { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 },
       { id: tid(2), beats: 8, type: 'long_lines' },
     ]);
-    const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+    const { keyframes: kfs, error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
     // Should have more than just initial + step-final + long-lines-final
     // 8 beats at 0.25 per frame = 32 frames per half, so many intermediates

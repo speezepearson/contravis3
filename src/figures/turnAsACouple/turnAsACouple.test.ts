@@ -10,8 +10,8 @@ describe('turn_as_a_couple', () => {
     const coupleInstrs = instr([
       { id: tid(2), beats: 4, type: 'turn_as_a_couple' },
     ]);
-    const { keyframes: twirlKfs } = generateAllKeyframes(twirlInstrs);
-    const { keyframes: coupleKfs } = generateAllKeyframes(coupleInstrs);
+    const { keyframes: twirlKfs } = generateAllKeyframes(twirlInstrs, 'improper');
+    const { keyframes: coupleKfs } = generateAllKeyframes(coupleInstrs, 'improper');
     const twirlLast = twirlKfs[twirlKfs.length - 1];
     const coupleLast = coupleKfs[coupleKfs.length - 1];
     for (const id of ['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0'] as const) {

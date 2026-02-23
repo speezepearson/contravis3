@@ -19,6 +19,6 @@ export function SwingFields({ instruction, onChange, onInvalid }: SubFormProps &
     {'your '}
     <RelationshipDropdown options={FULL_FOIL_RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={rel => tryCommit({ relationship: rel })} />
     {' \u2192 '}
-    <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.endFacing)} onChange={v => { const f = parseDirection(v); if (f) tryCommit({ endFacing: f }); else onInvalid?.(); }} placeholder="e.g. across" />
+    <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.endFacing)} onChange={v => { const f = parseDirection(v); if (f) tryCommit({ endFacing: f }); }} placeholder="e.g. across" />
   </>);
 }

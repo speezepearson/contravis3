@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes } from '../../generate';
-import { tid, instr, initialKeyframe, expectFacingCloseTo } from '../testUtils';
+import { generateAllKeyframes, initialKeyframe } from '../../generate';
+import { tid, instr, expectFacingCloseTo } from '../testUtils';
 
 describe('pass_by', () => {
   it('dancers swap positions', () => {
     const instructions = instr([
       { id: tid(1), beats: 2, type: 'pass_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // up_lark (-0.5,-0.5) swaps with neighbor down_robin (-0.5,0.5)
     expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['down_robin_0'].pos.x, 5);
@@ -21,8 +21,8 @@ describe('pass_by', () => {
     const instructions = instr([
       { id: tid(1), beats: 2, type: 'pass_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, init.dancers['up_lark_0'].facing, 5);
     expectFacingCloseTo(last.dancers['down_robin_0'].facing, init.dancers['down_robin_0'].facing, 5);
@@ -32,7 +32,7 @@ describe('pass_by', () => {
     const instructions = instr([
       { id: tid(1), beats: 2, type: 'pass_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     // Skip initial keyframe (index 0), check all generated keyframes
     for (const kf of kfs.slice(1)) {
       expect(kf.hands).toEqual([]);
@@ -43,8 +43,8 @@ describe('pass_by', () => {
     const instructions = instr([
       { id: tid(1), beats: 2, type: 'pass_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const mid = kfs[Math.floor(kfs.length / 2)];
     // up_lark_0 starts at (-0.5,-0.5), target (-0.5,0.5): travel is along y-axis
     // CW for northbound dancer -> curves west (x decreases)
@@ -58,8 +58,8 @@ describe('pass_by', () => {
     const instructions = instr([
       { id: tid(1), beats: 2, type: 'pass_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'left' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const mid = kfs[Math.floor(kfs.length / 2)];
     const startX = init.dancers['up_lark_0'].pos.x; // -0.5
     // CCW for northbound dancer -> curves east (x increases)

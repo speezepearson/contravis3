@@ -88,7 +88,7 @@ export function generateCourtesyTurn(
           .multiply(radius)
           .rotateByRadians(Math.PI/2 * (isLark(proto) ? 1 : -1)));
 
-          hands.push({ a: proto, ha: 'left', b: foil, hb: 'left' });
+      hands.push({ a: proto, ha: 'left', b: foil, hb: 'left' });
       hands.push({ a: proto, ha: 'right', b: foil, hb: 'right' });
     }
 

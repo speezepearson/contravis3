@@ -47,29 +47,33 @@ const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
 
 const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
 
-function initialKeyframe(initFormation: InitFormation = 'improper'): Keyframe {
-  if (initFormation === 'beckett') {
-    return {
-      beat: 0,
-      dancers: {
-        up_lark_0:    { pos: new Vector(-0.5,  0.5), facing: EAST },
-        up_robin_0:   { pos: new Vector(-0.5, -0.5), facing: EAST },
-        down_lark_0:  { pos: new Vector( 0.5, -0.5), facing: WEST },
-        down_robin_0: { pos: new Vector( 0.5,  0.5), facing: WEST },
-      },
-      hands: [],
-    };
+export function initialKeyframe(name: InitFormation): Keyframe {
+  switch (name) {
+    case 'beckett':
+      return {
+        beat: 0,
+        dancers: {
+          up_lark_0:    { pos: new Vector(-0.5,  0.5), facing: EAST },
+          up_robin_0:   { pos: new Vector(-0.5, -0.5), facing: EAST },
+          down_lark_0:  { pos: new Vector( 0.5, -0.5), facing: WEST },
+          down_robin_0: { pos: new Vector( 0.5,  0.5), facing: WEST },
+        },
+        hands: [],
+      };
+    case 'improper':
+      return {
+        beat: 0,
+        dancers: {
+          up_lark_0:    { pos: new Vector(-0.5, -0.5), facing: NORTH },
+          up_robin_0:   { pos: new Vector( 0.5, -0.5), facing: NORTH },
+          down_lark_0:  { pos: new Vector( 0.5,  0.5), facing: SOUTH },
+          down_robin_0: { pos: new Vector(-0.5,  0.5), facing: SOUTH },
+        },
+        hands: [],
+      };
+    default:
+      assertNever(name);
   }
-  return {
-    beat: 0,
-    dancers: {
-      up_lark_0:    { pos: new Vector(-0.5, -0.5), facing: NORTH },
-      up_robin_0:   { pos: new Vector( 0.5, -0.5), facing: NORTH },
-      down_lark_0:  { pos: new Vector( 0.5,  0.5), facing: SOUTH },
-      down_robin_0: { pos: new Vector(-0.5,  0.5), facing: SOUTH },
-    },
-    hands: [],
-  };
 }
 
 // --- Process a list of atomic instructions with a given scope ---
@@ -356,7 +360,7 @@ export interface GenerateResult {
   error: GenerateError | null;
 }
 
-export function generateAllKeyframes(instructions: Instruction[], initFormation?: InitFormation): GenerateResult {
+export function generateAllKeyframes(instructions: Instruction[], initFormation: InitFormation): GenerateResult {
   const keyframes: Keyframe[] = [initialKeyframe(initFormation)];
 
   for (const instr of instructions) {

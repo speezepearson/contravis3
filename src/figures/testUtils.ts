@@ -1,5 +1,4 @@
-import type { Instruction, Keyframe } from '../types';
-import { InstructionSchema, NORTH, SOUTH } from '../types';
+import { InstructionSchema, type Instruction } from '../types';
 import { Vector } from 'vecti';
 import { z } from 'zod';
 import { expect } from 'vitest';
@@ -17,18 +16,4 @@ export function instr(data: unknown[]): Instruction[] {
 export function expectFacingCloseTo(actual: Vector, expected: Vector, precision = 5) {
   expect(actual.x).toBeCloseTo(expected.x, precision);
   expect(actual.y).toBeCloseTo(expected.y, precision);
-}
-
-// Helper: the initial improper formation (beat 0, no hands)
-export function initialKeyframe(): Keyframe {
-  return {
-    beat: 0,
-    dancers: {
-      up_lark_0:    { pos: new Vector(-0.5, -0.5), facing: NORTH },
-      up_robin_0:   { pos: new Vector( 0.5, -0.5), facing: NORTH },
-      down_lark_0:  { pos: new Vector( 0.5,  0.5), facing: SOUTH },
-      down_robin_0: { pos: new Vector(-0.5,  0.5), facing: SOUTH },
-    },
-    hands: [],
-  };
 }

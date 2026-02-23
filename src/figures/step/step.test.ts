@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes } from '../../generate';
+import { generateAllKeyframes, initialKeyframe } from '../../generate';
 import { NORTH, EAST, SOUTH, WEST, ProtoDancerIdSchema } from '../../types';
-import { tid, instr, initialKeyframe, expectFacingCloseTo } from '../testUtils';
+import { tid, instr, expectFacingCloseTo } from '../testUtils';
 
 /** Helper: a step instruction with facing defaulting to forward+0. */
 function stepInstr(overrides: Record<string, unknown>) {
@@ -17,8 +17,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     for (const id of ProtoDancerIdSchema.options) {
       expect(last.dancers[id].pos.x).toBeCloseTo(init.dancers[id].pos.x, 5);
@@ -30,8 +30,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 0.5 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     for (const id of ProtoDancerIdSchema.options) {
       expect(last.dancers[id].pos.x).toBeCloseTo(init.dancers[id].pos.x, 5);
@@ -43,8 +43,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 0.5, 5);
     expect(last.dancers['up_robin_0'].pos.x).toBeCloseTo(init.dancers['up_robin_0'].pos.x - 0.5, 5);
@@ -54,8 +54,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'out' }, distance: 0.5 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x - 0.5, 5);
     expect(last.dancers['up_robin_0'].pos.x).toBeCloseTo(init.dancers['up_robin_0'].pos.x + 0.5, 5);
@@ -65,8 +65,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, distance: 0.5 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 0.5, 5);
     expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y, 5);
@@ -77,8 +77,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 1 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
     expect(last.dancers['up_robin_0'].pos.y).toBeCloseTo(init.dancers['up_robin_0'].pos.y + 1, 5);
@@ -90,8 +90,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: -1 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // Negative progression = anti-progression
     expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y - 1, 5);
@@ -102,8 +102,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 1 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // Ups face 0 deg (north/+y), downs face 180 deg (south/-y)
     expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
@@ -114,8 +114,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'right' }, distance: 1 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // Ups face 0 deg, right = 90 deg = east (+x); downs face 180 deg, right = 270 deg = west (-x)
     expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 1, 5);
@@ -126,7 +126,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     expect(kfs.length).toBeGreaterThan(2);
     expect(kfs[kfs.length - 1].beat).toBeCloseTo(4, 5);
   });
@@ -136,7 +136,7 @@ describe('step', () => {
       { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
       stepInstr({ id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toHaveLength(2);
   });
@@ -147,7 +147,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'up' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     for (const d of Object.values(last.dancers)) {
       expectFacingCloseTo(d.facing, NORTH);
@@ -158,7 +158,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'down' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     for (const d of Object.values(last.dancers)) {
       expectFacingCloseTo(d.facing, SOUTH);
@@ -169,7 +169,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, EAST);
     expectFacingCloseTo(last.dancers['down_robin_0'].facing, EAST);
@@ -181,7 +181,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'out' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, WEST);
     expectFacingCloseTo(last.dancers['down_robin_0'].facing, WEST);
@@ -193,7 +193,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'progression' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, NORTH);
     expectFacingCloseTo(last.dancers['up_robin_0'].facing, NORTH);
@@ -205,7 +205,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, NORTH);
     expectFacingCloseTo(last.dancers['down_lark_0'].facing, SOUTH);
@@ -215,7 +215,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'back' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, SOUTH);
     expectFacingCloseTo(last.dancers['down_lark_0'].facing, NORTH);
@@ -225,7 +225,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'right' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, EAST);
     expectFacingCloseTo(last.dancers['down_lark_0'].facing, WEST);
@@ -235,7 +235,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'left' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, WEST);
     expectFacingCloseTo(last.dancers['down_lark_0'].facing, EAST);
@@ -245,7 +245,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'forward' }, facingOffset: Math.PI / 2 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, EAST);
     expectFacingCloseTo(last.dancers['up_robin_0'].facing, EAST);
@@ -257,7 +257,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'forward' }, facingOffset: -Math.PI / 2 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, WEST);
     expectFacingCloseTo(last.dancers['down_lark_0'].facing, EAST);
@@ -267,7 +267,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'up' }, facingOffset: Math.PI / 2 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     for (const d of Object.values(last.dancers)) {
       expectFacingCloseTo(d.facing, EAST);
@@ -278,7 +278,7 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, EAST);
     expectFacingCloseTo(last.dancers['up_robin_0'].facing, WEST);
@@ -290,8 +290,8 @@ describe('step', () => {
     const instructions = instr([
       stepInstr({ id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 }),
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // Position: all move up by 1
     for (const id of ProtoDancerIdSchema.options) {

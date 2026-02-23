@@ -9,7 +9,7 @@ describe('short_waves', () => {
       { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1.25 },
       { id: tid(2), beats: 0, type: 'short_waves' },
     ]);
-    const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+    const { keyframes: kfs, error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
     const last = kfs[kfs.length - 1];
     // Should have hand connections (at least 2: each dancer holds hands with neighbors)
@@ -25,7 +25,7 @@ describe('short_waves', () => {
       { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 },
       { id: tid(2), beats: 0, type: 'short_waves' },
     ]);
-    const { error } = generateAllKeyframes(instructions);
+    const { error } = generateAllKeyframes(instructions, 'improper');
     // In improper formation turned to face across, dancers on the same side face the same way
     // but dancers across face opposite, so short_waves should either work or error
     // depending on who ends up next to whom. Let's just verify no crash for valid cases.
@@ -43,7 +43,7 @@ describe('short_waves', () => {
       { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1.25 },
       { id: tid(2), beats: 0, type: 'short_waves' },
     ]);
-    const { error } = generateAllKeyframes(instructions);
+    const { error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
   });
 
@@ -57,7 +57,7 @@ describe('short_waves', () => {
       { id: tid(5), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1.25 },
       { id: tid(6), beats: 0, type: 'short_waves' },
     ]);
-    const { keyframes: kfs, error } = generateAllKeyframes(instructions);
+    const { keyframes: kfs, error } = generateAllKeyframes(instructions, 'improper');
     expect(error).toBeNull();
     const last = kfs[kfs.length - 1];
     expect(last.hands.length).toBeGreaterThanOrEqual(2);

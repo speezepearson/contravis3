@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes } from '../../generate';
+import { generateAllKeyframes, initialKeyframe } from '../../generate';
 import { NORTH, SOUTH } from '../../types';
-import { tid, instr, initialKeyframe } from '../testUtils';
+import { tid, instr } from '../testUtils';
 
 describe('split', () => {
   it('split by role: larks and robins do different things', () => {
@@ -10,8 +10,8 @@ describe('split', () => {
       larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
       robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'down' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
     }]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // Larks step up
     expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
@@ -27,7 +27,7 @@ describe('split', () => {
       ups: [{ id: tid(10), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'down' }, facingOffset: 0 }],
       downs: [{ id: tid(11), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'up' }, facingOffset: 0 }],
     }]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // Ups turn to face down
     expect(last.dancers['up_lark_0'].facing).toEqual(SOUTH);
@@ -43,8 +43,8 @@ describe('split', () => {
       larks: [],
       robins: [{ id: tid(11), beats: 4, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
     }]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // Larks unchanged
     expect(last.dancers['up_lark_0']).toEqual(init.dancers['up_lark_0']);
@@ -59,8 +59,8 @@ describe('split', () => {
       ups: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
       downs: [],
     }]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // Ups moved across
     expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x + 0.5, 5);
@@ -75,7 +75,7 @@ describe('split', () => {
       larks: [],
       robins: [],
     }]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     // Just the initial keyframe (no new keyframes from empty split)
     expect(kfs).toHaveLength(1);
   });
@@ -91,7 +91,7 @@ describe('split', () => {
         { id: tid(12), beats: 8, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ],
     }]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     expect(kfs[kfs.length - 1].beat).toBeCloseTo(8, 5);
   });
 
@@ -101,7 +101,7 @@ describe('split', () => {
       larks: [{ id: tid(10), beats: 0, type: 'take_hands', relationship: { base: 'opposite', offset: 0 }, hand: 'right' }],
       robins: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: { base: 'opposite', offset: 0 }, hand: 'left' }],
     }]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // Larks opposite: (up_lark, down_lark) - only larks in scope, opposite has both larks
     expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_lark_0', hb: 'right' });
@@ -118,8 +118,8 @@ describe('split', () => {
       },
       { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // Larks stepped up by 1, then across by 0.5
     expect(last.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 1, 5);
@@ -135,8 +135,8 @@ describe('split', () => {
       ups: [{ id: tid(10), beats: 8, type: 'allemande', relationship: { base: 'partner', offset: 0 }, handedness: 'right', rotations: 1 }],
       downs: [{ id: tid(11), beats: 8, type: 'step', direction: { kind: 'direction', value: 'up' }, distance: 1, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
     }]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions);
-    const init = initialKeyframe();
+    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     expect(kfs.length).toBeGreaterThan(2);
     expect(last.beat).toBeCloseTo(8, 5);

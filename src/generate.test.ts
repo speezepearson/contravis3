@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { Vector } from 'vecti';
-import { generateAllKeyframes, validateHandDistances, validateProgression } from './generate';
+import { generateAllKeyframes, initialKeyframe, validateHandDistances, validateProgression } from './generate';
 import { DanceSchema, NORTH, EAST, SOUTH, WEST } from './types';
-import { tid, instr, initialKeyframe } from './figures/testUtils';
+import { tid, instr } from './figures/testUtils';
 
 describe('generateAllKeyframes', () => {
   it('returns just the initial keyframe when no instructions', () => {
-    const { keyframes: kfs } = generateAllKeyframes([]);
+    const { keyframes: kfs } = generateAllKeyframes([], 'improper');
     expect(kfs).toHaveLength(1);
     expect(kfs[0].beat).toBe(0);
-    expect(kfs[0].dancers).toEqual(initialKeyframe().dancers);
+    expect(kfs[0].dancers).toEqual(initialKeyframe('improper').dancers);
     expect(kfs[0].hands).toEqual([]);
   });
 
@@ -19,7 +19,7 @@ describe('generateAllKeyframes', () => {
         { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'up' }, facingOffset: 0 },
         { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'down' }, facingOffset: 0 },
       ]);
-      const { keyframes: kfs } = generateAllKeyframes(instructions);
+      const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
       expect(kfs[0].beat).toBe(0);
       expect(kfs[kfs.length - 1].beat).toBe(8);
     });
@@ -30,7 +30,7 @@ describe('generateAllKeyframes', () => {
       const instructions = instr([
         { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'left' },
       ]);
-      const { keyframes } = generateAllKeyframes(instructions);
+      const { keyframes } = generateAllKeyframes(instructions, 'improper');
       const warnings = validateHandDistances(instructions, keyframes);
       expect(warnings.size).toBe(0);
     });
@@ -40,7 +40,7 @@ describe('generateAllKeyframes', () => {
         { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'left' },
         { id: tid(2), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
-      const { keyframes } = generateAllKeyframes(instructions);
+      const { keyframes } = generateAllKeyframes(instructions, 'improper');
       const warnings = validateHandDistances(instructions, keyframes);
       expect(warnings.has(tid(2))).toBe(true);
       expect(warnings.get(tid(2))).toMatch(/Hands too far apart/);
@@ -50,7 +50,7 @@ describe('generateAllKeyframes', () => {
       const instructions = instr([
         { id: tid(1), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
-      const { keyframes } = generateAllKeyframes(instructions);
+      const { keyframes } = generateAllKeyframes(instructions, 'improper');
       const warnings = validateHandDistances(instructions, keyframes);
       expect(warnings.size).toBe(0);
     });
@@ -109,7 +109,7 @@ describe('DanceSchema', () => {
 
 describe('generateAllKeyframes with initFormation', () => {
   it('uses improper formation by default (no initFormation)', () => {
-    const { keyframes: kfs } = generateAllKeyframes([]);
+    const { keyframes: kfs } = generateAllKeyframes([], 'improper');
     expect(kfs).toHaveLength(1);
     // Improper: ups face north (0), downs face south (180)
     expect(kfs[0].dancers.up_lark_0.facing).toEqual(NORTH);
@@ -149,7 +149,7 @@ describe('generateAllKeyframes with initFormation', () => {
       const instructions = instr([
         { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 3.0, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
-      const { keyframes } = generateAllKeyframes(instructions);
+      const { keyframes } = generateAllKeyframes(instructions, 'improper');
       expect(validateProgression(keyframes, 'improper', 3)).toBeNull();
     });
 
@@ -157,7 +157,7 @@ describe('generateAllKeyframes with initFormation', () => {
       const instructions = instr([
         { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'progression' }, distance: 0.5, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
-      const { keyframes } = generateAllKeyframes(instructions);
+      const { keyframes } = generateAllKeyframes(instructions, 'improper');
       const warning = validateProgression(keyframes, 'improper', 1);
       expect(warning).not.toBeNull();
       expect(warning).toMatch(/don't end at expected progression/);
@@ -167,7 +167,7 @@ describe('generateAllKeyframes with initFormation', () => {
       const instructions = instr([
         { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.0, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
-      const { keyframes } = generateAllKeyframes(instructions);
+      const { keyframes } = generateAllKeyframes(instructions, 'improper');
       expect(validateProgression(keyframes, 'improper', 0)).toBeNull();
     });
   });
@@ -180,7 +180,7 @@ describe('generateAllKeyframes with initFormation', () => {
         { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
         { id: tid(11), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' },
       ]);
-      const { keyframes, error } = generateAllKeyframes(instructions);
+      const { keyframes, error } = generateAllKeyframes(instructions, 'improper');
       expect(error).not.toBeNull();
       expect(error!.instructionId).toBe(tid(11));
       // Should have the initial keyframe PLUS keyframes from the successful step
@@ -197,14 +197,14 @@ describe('generateAllKeyframes with initFormation', () => {
         larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
         robins: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' }],
       }]);
-      const { keyframes, error } = generateAllKeyframes(instructions);
+      const { keyframes, error } = generateAllKeyframes(instructions, 'improper');
       expect(error).not.toBeNull();
       expect(error!.instructionId).toBe(tid(11));
       // Should have the initial keyframe plus merged partial frames from the successful lark branch
       expect(keyframes.length).toBeGreaterThan(1);
       // The larks should have moved forward in the partial result
       const last = keyframes[keyframes.length - 1];
-      const init = initialKeyframe();
+      const init = initialKeyframe('improper');
       expect(last.dancers['up_lark_0'].pos.y).not.toBeCloseTo(init.dancers['up_lark_0'].pos.y, 5);
     });
 
@@ -213,7 +213,7 @@ describe('generateAllKeyframes with initFormation', () => {
         { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
         { id: tid(2), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' },
       ]);
-      const { keyframes, error } = generateAllKeyframes(instructions);
+      const { keyframes, error } = generateAllKeyframes(instructions, 'improper');
       expect(error).not.toBeNull();
       expect(error!.instructionId).toBe(tid(2));
       // Should have the initial keyframe plus keyframes from the successful step
@@ -235,13 +235,13 @@ describe('generateAllKeyframes with initFormation', () => {
           { id: tid(21), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' },
         ],
       }]);
-      const { keyframes, error } = generateAllKeyframes(instructions);
+      const { keyframes, error } = generateAllKeyframes(instructions, 'improper');
       expect(error).not.toBeNull();
       // Partial result should contain merged keyframes up to beat 4
       // (the successful first step from both branches)
       expect(keyframes.length).toBeGreaterThan(1);
       const last = keyframes[keyframes.length - 1];
-      const init = initialKeyframe();
+      const init = initialKeyframe('improper');
       // Both larks and robins should have moved from their initial positions in the partial result
       expect(last.dancers['up_lark_0'].pos.y).not.toBeCloseTo(init.dancers['up_lark_0'].pos.y, 5);
       expect(last.dancers['up_robin_0'].pos.y).not.toBeCloseTo(init.dancers['up_robin_0'].pos.y, 5);

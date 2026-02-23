@@ -9,7 +9,7 @@ describe('long_waves', () => {
     const instructions = instr([
       { id: tid(1), beats: 0, type: 'long_waves' },
     ]);
-    const { error } = generateAllKeyframes(instructions);
+    const { error } = generateAllKeyframes(instructions, 'improper');
     expect(error).not.toBeNull();
   });
 
@@ -38,7 +38,7 @@ describe('long_waves', () => {
     ]);
     // This test is hard to set up without a specific formation tool.
     // Just verify the error message is descriptive.
-    const { error } = generateAllKeyframes(instructions);
+    const { error } = generateAllKeyframes(instructions, 'improper');
     // The step 'across' may not work as expected for all dancers. Let's just verify
     // that the figure validates its assertions properly.
     if (error) {
