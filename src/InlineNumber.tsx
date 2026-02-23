@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import * as Popover from '@radix-ui/react-popover';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
+import { Input } from '@/components/ui/input';
 
 interface Props {
   value: string;
@@ -55,8 +56,8 @@ export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep 
   }, [handleOpenChange]);
 
   return (
-    <Popover.Root open={open} onOpenChange={handleOpenChange}>
-      <Popover.Anchor asChild>
+    <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+      <PopoverPrimitive.Anchor asChild>
         <span
           className="inline-value inline-value-number"
           onPointerDown={handlePointerDown}
@@ -67,20 +68,20 @@ export function InlineNumber({ value, onTextChange, onDrag, step, pixelsPerStep 
         >
           {value}{suffix ?? ''}
         </span>
-      </Popover.Anchor>
-      <Popover.Portal>
-        <Popover.Content className="popover-content" sideOffset={4} align="start">
-          <input
+      </PopoverPrimitive.Anchor>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content className="popover-content" sideOffset={4} align="start">
+          <Input
             ref={inputRef}
             type="text"
             inputMode="decimal"
-            className="popover-number-input"
+            className="w-[6em] text-center tabular-nums"
             value={editValue}
             onChange={e => { setEditValue(e.target.value); onTextChange(e.target.value); }}
             onKeyDown={e => { if (e.key === 'Enter') setOpen(false); }}
           />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }

@@ -1,7 +1,15 @@
-import { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
-import * as Popover from '@radix-ui/react-popover';
-import SearchableDropdown from './SearchableDropdown';
-import type { SearchableDropdownHandle } from './SearchableDropdown';
+import { useState, useImperativeHandle, forwardRef, useEffect, useRef } from 'react';
+import { Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export interface InlineDropdownHandle {
   focus: () => void;
@@ -20,7 +28,7 @@ export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function I
   ref,
 ) {
   const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<SearchableDropdownHandle>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useImperativeHandle(ref, () => ({
     focus: () => setOpen(true),
@@ -28,43 +36,56 @@ export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function I
 
   useEffect(() => {
     if (open) {
-      // Wait for popover to mount then focus the dropdown input
-      requestAnimationFrame(() => dropdownRef.current?.focus());
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
 
+  const labelOf = (opt: string) => getLabel ? getLabel(opt) : opt;
+
   const displayText = value
-    ? (getLabel ? getLabel(value) : value)
+    ? labelOf(value)
     : (placeholder ?? '...');
 
-  function handleChange(v: string) {
-    onChange(v);
-    setOpen(false);
-  }
-
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <span
           className={`inline-value${!value ? ' inline-value-placeholder' : ''}`}
           tabIndex={0}
-          role="button"
+          role="combobox"
+          aria-expanded={open}
         >
           {displayText}
         </span>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content className="popover-content" sideOffset={4} align="start">
-          <SearchableDropdown
-            ref={dropdownRef}
-            options={options}
-            value={value}
-            onChange={handleChange}
-            placeholder={placeholder}
-            getLabel={getLabel}
-          />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+      </PopoverTrigger>
+      <PopoverContent className="w-[200px] p-0" align="start">
+        <Command>
+          <CommandInput ref={inputRef} placeholder={placeholder ?? "Search..."} />
+          <CommandList>
+            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt}
+                  value={labelOf(opt)}
+                  onSelect={() => {
+                    onChange(opt);
+                    setOpen(false);
+                  }}
+                >
+                  {labelOf(opt)}
+                  <Check
+                    className={cn(
+                      "ml-auto size-4",
+                      value === opt ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 });

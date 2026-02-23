@@ -12,6 +12,8 @@ import { makeDefaultInstruction, makeInstructionId } from './fieldUtils';
 import { InlineDropdown } from './InlineDropdown';
 import type { InlineDropdownHandle } from './InlineDropdown';
 import { InlineNumber } from './InlineNumber';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import { TakeHandsFields } from './figures/takeHands/TakeHandsFields';
 import { DropHandsFields } from './figures/dropHands/DropHandsFields';
@@ -628,12 +630,10 @@ export default function CommandPane({ instructions, setInstructions, initFormati
             allowContainers={!options?.inSplit}
           />
           <button className="delete-btn" onClick={() => handleRemove(instr.id)} title="Delete">{'\u00D7'}</button>
-          <input
-            type="checkbox"
+          <Checkbox
             className="select-checkbox"
             checked={isSelected}
-            onClick={e => handleCheckboxClick(instr.id, e)}
-            onChange={() => {}} // controlled by onClick for shift-click support
+            onClick={(e: React.MouseEvent) => handleCheckboxClick(instr.id, e)}
             title="Select"
           />
           <span className="drag-handle" {...dragHandleProps}>{'\u2630'}</span>
@@ -653,15 +653,16 @@ export default function CommandPane({ instructions, setInstructions, initFormati
       {exampleDances.length > 0 && (
         <div className="dance-loader">
           <label>Load dance: </label>
-          <select
-            value=""
-            onChange={e => { if (e.target.value) loadExampleDance(e.target.value); }}
-          >
-            <option value="">-- select --</option>
-            {exampleDances.map(d => (
-              <option key={d.key} value={d.key}>{d.label}</option>
-            ))}
-          </select>
+          <Select onValueChange={v => loadExampleDance(v)}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="-- select --" />
+            </SelectTrigger>
+            <SelectContent>
+              {exampleDances.map(d => (
+                <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
       <div className="formation-selector">
