@@ -1,8 +1,9 @@
 import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
-import { parseDirection, directionToText, FULL_FOIL_RELATIONSHIP_OPTIONS, encodeRelationship, decodeRelationship, relationshipOptionLabel, DIR_OPTIONS } from '../../fieldUtils';
+import { parseDirection, directionToText, FULL_FOIL_RELATIONSHIP_OPTIONS, DIR_OPTIONS } from '../../fieldUtils';
 import { InlineDropdown } from '../../InlineDropdown';
+import { RelationshipDropdown } from '../../RelationshipDropdown';
 
 export function SwingFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'swing' }> }) {
   const { id } = instruction;
@@ -16,7 +17,7 @@ export function SwingFields({ instruction, onChange, onInvalid }: SubFormProps &
 
   return (<>
     {'your '}
-    <InlineDropdown options={FULL_FOIL_RELATIONSHIP_OPTIONS} value={encodeRelationship(instruction.relationship)} onChange={v => tryCommit({ relationship: decodeRelationship(v) })} getLabel={relationshipOptionLabel} />
+    <RelationshipDropdown options={FULL_FOIL_RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={rel => tryCommit({ relationship: rel })} />
     {' \u2192 '}
     <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.endFacing)} onChange={v => { const f = parseDirection(v); if (f) tryCommit({ endFacing: f }); else onInvalid?.(); }} placeholder="e.g. across" />
   </>);

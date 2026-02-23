@@ -168,6 +168,32 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
+  /** Draw dim green lines showing a relationship (e.g. partner, neighbor) between dancers. */
+  drawRelationshipLines(lines: Array<{ fromX: number; fromY: number; toX: number; toY: number }>) {
+    if (lines.length === 0) return;
+    const ctx = this.ctx;
+    const viewYMin = this.cameraY - this.yRange / 2;
+    const viewYMax = this.cameraY + this.yRange / 2;
+    const firstCopy = Math.floor((viewYMin - 1) / 2) * 2;
+    const lastCopy = Math.ceil((viewYMax + 1) / 2) * 2;
+
+    ctx.strokeStyle = '#4a4';
+    ctx.lineWidth = 2;
+
+    for (const { fromX, fromY, toX, toY } of lines) {
+      for (let offset = firstCopy; offset <= lastCopy; offset += 2) {
+        ctx.globalAlpha = offset === 0 ? 0.4 : 0.15;
+        const [ax, ay] = this.worldToCanvas(fromX, fromY + offset);
+        const [bx, by] = this.worldToCanvas(toX, toY + offset);
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1.0;
+  }
+
   /** Draw ghostly preview keyframes: path lines connecting adjacent positions. */
   drawPreviewKeyframes(keyframes: Keyframe[]) {
     if (keyframes.length === 0) return;
