@@ -51,7 +51,7 @@ describe('short_waves', () => {
     // Full A1: take hands, balance, box the gnat, drop hands, do-si-do 1.25, short waves
     const instructions = instr([
       { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
-      { id: tid(2), beats: 4, type: 'balance', direction: { kind: 'relationship', value: { base: 'neighbor', offset: 0 } }, distance: 0.2 },
+      { id: tid(2), beats: 4, type: 'balance', relationship: { base: 'neighbor', offset: 0 }, distance: 0.2 },
       { id: tid(3), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
       { id: tid(4), beats: 0, type: 'drop_hands', target: { base: 'neighbor', offset: 0 } },
       { id: tid(5), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1.25 },

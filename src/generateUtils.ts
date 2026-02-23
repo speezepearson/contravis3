@@ -1,5 +1,5 @@
-import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId } from './types';
-import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, otherRole, otherDir } from './types';
+import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId, DirectionalRelationship } from './types';
+import { Vector, makeDancerId, parseDancerId, dancerPosition, headingAngle, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, otherRole, otherDir } from './types';
 import { assertNever } from './utils';
 
 export const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
@@ -173,25 +173,32 @@ export function insideHandInRing(dancer: DancerState, target: DancerState, dance
   return angleDiff > 0 ? 'right' : 'left';
 }
 
-export function isLark(id: ProtoDancerId): boolean {
-  return id === 'up_lark_0' || id === 'down_lark_0';
+export function isLark(id: DancerId): boolean {
+  return parseDancerId(id).role === 'lark';
 }
 
-/** Find the nearest neighbor on a given side (left or right) of a dancer.
- *  Searches across periodic boundaries. Returns null if none found within 1.5m. */
-export function findNeighborOnSide(
+/** Find the dancer best described by "the person on your [side]", if any. */
+export function findDancerOnSide(
   id: ProtoDancerId,
-  side: 'left' | 'right',
+  side: DirectionalRelationship,
   dancers: Record<ProtoDancerId, DancerState>,
 ): { dancerId: DancerId; dist: number } | null {
+  const BIAS = 0.777 * Math.PI / 2; // ~70°, bias towards "in front"
+  const lark = isLark(id);
+  const angleOffset =
+    side === 'on_right' ? BIAS :
+    side === 'on_left' ? -BIAS :
+    side === 'in_front' ? 0 :
+    side === 'larks_left_robins_right' ? (lark ? -BIAS : BIAS) :
+    side === 'larks_right_robins_left' ? (lark ? BIAS : -BIAS) :
+    assertNever(side);
   const d = dancers[id];
-  // "right" in dancer-relative coords: rotate facing 90° CW → (facing.y, -facing.x)
-  // "left" → (-facing.y, facing.x)
-  const sideVec = side === 'right'
-    ? { x: d.facing.y, y: -d.facing.x }
-    : { x: -d.facing.y, y: d.facing.x };
+  const headingRad = headingAngle(d.facing) + angleOffset;
+  const ux = Math.sin(headingRad);
+  const uy = Math.cos(headingRad);
 
-  let best: { dancerId: DancerId; dist: number } | null = null;
+  let bestScore = Infinity;
+  let bestTarget: { dancerId: DancerId; dist: number } | null = null;
 
   for (const otherId of PROTO_DANCER_IDS) {
     if (otherId === id) continue;
@@ -199,23 +206,26 @@ export function findNeighborOnSide(
     const oBest = Math.round(-dyBase / 2);
     for (let o = oBest - 2; o <= oBest + 2; o++) {
       const targetId = makeDancerId(otherId, o);
-      const target = dancerPosition(targetId, dancers);
-      const dx = target.pos.x - d.pos.x;
-      const dy = target.pos.y - d.pos.y;
+      const targetPos = dancerPosition(targetId, dancers);
+      const dx = targetPos.pos.x - d.pos.x;
+      const dy = targetPos.pos.y - d.pos.y;
       const r = Math.sqrt(dx * dx + dy * dy);
-      if (r < 1e-9 || r > 1.5) continue;
+      if (r > 1.2 || r < 1e-9) continue;
 
-      // Check that target is on the correct side (positive dot product with side vector)
-      const dot = sideVec.x * dx + sideVec.y * dy;
-      if (dot <= 1e-9) continue;
+      const cosTheta = (ux * dx + uy * dy) / r;
+      if (cosTheta < 0) continue;
+      const cos2Theta = 2 * cosTheta * cosTheta - 1;
+      if (cos2Theta < 0.01) continue;
 
-      if (!best || r < best.dist) {
-        best = { dancerId: targetId, dist: r };
+      const score = r / cos2Theta;
+      if (score < bestScore) {
+        bestScore = score;
+        bestTarget = { dancerId: targetId, dist: r };
       }
     }
   }
 
-  return best;
+  return bestTarget;
 }
 
 /** Angle between two unit facing vectors, in radians [0, π]. */

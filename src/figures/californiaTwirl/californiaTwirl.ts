@@ -1,7 +1,7 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
 import { parseDancerId, makeDancerId, headingAngle, headingVector, makeFinalKeyframe } from '../../types';
 import { Vector } from 'vecti';
-import { copyDancers, easeInOut, ellipsePosition, isLark, findNeighborOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
+import { copyDancers, easeInOut, ellipsePosition, isLark, findDancerOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
 
 
 type TwirlPair = {
@@ -22,7 +22,7 @@ function setup(prev: Keyframe, _instr: Extract<AtomicInstruction, { type: 'calif
     if (!scope.has(id) || processed.has(id) || !isLark(id)) continue;
 
     // Assert robin is on lark's right
-    const neighbor = findNeighborOnSide(id, 'right', prev.dancers);
+    const neighbor = findDancerOnSide(id, 'on_right', prev.dancers);
     if (!neighbor) throw new Error(`California twirl: ${id} has no dancer on his right`);
     const { proto: robinProto } = parseDancerId(neighbor.dancerId);
     if (!scope.has(robinProto)) throw new Error(`California twirl: ${robinProto} not in scope`);

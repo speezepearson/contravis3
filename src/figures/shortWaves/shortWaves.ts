@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection, DancerId } from '../../types';
 import { makeDancerId, parseDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
-import { PROTO_DANCER_IDS, copyDancers, isLark, resolveInsideHand, findNeighborOnSide, angleBetweenFacings } from '../../generateUtils';
+import { PROTO_DANCER_IDS, copyDancers, isLark, resolveInsideHand, findDancerOnSide, angleBetweenFacings } from '../../generateUtils';
 
 /**
  * Short waves: 0-beat assertion figure.
@@ -27,8 +27,8 @@ export function finalShortWaves(prev: Keyframe, instr: Extract<AtomicInstruction
     if (!scope.has(id)) continue;
     const d = prev.dancers[id];
 
-    for (const side of ['left', 'right'] as const) {
-      const neighbor = findNeighborOnSide(id, side, prev.dancers);
+    for (const side of ['on_left', 'on_right'] as const) {
+      const neighbor = findDancerOnSide(id, side, prev.dancers);
       if (!neighbor) continue;
 
       const target = dancerPosition(neighbor.dancerId, prev.dancers);

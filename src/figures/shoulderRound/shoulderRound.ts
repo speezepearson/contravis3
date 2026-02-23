@@ -131,7 +131,7 @@ export function generateShoulderRound(prev: Keyframe, final: FinalKeyframe, inst
         // Phase 1: face each other, walk 1/4 of the ellipse so they end up
         // on each other's [handedness] side
         const tPhase = elapsed / approachBeats;
-        const theta = (Math.PI / 2) * easeInOut(tPhase);
+        const theta = (Math.PI / 2) * tPhase;
 
         // Face each other
         const toRobin = robinState.pos.subtract(larkState.pos);
@@ -170,7 +170,7 @@ export function generateShoulderRound(prev: Keyframe, final: FinalKeyframe, inst
         const n = Math.round((revolveSign * baseAngle - neededAngle) / (2 * Math.PI));
         const totalAngle = neededAngle + n * 2 * Math.PI;
 
-        const currentAngle = larkRevolveAngle0 + totalAngle * easeInOut(tPhase);
+        const currentAngle = larkRevolveAngle0 + totalAngle * tPhase;
         const robinCurrentAngle = currentAngle + Math.PI;
 
         dancers[lark].pos = new Vector(

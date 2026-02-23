@@ -1,111 +1,110 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
-import { Vector, parseDancerId, makeDancerId, headingVector, makeFinalKeyframe, EAST, WEST } from '../../types';
-import { copyDancers, easeInOut, ellipsePosition, isLark, findNeighborOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection, DancerId } from '../../types';
+import { Vector, parseDancerId, makeDancerId, makeFinalKeyframe, EAST, WEST, dancerPosition } from '../../types';
+import { copyDancers, easeInOut, ellipsePosition, isLark, findDancerOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
 
-type RLTPair = {
-  lark: ProtoDancerId;
-  robin: ProtoDancerId;
-};
+export function finalRightLeftThrough(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: 'right_left_through' }>,
+  scope: Set<ProtoDancerId>,
+): FinalKeyframe {
+  const initDancersFacingAcross = copyDancers(prev.dancers);
+  for (const id of PROTO_DANCER_IDS) {
+    initDancersFacingAcross[id].facing = initDancersFacingAcross[id].pos.x < 0 ? EAST : WEST;
+  }
+  const dancers = copyDancers(prev.dancers);
+  const hands: HandConnection[] = [];
 
-/**
- * Phase 1: cross the set. Every dancer walks from their current position
- * to {x: otherSide, y: theirCurrentY} via a CW ellipse.
- */
-function computePhase1(prev: Keyframe, scope: Set<ProtoDancerId>) {
-  const crossData: { id: ProtoDancerId; startPos: Vector; targetPos: Vector }[] = [];
   for (const id of PROTO_DANCER_IDS) {
     if (!scope.has(id)) continue;
-    const d = prev.dancers[id];
-    const targetX = d.pos.x < 0 ? 1 : -1;
-    crossData.push({
-      id,
-      startPos: d.pos,
-      targetPos: new Vector(targetX, d.pos.y),
-    });
-  }
-  return crossData;
-}
+    const foil = findDancerOnSide(id, 'larks_right_robins_left', initDancersFacingAcross);
+    if (!foil) throw new Error(`right_left_through: ${id} has no foil`);
 
-/**
- * Phase 2: courtesy turn. Find lark-robin pairs (robin on lark's right),
- * revolve 180 CCW around their common center.
- */
-function computePhase2(midDancers: Record<ProtoDancerId, { pos: Vector; facing: Vector }>, scope: Set<ProtoDancerId>) {
-  const pairs: RLTPair[] = [];
-  const processed = new Set<ProtoDancerId>();
+    const ourPos = prev.dancers[id].pos;
+    const foilPos = dancerPosition(foil.dancerId, prev.dancers).pos;
+    if ((ourPos.x < 0) !== (foilPos.x < 0)) throw new Error(`right_left_through: ${id} and foil ${foil.dancerId} are on opposite sides of the set`);
+    const targetX = ourPos.x < 0 ? 1 : -1;
+    const finalFacing = targetX < 0 ? WEST : EAST;
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id) || processed.has(id) || !isLark(id)) continue;
+    dancers[id].pos = new Vector(targetX, foilPos.y);
+    dancers[id].facing = finalFacing.multiply(-1);
 
-    const neighbor = findNeighborOnSide(id, 'right', midDancers as Record<ProtoDancerId, { pos: Vector; facing: Vector }>);
-    if (!neighbor) throw new Error(`Right left through: ${id} has no dancer on his right for courtesy turn`);
-    const { proto: robinProto } = parseDancerId(neighbor.dancerId);
-    if (!scope.has(robinProto)) throw new Error(`Right left through: ${robinProto} not in scope`);
-    if (isLark(robinProto)) throw new Error(`Right left through: ${id}'s right neighbor ${robinProto} is a lark, expected robin`);
-
-    processed.add(id);
-    processed.add(robinProto);
-    pairs.push({ lark: id, robin: robinProto });
-  }
-
-  return pairs;
-}
-
-export function finalRightLeftThrough(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'right_left_through' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
-  const crossData = computePhase1(prev, scope);
-
-  // Compute midpoint state (end of phase 1)
-  const midDancers = copyDancers(prev.dancers);
-  for (const cd of crossData) {
-    midDancers[cd.id].pos = ellipsePosition(cd.startPos, cd.targetPos, 0.25, Math.PI);
-    midDancers[cd.id].facing = cd.targetPos.x < 0 ? EAST : WEST;
-  }
-
-  const pairs = computePhase2(midDancers, scope);
-
-  // Final state: after courtesy turn (180 CCW revolve)
-  const dancers = copyDancers(midDancers);
-  const finalHands: HandConnection[] = [];
-
-  for (const { lark, robin } of pairs) {
-    const larkPos = midDancers[lark].pos;
-    const robinPos = midDancers[robin].pos;
-
-    // 180 CCW revolve: each dancer ends at the other's starting position
-    dancers[lark].pos = robinPos;
-    dancers[robin].pos = larkPos;
-
-    // Both face across the set from their new position
-    dancers[lark].facing = dancers[lark].pos.x < 0 ? EAST : WEST;
-    dancers[robin].facing = dancers[robin].pos.x < 0 ? EAST : WEST;
-
-    // End holding left hands only
-    finalHands.push({ a: makeDancerId(lark, 0), ha: 'left', b: makeDancerId(robin, 0), hb: 'left' });
+    hands.push({ a: id, ha: 'left', b: foil.dancerId, hb: 'left' });
   }
 
   return makeFinalKeyframe({
     beat: prev.beat + instr.beats,
     dancers,
-    hands: finalHands,
+    hands,
   });
 }
 
-export function generateRightLeftThrough(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'right_left_through' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+/**
+ * Intermediate keyframes for right left through.
+ *
+ * Phase 1 (first half): every dancer immediately faces across and walks in a
+ * clockwise ellipse to {x: otherSide, y: theirCurrentY}.
+ *
+ * Phase 2 (second half): courtesy turn — the lark and the robin on his right
+ * take both hands and revolve 180° CCW around their common center, then drop
+ * right hands. Facing stays constant (across the set) throughout the turn.
+ */
+export function generateRightLeftThrough(
+  prev: Keyframe,
+  _final: FinalKeyframe,
+  instr: Extract<AtomicInstruction, { type: 'right_left_through' }>,
+): Keyframe[] {
   const totalBeats = instr.beats;
-  const phase1Beats = totalBeats / 2;
-  const phase2Beats = totalBeats / 2;
+  const halfBeats = totalBeats / 2;
 
-  const crossData = computePhase1(prev, scope);
-
-  // Compute midpoint state
-  const midDancers = copyDancers(prev.dancers);
-  for (const cd of crossData) {
-    midDancers[cd.id].pos = ellipsePosition(cd.startPos, cd.targetPos, 0.25, Math.PI);
-    midDancers[cd.id].facing = cd.targetPos.x < 0 ? EAST : WEST;
+  // Phase 1 setup: each dancer crosses to the other side of the set
+  const crossData: { id: ProtoDancerId; start: Vector; target: Vector; phase1Facing: Vector }[] = [];
+  for (const id of PROTO_DANCER_IDS) {
+    const d = prev.dancers[id];
+    const targetX = d.pos.x < 0 ? 1 : -1;
+    crossData.push({
+      id,
+      start: d.pos,
+      target: new Vector(targetX, d.pos.y),
+      phase1Facing: d.pos.x < 0 ? EAST : WEST,
+    });
   }
 
-  const pairs = computePhase2(midDancers, scope);
+  // Phase 2 setup: compute the midpoint state (end of crossing), then find
+  // lark-robin pairs for the courtesy turn.
+  const midDancers = copyDancers(prev.dancers);
+  for (const cd of crossData) {
+    midDancers[cd.id].pos = cd.target;
+    midDancers[cd.id].facing = cd.phase1Facing;
+  }
 
+  const pairs: {
+    proto: ProtoDancerId;
+    foil: DancerId;
+    center: Vector;
+    radius: number;
+    initAcrossFacing: Vector;
+  }[] = [];
+
+  for (const id of PROTO_DANCER_IDS) {
+    const foil = findDancerOnSide(id, 'larks_right_robins_left', midDancers);
+    if (!foil) throw new Error(`right_left_through: ${id} has no dancer on their side for courtesy turn`);
+    if (isLark(foil.dancerId) === isLark(id)) throw new Error(`right_left_through: ${id}'s foil ${foil.dancerId} has the same role`);
+
+    const protoPos = dancerPosition(id, midDancers).pos;
+    const foilPos = dancerPosition(foil.dancerId, midDancers).pos;
+    const center = protoPos.add(foilPos).multiply(0.5);
+    const delta = protoPos.subtract(center);
+
+    pairs.push({
+      proto: id,
+      foil: foil.dancerId,
+      center,
+      radius: delta.length(),
+      initAcrossFacing: prev.dancers[id].pos.x < 0 ? EAST : WEST,
+    });
+  }
+
+  // Generate intermediate keyframes (not including the final)
   const nFrames = Math.max(1, Math.round(totalBeats / 0.25));
   const result: Keyframe[] = [];
 
@@ -113,59 +112,36 @@ export function generateRightLeftThrough(prev: Keyframe, _final: FinalKeyframe, 
     const t = i / nFrames;
     const beat = prev.beat + t * totalBeats;
     const elapsed = t * totalBeats;
-
     const dancers = copyDancers(prev.dancers);
 
-    if (elapsed <= phase1Beats) {
-      // Phase 1: cross the set via CW ellipse
-      const tPhase = elapsed / phase1Beats;
+    if (elapsed <= halfBeats) {
+      // Phase 1: cross via CW ellipse, immediately face across
+      const tPhase = elapsed / halfBeats;
       const theta = Math.PI * easeInOut(tPhase);
       for (const cd of crossData) {
-        dancers[cd.id].pos = ellipsePosition(cd.startPos, cd.targetPos, 0.25, theta);
-        // Immediately face across
-        dancers[cd.id].facing = cd.startPos.x < 0 ? EAST : WEST;
+        dancers[cd.id].pos = ellipsePosition(cd.start, cd.target, 0.25, theta);
+        dancers[cd.id].facing = cd.phase1Facing;
       }
-      result.push({ beat, dancers, hands: prev.hands });
+      result.push({ beat, dancers, hands: [] });
     } else {
-      // Phase 2: courtesy turn (180 CCW revolve)
-      const tPhase = (elapsed - phase1Beats) / phase2Beats;
-      const angle = Math.PI * easeInOut(tPhase); // 0 -> PI (CCW)
+      // Phase 2: courtesy turn — 180° CCW revolve, facing stays constant
+      const tPhase = (elapsed - halfBeats) / halfBeats;
+      const hands: HandConnection[] = [];
 
-      // Hands during courtesy turn: left + right
-      const courtesyHands: HandConnection[] = [];
+      for (const { proto, foil, center, radius, initAcrossFacing } of pairs) {
+        console.log({proto, foil})
+        const facingAngle = initAcrossFacing.rotateByRadians(tPhase * Math.PI);
 
-      for (const { lark, robin } of pairs) {
-        const larkMid = midDancers[lark].pos;
-        const robinMid = midDancers[robin].pos;
-        const center = larkMid.add(robinMid).multiply(0.5);
-        const radius = larkMid.subtract(center).length();
+        dancers[proto].facing = facingAngle;
+        dancers[proto].pos = center.add(facingAngle
+          .multiply(radius)
+          .rotateByRadians(Math.PI/2 * (isLark(proto) ? 1 : -1)));
 
-        // Initial angle of lark from center
-        const larkDelta = larkMid.subtract(center);
-        const larkAngle0 = Math.atan2(larkDelta.x, larkDelta.y);
-
-        // CCW rotation: subtract angle
-        const larkAngle = larkAngle0 - angle;
-        const robinAngle = larkAngle + Math.PI;
-
-        dancers[lark].pos = new Vector(
-          center.x + radius * Math.sin(larkAngle),
-          center.y + radius * Math.cos(larkAngle),
-        );
-        dancers[robin].pos = new Vector(
-          center.x + radius * Math.sin(robinAngle),
-          center.y + radius * Math.cos(robinAngle),
-        );
-
-        // Face across from current position
-        dancers[lark].facing = headingVector(larkAngle0 - angle);
-        dancers[robin].facing = headingVector(larkAngle0 - angle + Math.PI);
-
-        courtesyHands.push({ a: makeDancerId(lark, 0), ha: 'left', b: makeDancerId(robin, 0), hb: 'left' });
-        courtesyHands.push({ a: makeDancerId(lark, 0), ha: 'right', b: makeDancerId(robin, 0), hb: 'right' });
+        hands.push({ a: proto, ha: 'left', b: foil, hb: 'left' });
+        hands.push({ a: proto, ha: 'right', b: foil, hb: 'right' });
       }
 
-      result.push({ beat, dancers, hands: courtesyHands });
+      result.push({ beat, dancers, hands });
     }
   }
 

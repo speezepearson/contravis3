@@ -1,0 +1,30 @@
+{
+  "initFormation": "improper",
+  "progression": 1,
+  "instructions": [
+    {
+      "id": "c0000001-0000-4000-8000-000000000001",
+      "beats": 8,
+      "type": "shoulder_round",
+      "relationship": {
+        "base": "neighbor",
+        "offset": 0
+      },
+      "handedness": "right",
+      "endFacing": "larks_up_robins_down"
+    },
+    {
+      "id": "775dce55-9c5d-47fb-8262-36f06a29fde2",
+      "beats": 8,
+      "type": "swing",
+      "relationship": {
+        "base": "neighbor",
+        "offset": 0
+      },
+      "endFacing": {
+        "kind": "direction",
+        "value": "across"
+      }
+    }
+  ]
+}

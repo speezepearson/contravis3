@@ -308,3 +308,6 @@ export function buildDancerRecord(f: (id: ProtoDancerId) => DancerState): Record
     down_robin_0: f('down_robin_0'),
   };
 }
+
+export const DirectionalRelationshipSchema = z.enum(['on_left', 'on_right', 'in_front', 'larks_left_robins_right', 'larks_right_robins_left']);
+export type DirectionalRelationship = z.infer<typeof DirectionalRelationshipSchema>;

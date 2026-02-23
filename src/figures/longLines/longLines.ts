@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
 import { Vector, makeDancerId, parseDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
-import { PROTO_DANCER_IDS, copyDancers, isLark, easeInOut, resolveInsideHand, findNeighborOnSide, angleBetweenFacings } from '../../generateUtils';
+import { PROTO_DANCER_IDS, copyDancers, isLark, easeInOut, resolveInsideHand, findDancerOnSide, angleBetweenFacings } from '../../generateUtils';
 
 /**
  * Long lines forward and back: 8 beats by default.
@@ -26,8 +26,8 @@ function assertAndTakeHands(
     if (!scope.has(id)) continue;
     const d = prev.dancers[id];
 
-    for (const side of ['left', 'right'] as const) {
-      const neighbor = findNeighborOnSide(id, side, prev.dancers);
+    for (const side of ['on_left', 'on_right'] as const) {
+      const neighbor = findDancerOnSide(id, side, prev.dancers);
       if (!neighbor) {
         throw new Error(
           `long_lines: ${id} has nobody on their ${side}`,
