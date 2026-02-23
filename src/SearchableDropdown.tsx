@@ -9,12 +9,18 @@ interface Props {
   options: string[];
   value: string;
   onChange: (value: string) => void;
+  /** Called when the user explicitly selects an option (click, Enter, Tab). Not called on typing. */
+  onCommit?: () => void;
+  /** When true, typing filters options using internal state and onChange only fires on selection.
+   *  Defaults to true when getLabel is provided (labels differ from values, so text-input mode is impossible). */
+  selectOnly?: boolean;
   placeholder?: string;
   getLabel?: (value: string) => string;
   onHighlight?: (value: string | null) => void;
 }
 
-const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function SearchableDropdown({ options, value, onChange, placeholder, getLabel, onHighlight }, ref) {
+const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function SearchableDropdown({ options, value, onChange, onCommit, selectOnly: selectOnlyProp, placeholder, getLabel, onHighlight }, ref) {
+  const selectOnly = selectOnlyProp ?? !!getLabel;
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [searchText, setSearchText] = useState('');
@@ -28,14 +34,14 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
 
   const labelOf = (opt: string) => getLabel ? getLabel(opt) : opt;
 
-  // In label mode, filtering uses internal searchText; in text mode, uses value
-  const query = (getLabel ? searchText : value).toLowerCase();
+  // In select mode, filtering uses internal searchText; in text mode, uses value
+  const query = (selectOnly ? searchText : value).toLowerCase();
   const filtered = query
     ? options.filter(opt => new RegExp('\\b' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(labelOf(opt).toLowerCase()))
     : options;
 
   // What to display in the input
-  const inputValue = getLabel
+  const inputValue = selectOnly
     ? (open ? searchText : (value ? labelOf(value) : ''))
     : value;
 
@@ -59,14 +65,14 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
 
   function handleFocus() {
     setOpen(true);
-    if (getLabel) setSearchText('');
+    if (selectOnly) setSearchText('');
     setHighlightIndex(filtered.length > 0 ? 0 : -1);
   }
 
   function handleClick() {
     if (!open) {
       setOpen(true);
-      if (getLabel) setSearchText('');
+      if (selectOnly) setSearchText('');
       setHighlightIndex(options.length > 0 ? 0 : -1);
     }
   }
@@ -77,7 +83,7 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
     setOpen(false);
     setHighlightIndex(-1);
     onHighlight?.(null);
-    if (getLabel) {
+    if (selectOnly) {
       setSearchText('');
     } else {
       // Revert to empty if current value isn't a valid option
@@ -115,20 +121,21 @@ const SearchableDropdown = forwardRef<SearchableDropdownHandle, Props>(function 
       setOpen(false);
       setHighlightIndex(-1);
       onHighlight?.(null);
-      if (getLabel) setSearchText('');
+      if (selectOnly) setSearchText('');
     }
   }
 
   function selectOption(opt: string) {
     onChange(opt);
+    onCommit?.();
     setOpen(false);
     setHighlightIndex(-1);
     onHighlight?.(null);
-    if (getLabel) setSearchText('');
+    if (selectOnly) setSearchText('');
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (getLabel) {
+    if (selectOnly) {
       setSearchText(e.target.value);
       setOpen(true);
     } else {

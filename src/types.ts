@@ -99,6 +99,9 @@ export const RelativeDirectionSchema = z.discriminatedUnion('kind', [
 ]);
 export type RelativeDirection = z.infer<typeof RelativeDirectionSchema>;
 
+export const DirectionalRelationshipSchema = z.enum(['on_left', 'on_right', 'in_front', 'larks_left_robins_right', 'larks_right_robins_left']);
+export type DirectionalRelationship = z.infer<typeof DirectionalRelationshipSchema>;
+
 const baseFields = { id: InstructionIdSchema, beats: z.number() };
 
 export const AtomicInstructionSchema = z.discriminatedUnion('type', [
@@ -310,6 +313,3 @@ export function buildDancerRecord(f: (id: ProtoDancerId) => DancerState): Record
     down_robin_0: f('down_robin_0'),
   };
 }
-
-export const DirectionalRelationshipSchema = z.enum(['on_left', 'on_right', 'in_front', 'larks_left_robins_right', 'larks_right_robins_left']);
-export type DirectionalRelationship = z.infer<typeof DirectionalRelationshipSchema>;

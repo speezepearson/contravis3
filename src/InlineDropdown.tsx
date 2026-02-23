@@ -42,6 +42,9 @@ export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function I
 
   function handleChange(v: string) {
     onChange(v);
+  }
+
+  function handleCommit() {
     setOpen(false);
     onHighlight?.(null);
   }
@@ -70,7 +73,9 @@ export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function I
             options={options}
             value={value}
             onChange={handleChange}
+            onCommit={handleCommit}
             placeholder={placeholder}
+            selectOnly
             getLabel={getLabel}
             onHighlight={onHighlight}
           />

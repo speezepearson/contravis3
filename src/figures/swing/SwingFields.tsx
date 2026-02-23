@@ -1,9 +1,9 @@
 import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
-import { parseDirection, directionToText, FULL_FOIL_RELATIONSHIP_OPTIONS, DIR_OPTIONS } from '../../fieldUtils';
-import { InlineDropdown } from '../../InlineDropdown';
+import { FULL_FOIL_RELATIONSHIP_OPTIONS } from '../../fieldUtils';
 import { RelationshipDropdown } from '../../RelationshipDropdown';
+import { DirectionDropdown } from '../../DirectionDropdown';
 
 export function SwingFields({ instruction, onChange, onInvalid }: SubFormProps & { instruction: Extract<AtomicInstruction, { type: 'swing' }> }) {
   const { id } = instruction;
@@ -19,6 +19,6 @@ export function SwingFields({ instruction, onChange, onInvalid }: SubFormProps &
     {'your '}
     <RelationshipDropdown options={FULL_FOIL_RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={rel => tryCommit({ relationship: rel })} />
     {' \u2192 '}
-    <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.endFacing)} onChange={v => { const f = parseDirection(v); if (f) tryCommit({ endFacing: f }); }} placeholder="e.g. across" />
+    <DirectionDropdown value={instruction.endFacing} onChange={f => tryCommit({ endFacing: f })} onInvalid={onInvalid} />
   </>);
 }

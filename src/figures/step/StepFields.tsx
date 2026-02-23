@@ -4,8 +4,8 @@ import { InstructionSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { parseDirection, directionToText, DIR_OPTIONS } from '../../fieldUtils';
-import { InlineDropdown } from '../../InlineDropdown';
 import { InlineNumber } from '../../InlineNumber';
+import { DirectionDropdown } from '../../DirectionDropdown';
 import SearchableDropdown from '../../SearchableDropdown';
 import type { SearchableDropdownHandle } from '../../SearchableDropdown';
 
@@ -58,7 +58,7 @@ export function StepFields({ instruction, onChange, onInvalid }: SubFormProps & 
   const offsetRot = instruction.facingOffset / (2 * Math.PI);
 
   return (<>
-    <InlineDropdown options={DIR_OPTIONS} value={directionToText(instruction.direction)} onChange={v => { const dir = parseDirection(v); if (dir) tryCommit({ direction: dir }); else onInvalid?.(); }} placeholder="e.g. across" />
+    <DirectionDropdown value={instruction.direction} onChange={dir => tryCommit({ direction: dir })} onInvalid={onInvalid} />
     {' '}
     <InlineNumber value={String(instruction.distance)} onTextChange={v => tryCommit({ distance: Number(v) })} onDrag={n => tryCommit({ distance: n })} step={0.05} suffix="m" />
     {' facing '}
