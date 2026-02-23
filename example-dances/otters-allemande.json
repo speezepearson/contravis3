@@ -15,9 +15,9 @@
       "id": "a1000000-0000-4000-a000-000000000002",
       "beats": 4,
       "type": "balance",
-      "direction": {
-        "kind": "relationship",
-        "value": {"base": "neighbor", "offset": 0}
+      "relationship": {
+        "base": "neighbor",
+        "offset": 0
       },
       "distance": 0.2
     },
@@ -49,9 +49,9 @@
       "id": "a2000000-0000-4000-a000-000000000001",
       "beats": 4,
       "type": "balance",
-      "direction": {
-        "kind": "direction",
-        "value": "right"
+      "relationship": {
+        "base": "neighbor",
+        "offset": 0
       },
       "distance": 0.2
     },
@@ -123,9 +123,9 @@
       "id": "b2000000-0000-4000-a000-000000000002",
       "beats": 4,
       "type": "balance",
-      "direction": {
-        "kind": "relationship",
-        "value": {"base": "partner", "offset": 0}
+      "relationship": {
+        "base": "partner",
+        "offset": 0
       },
       "distance": 0.2
     },
@@ -190,9 +190,9 @@
       "id": "b2000000-0000-4000-a000-00000000000a",
       "beats": 4,
       "type": "balance",
-      "direction": {
-        "kind": "relationship",
-        "value": {"base": "partner", "offset": 0}
+      "relationship": {
+        "base": "partner",
+        "offset": 0
       },
       "distance": 0.2
     },

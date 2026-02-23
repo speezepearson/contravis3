@@ -1,7 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
-import { makeFinalKeyframe } from '../../types';
-import { copyDancers } from '../../generateUtils';
-import { finalStep, generateStep } from '../step/step';
+import { dancerPosition, makeFinalKeyframe } from '../../types';
+import { copyDancers, resolveRelationship } from '../../generateUtils';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function finalBalance(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'balance' }>, _scope: Set<ProtoDancerId>): FinalKeyframe {
@@ -16,14 +15,15 @@ export function finalBalance(prev: Keyframe, instr: Extract<AtomicInstruction, {
 export function generateBalance(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'balance' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const halfBeats = instr.beats / 2;
 
-  const forward = { kind: 'direction' as const, value: 'forward' as const };
-  const stepOutInstr = { id: instr.id, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: instr.distance, facing: forward, facingOffset: 0 };
-  const outFinal = finalStep(prev, stepOutInstr, scope);
-  const outIntermediates = generateStep(prev, outFinal, stepOutInstr, scope);
+  const steppedDancers = copyDancers(prev.dancers);
+  for (const id of scope) {
+    const d = prev.dancers[id];
+    const target = resolveRelationship(instr.relationship, id);
+    const stepVec = dancerPosition(target, prev.dancers).pos.subtract(d.pos).normalize().multiply(instr.distance);
+    steppedDancers[id].pos = d.pos.add(stepVec);
+  }
 
-  const stepBackInstr = { id: instr.id, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -instr.distance, facing: forward, facingOffset: 0 };
-  const backFinal = finalStep(outFinal, stepBackInstr, scope);
-  const backIntermediates = generateStep(outFinal, backFinal, stepBackInstr, scope);
-
-  return [...outIntermediates, outFinal, ...backIntermediates];
+  return [
+    { beat: prev.beat + halfBeats, dancers: steppedDancers, hands: prev.hands },
+  ];
 }

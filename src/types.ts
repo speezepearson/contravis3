@@ -109,7 +109,7 @@ export const AtomicInstructionSchema = z.discriminatedUnion('type', [
   z.object({ ...baseFields, type: z.literal('circle'), direction: HandSchema, rotations: z.number() }),
   z.object({ ...baseFields, type: z.literal('pull_by'), relationship: RelationshipSchema, hand: HandSchema }),
   z.object({ ...baseFields, type: z.literal('step'), direction: RelativeDirectionSchema, distance: z.number(), facing: RelativeDirectionSchema, facingOffset: z.number() }),
-  z.object({ ...baseFields, type: z.literal('balance'), direction: RelativeDirectionSchema, distance: z.number() }),
+  z.object({ ...baseFields, type: z.literal('balance'), relationship: RelationshipSchema, distance: z.number() }),
   z.object({ ...baseFields, type: z.literal('swing'), relationship: FoilRelationshipSchema, endFacing: RelativeDirectionSchema }),
   z.object({ ...baseFields, type: z.literal('box_the_gnat'), relationship: FoilRelationshipSchema }),
   z.object({ ...baseFields, type: z.literal('give_and_take_into_swing'), relationship: FoilRelationshipSchema, role: RoleSchema, endFacing: RelativeDirectionSchema }),

@@ -1,4 +1,4 @@
-import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId, BaseRelationship } from './types';
+import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId } from './types';
 import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, otherRole, otherDir } from './types';
 import { assertNever } from './utils';
 
