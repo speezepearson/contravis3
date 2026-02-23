@@ -5,27 +5,45 @@ export { Vector } from 'vecti';
 
 export const RoleSchema = z.enum(['lark', 'robin']);
 export type Role = z.infer<typeof RoleSchema>;
+export function otherRole(role: Role): Role {
+  return role === 'lark' ? 'robin' : 'lark';
+}
 
 export const ProgressionDirSchema = z.enum(['up', 'down']);
 export type ProgressionDir = z.infer<typeof ProgressionDirSchema>;
+export function otherDir(dir: ProgressionDir): ProgressionDir {
+  return dir === 'up' ? 'down' : 'up';
+}
+
+export const DancerOffsetSchema = z.number().int();
+export type DancerOffset = z.infer<typeof DancerOffsetSchema>;
 
 export const ProtoDancerIdSchema = z.enum(['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0']);
 export type ProtoDancerId = z.infer<typeof ProtoDancerIdSchema>;
 
-export const DancerIdSchema = z.templateLiteral([ProgressionDirSchema, '_', RoleSchema, '_', z.number().int()]);
+export const DancerIdSchema = z.templateLiteral([ProgressionDirSchema, '_', RoleSchema, '_', DancerOffsetSchema]);
 export type DancerId = z.infer<typeof DancerIdSchema>;
 
 // Compile-time check: every ProtoDancerId is a valid DancerId
 // (the `satisfies` will fail if ProtoDancerId is not assignable to DancerId)
 undefined as unknown as ProtoDancerId satisfies DancerId;
 
-export function parseDancerId(id: DancerId): { proto: ProtoDancerId; offset: number } {
-  const i = id.lastIndexOf('_');
-  return { proto: ProtoDancerIdSchema.parse(`${id.slice(0, i)}_0`), offset: parseInt(id.slice(i + 1)) };
+export function parseDancerId(id: DancerId): { proto: ProtoDancerId; dir: ProgressionDir; role: Role; offset: DancerOffset } {
+  const [dirStr, roleStr, offsetStr] = id.split('_');
+  const dir = ProgressionDirSchema.parse(dirStr);
+  const role = RoleSchema.parse(roleStr);
+  const offset = z.coerce.number().pipe(DancerOffsetSchema).parse(offsetStr);
+  return {
+    proto: ProtoDancerIdSchema.parse(`${dir}_${role}_0`),
+    dir,
+    role,
+    offset,
+  };
 }
 
-export function makeDancerId(proto: ProtoDancerId, offset: number): DancerId {
-  return DancerIdSchema.parse(`${proto.slice(0, proto.lastIndexOf('_'))}_${offset}`);
+export function makeDancerId(proto: ProtoDancerId | {dir: ProgressionDir, role: Role}, offset: number): DancerId {
+  const {dir, role} = typeof proto === 'string' ? parseDancerId(proto) : proto;
+  return DancerIdSchema.parse(`${dir}_${role}_${offset}`);
 }
 
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
@@ -41,9 +59,24 @@ export type FoilBaseRelationship = z.infer<typeof FoilBaseRelationshipSchema>;
 export const BaseRelationshipSchema = z.enum([...FoilBaseRelationshipSchema.options, 'opposite']);
 export type BaseRelationship = z.infer<typeof BaseRelationshipSchema>;
 
+/** A relationship between two dancers of opposite roles.
+ * Examples:
+ *
+ *   `{base: 'neighbor', offset: 0}` means "current neighbor"
+ *   `{base: 'neighbor', offset: 1}` means "next neighbor"
+ *   `{base: 'neighbor', offset: -1}` means "prev neighbor"
+ *
+ *   `{base: 'opposite', offset: n}` means "the partner of `{base: 'neighbor', offset: n}`"
+ *
+ *   `{base: 'partner', offset: 0}` means "partner"
+ *   `{base: 'partner', offset: n}` means "your shadow in the hands-four n [L: ahead of you | R: behind you]"
+ *
+ * The slightly convoluted shadow-handling is necessary to make the relationships symmetric.
+*/
 export const FoilRelationshipSchema = z.object({ base: FoilBaseRelationshipSchema, offset: z.number().int() });
 export type FoilRelationship = z.infer<typeof FoilRelationshipSchema>;
 
+/** A relationship between two dancers. */
 export const RelationshipSchema = z.object({ base: BaseRelationshipSchema, offset: z.number().int() });
 export type Relationship = z.infer<typeof RelationshipSchema>;
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveRelationship, PROTO_DANCER_IDS } from './generateUtils';
-import { BaseRelationshipSchema, parseDancerId } from './types';
+import { BaseRelationshipSchema, makeDancerId, parseDancerId } from './types';
 import type { BaseRelationship } from './types';
 
 describe('resolveRelationship symmetry', () => {
@@ -10,12 +10,14 @@ describe('resolveRelationship symmetry', () => {
   for (const base of bases) {
     for (const offset of offsets) {
       for (const dancer of PROTO_DANCER_IDS) {
-        it(`${base}(offset=${offset}) is symmetric for ${dancer}`, () => {
-          const target = resolveRelationship({ base, offset }, dancer);
-          const reverse = resolveRelationship({ base, offset }, target);
-          const { proto: reverseProto } = parseDancerId(reverse);
-          expect(reverseProto).toBe(dancer);
-        });
+        for (const dancerOffset of [0, 1, -1]) {
+          it(`${base}(offset=${offset}) is symmetric for ${makeDancerId(dancer, dancerOffset)}`, () => {
+            const target = resolveRelationship({ base, offset }, dancer);
+            const reverse = resolveRelationship({ base, offset }, target);
+            const { proto: reverseProto } = parseDancerId(reverse);
+            expect(reverseProto).toBe(dancer);
+          });
+        }
       }
     }
   }

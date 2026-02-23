@@ -1,16 +1,10 @@
 import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId, BaseRelationship } from './types';
-import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST } from './types';
+import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, otherRole, otherDir } from './types';
 import { assertNever } from './utils';
 
 export const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
 
 const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
-
-const STATIC_RELATIONSHIPS: Record<BaseRelationship, Record<ProtoDancerId, ProtoDancerId>> = {
-  partner:  { up_lark_0: 'up_robin_0', up_robin_0: 'up_lark_0', down_lark_0: 'down_robin_0', down_robin_0: 'down_lark_0' },
-  neighbor: { up_lark_0: 'down_robin_0', up_robin_0: 'down_lark_0', down_lark_0: 'up_robin_0', down_robin_0: 'up_lark_0' },
-  opposite: { up_lark_0: 'down_lark_0', up_robin_0: 'down_robin_0', down_lark_0: 'up_lark_0', down_robin_0: 'up_robin_0' },
-};
 
 export const SPLIT_GROUPS: Record<'role' | 'position', [Set<ProtoDancerId>, Set<ProtoDancerId>]> = {
   role:     [new Set(['up_lark_0', 'down_lark_0']), new Set(['up_robin_0', 'down_robin_0'])],
@@ -27,10 +21,21 @@ export function copyDancers(dancers: Record<ProtoDancerId, DancerState>): Record
 }
 
 /** Resolve a relationship from a specific dancer's perspective.
- *  Returns the DancerId of the target, which may be in an adjacent hands-four. */
+ *  Returns the DancerId of the target, which may be in an different hands-four.
+ */
 export function resolveRelationship(relationship: Relationship, id: DancerId): DancerId {
-  const { proto, offset } = parseDancerId(id);
-  return makeDancerId(STATIC_RELATIONSHIPS[relationship.base][proto], relationship.offset + offset);
+  const { dir, role, offset } = parseDancerId(id);
+  const nHandsFoursAhead = (dir==='up' ? 1 : -1) * relationship.offset;
+  switch (relationship.base) {
+    case 'neighbor':
+      return makeDancerId({dir: otherDir(dir), role: otherRole(role)}, offset + nHandsFoursAhead);
+    case 'opposite':
+      return makeDancerId({dir: otherDir(dir), role: role}, offset + nHandsFoursAhead);
+    case 'partner':
+      return makeDancerId({dir, role: otherRole(role)}, offset + nHandsFoursAhead * (role==='robin' ? 1 : -1));
+    default:
+      assertNever(relationship.base);
+  }
 }
 
 /** Resolve a relationship for all scoped dancers, returning a Map from each
