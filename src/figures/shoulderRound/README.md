@@ -15,4 +15,6 @@ Keyframe generation:
 - the two dancers immediately face each other
 - they begin walking in a `handedness====right ? clockwise : counterclockwise` ellipse, just like in a pass-by-[right/left]; but they only go around 1/4 of the ellipse, so that each one is directly on the other's [handedness: right/left]
 - they revolve around their common center of mass, approximately 1 rotation every 4 beats, as with a swing
-- ...and round the number of beats down so that they end up facing the appropriate directions.
+- ...and round the number of beats so that they end up facing the appropriate directions.
+
+Example dance: start in improper, 1 progression; right shoulder round your neighbor, end larks facing up robins facing down. Then everybody steps 0.5m forward and 0.25m right, over two beats.

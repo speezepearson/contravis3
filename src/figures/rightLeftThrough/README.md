@@ -21,3 +21,5 @@ Keyframe generation:
     - those two take left hands, and right hands
     - those two revolve 180 ccw around their common center of mass
     - those two drop right hands
+
+Example dance: start in improper, 0 progression; right left through twice in a row.
