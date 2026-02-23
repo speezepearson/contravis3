@@ -1,149 +1,61 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection, DancerId } from '../../types';
-import { Vector, parseDancerId, makeDancerId, makeFinalKeyframe, EAST, WEST, dancerPosition } from '../../types';
-import { copyDancers, easeInOut, ellipsePosition, isLark, findDancerOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
+import type { Keyframe, FinalKeyframe, AtomicInstruction } from '../../types';
+import { findDancerOnSide, ALL_DANCERS, getRelationship } from '../../generateUtils';
+import { finalPullBy, generatePullBy } from '../pullBy/pullBy';
+import { finalCourtesyTurn, generateCourtesyTurn } from '../courtesyTurn/courtesyTurn';
+import { finalDropHands, generateDropHands } from '../dropHands/dropHands';
+
+function instructionBreakdown(
+  prev: Keyframe,
+  instr: Extract<AtomicInstruction, { type: 'right_left_through' }>,
+): {
+  dropHandsInstr: Extract<AtomicInstruction, { type: 'drop_hands' }>;
+  pullByInstr: Extract<AtomicInstruction, { type: 'pull_by' }>;
+  courtesyTurnInstr: Extract<AtomicInstruction, { type: 'courtesy_turn' }>;
+} {
+  const halfBeats = instr.beats / 2;
+
+  const inFrontDancer = findDancerOnSide('up_lark_0', 'in_front', prev.dancers);
+  if (!inFrontDancer) throw new Error('right_left_through: no in front dancer found');
+
+  const pullByRel = getRelationship('up_lark_0', inFrontDancer.dancerId);
+  if (!pullByRel) throw new Error('right_left_through: no pull by relationship found');
+
+  return {
+    dropHandsInstr: {id: 'dummy', type: 'drop_hands', beats: 0, target: 'both'} as const,
+    pullByInstr: {id: 'dummy', type: 'pull_by', beats: halfBeats, hand: 'right', relationship: pullByRel} as const,
+    courtesyTurnInstr: {id: 'dummy', type: 'courtesy_turn', beats: halfBeats} as const,
+  };
+}
 
 export function finalRightLeftThrough(
   prev: Keyframe,
   instr: Extract<AtomicInstruction, { type: 'right_left_through' }>,
-  scope: Set<ProtoDancerId>,
 ): FinalKeyframe {
-  const initDancersFacingAcross = copyDancers(prev.dancers);
-  for (const id of PROTO_DANCER_IDS) {
-    initDancersFacingAcross[id].facing = initDancersFacingAcross[id].pos.x < 0 ? EAST : WEST;
-  }
-  const dancers = copyDancers(prev.dancers);
-  const hands: HandConnection[] = [];
+  const breakdown = instructionBreakdown(prev, instr);
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id)) continue;
-    const foil = findDancerOnSide(id, 'larks_right_robins_left', initDancersFacingAcross);
-    if (!foil) throw new Error(`right_left_through: ${id} has no foil`);
-
-    const ourPos = prev.dancers[id].pos;
-    const foilPos = dancerPosition(foil.dancerId, prev.dancers).pos;
-    if ((ourPos.x < 0) !== (foilPos.x < 0)) throw new Error(`right_left_through: ${id} and foil ${foil.dancerId} are on opposite sides of the set`);
-    const targetX = ourPos.x < 0 ? 1 : -1;
-    const finalFacing = targetX < 0 ? WEST : EAST;
-
-    dancers[id].pos = new Vector(targetX, foilPos.y);
-    dancers[id].facing = finalFacing.multiply(-1);
-
-    hands.push({ a: id, ha: 'left', b: foil.dancerId, hb: 'left' });
-  }
-
-  return makeFinalKeyframe({
-    beat: prev.beat + instr.beats,
-    dancers,
-    hands,
-  });
+  let kf = finalPullBy(prev, breakdown.pullByInstr, ALL_DANCERS);
+  kf = finalCourtesyTurn(kf, breakdown.courtesyTurnInstr, ALL_DANCERS);
+  return kf;
 }
 
-/**
- * Intermediate keyframes for right left through.
- *
- * Phase 1 (first half): every dancer immediately faces across and walks in a
- * clockwise ellipse to {x: otherSide, y: theirCurrentY}.
- *
- * Phase 2 (second half): courtesy turn — the lark and the robin on his right
- * take both hands and revolve 180° CCW around their common center, then drop
- * right hands. Facing stays constant (across the set) throughout the turn.
- */
 export function generateRightLeftThrough(
   prev: Keyframe,
   _final: FinalKeyframe,
   instr: Extract<AtomicInstruction, { type: 'right_left_through' }>,
 ): Keyframe[] {
-  const totalBeats = instr.beats;
-  const halfBeats = totalBeats / 2;
 
-  // Phase 1 setup: each dancer crosses to the other side of the set
-  const crossData: { id: ProtoDancerId; start: Vector; target: Vector; phase1Facing: Vector }[] = [];
-  for (const id of PROTO_DANCER_IDS) {
-    const d = prev.dancers[id];
-    const targetX = d.pos.x < 0 ? 1 : -1;
-    crossData.push({
-      id,
-      start: d.pos,
-      target: new Vector(targetX, d.pos.y),
-      phase1Facing: d.pos.x < 0 ? EAST : WEST,
-    });
-  }
+  const breakdown = instructionBreakdown(prev, instr);
 
-  // Phase 2 setup: compute the midpoint state (end of crossing), then find
-  // lark-robin pairs for the courtesy turn.
-  const midDancers = copyDancers(prev.dancers);
-  for (const cd of crossData) {
-    midDancers[cd.id].pos = cd.target;
-    midDancers[cd.id].facing = cd.phase1Facing;
-  }
+  const keyframes: Keyframe[] = [prev];
 
-  const pairs: {
-    proto: ProtoDancerId;
-    foil: DancerId;
-    center: Vector;
-    radius: number;
-    initAcrossFacing: Vector;
-  }[] = [];
+  const dropHandsFinal = finalDropHands(keyframes[keyframes.length-1], breakdown.dropHandsInstr, ALL_DANCERS);
+  keyframes.push(...generateDropHands(keyframes[keyframes.length-1], dropHandsFinal, breakdown.dropHandsInstr, ALL_DANCERS), dropHandsFinal);
 
-  for (const id of PROTO_DANCER_IDS) {
-    const foil = findDancerOnSide(id, 'larks_right_robins_left', midDancers);
-    if (!foil) throw new Error(`right_left_through: ${id} has no dancer on their side for courtesy turn`);
-    if (isLark(foil.dancerId) === isLark(id)) throw new Error(`right_left_through: ${id}'s foil ${foil.dancerId} has the same role`);
+  const pullByFinal = finalPullBy(keyframes[keyframes.length-1], breakdown.pullByInstr, ALL_DANCERS);
+  keyframes.push(...generatePullBy(keyframes[keyframes.length-1], pullByFinal, breakdown.pullByInstr, ALL_DANCERS), pullByFinal);
 
-    const protoPos = dancerPosition(id, midDancers).pos;
-    const foilPos = dancerPosition(foil.dancerId, midDancers).pos;
-    const center = protoPos.add(foilPos).multiply(0.5);
-    const delta = protoPos.subtract(center);
+  const courtesyTurnFinal = finalCourtesyTurn(keyframes[keyframes.length-1], breakdown.courtesyTurnInstr, ALL_DANCERS);
+  keyframes.push(...generateCourtesyTurn(keyframes[keyframes.length-1], courtesyTurnFinal, breakdown.courtesyTurnInstr), courtesyTurnFinal);
 
-    pairs.push({
-      proto: id,
-      foil: foil.dancerId,
-      center,
-      radius: delta.length(),
-      initAcrossFacing: prev.dancers[id].pos.x < 0 ? EAST : WEST,
-    });
-  }
-
-  // Generate intermediate keyframes (not including the final)
-  const nFrames = Math.max(1, Math.round(totalBeats / 0.25));
-  const result: Keyframe[] = [];
-
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
-    const beat = prev.beat + t * totalBeats;
-    const elapsed = t * totalBeats;
-    const dancers = copyDancers(prev.dancers);
-
-    if (elapsed <= halfBeats) {
-      // Phase 1: cross via CW ellipse, immediately face across
-      const tPhase = elapsed / halfBeats;
-      const theta = Math.PI * easeInOut(tPhase);
-      for (const cd of crossData) {
-        dancers[cd.id].pos = ellipsePosition(cd.start, cd.target, 0.25, theta);
-        dancers[cd.id].facing = cd.phase1Facing;
-      }
-      result.push({ beat, dancers, hands: [] });
-    } else {
-      // Phase 2: courtesy turn — 180° CCW revolve, facing stays constant
-      const tPhase = (elapsed - halfBeats) / halfBeats;
-      const hands: HandConnection[] = [];
-
-      for (const { proto, foil, center, radius, initAcrossFacing } of pairs) {
-        console.log({proto, foil})
-        const facingAngle = initAcrossFacing.rotateByRadians(tPhase * Math.PI);
-
-        dancers[proto].facing = facingAngle;
-        dancers[proto].pos = center.add(facingAngle
-          .multiply(radius)
-          .rotateByRadians(Math.PI/2 * (isLark(proto) ? 1 : -1)));
-
-        hands.push({ a: proto, ha: 'left', b: foil, hb: 'left' });
-        hands.push({ a: proto, ha: 'right', b: foil, hb: 'right' });
-      }
-
-      result.push({ beat, dancers, hands });
-    }
-  }
-
-  return result;
+  return keyframes;
 }

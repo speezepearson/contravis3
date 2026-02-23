@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveRelationship, PROTO_DANCER_IDS } from './generateUtils';
+import { resolveRelationship, PROTO_DANCER_IDS, getRelationship } from './generateUtils';
 import { BaseRelationshipSchema, makeDancerId, parseDancerId } from './types';
 import type { BaseRelationship } from './types';
 
@@ -21,4 +21,18 @@ describe('resolveRelationship symmetry', () => {
       }
     }
   }
+});
+
+describe('getRelationship', () => {
+  it('returns right values in simple cases', () => {
+    expect(getRelationship('up_lark_10', 'up_lark_13')).toBeUndefined();
+    expect(getRelationship('up_lark_10', 'up_robin_13')).toEqual({ base: 'partner', offset: -3 });
+    expect(getRelationship('up_lark_10', 'down_lark_13')).toEqual({ base: 'opposite', offset: 3 });
+    expect(getRelationship('up_lark_10', 'down_robin_13')).toEqual({ base: 'neighbor', offset: 3 });
+
+    expect(getRelationship('down_robin_10', 'up_lark_13')).toEqual({ base: 'neighbor', offset: -3 });
+    expect(getRelationship('down_robin_10', 'up_robin_13')).toEqual({ base: 'opposite', offset: -3 });
+    expect(getRelationship('down_robin_10', 'down_lark_13')).toEqual({ base: 'partner', offset: -3 });
+    expect(getRelationship('down_robin_10', 'down_robin_13')).toBeUndefined();
+  });
 });

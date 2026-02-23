@@ -233,3 +233,26 @@ export function angleBetweenFacings(a: Vector, b: Vector): number {
   const dot = a.x * b.x + a.y * b.y;
   return Math.acos(Math.max(-1, Math.min(1, dot)));
 }
+
+export function getRelationship(a: DancerId, b: DancerId): Relationship | undefined {
+  const pa = parseDancerId(a);
+  const pb = parseDancerId(b);
+  const result: Relationship | undefined = (() => {
+    const aProgDeltaOffsetToB = (pa.dir === 'up' ? 1 : -1) * (pb.offset - pa.offset)
+    if (pa.dir === pb.dir && pa.role === pb.role) {
+        return undefined;
+    } else if (pa.dir === pb.dir && pa.role !== pb.role) {
+        return { base: 'partner', offset: (pa.role === 'lark' ? -1 : 1) * aProgDeltaOffsetToB };
+    } else if (pa.dir !== pb.dir && pa.role === pb.role) {
+        return { base: 'opposite', offset: aProgDeltaOffsetToB };
+    } else if (pa.dir !== pb.dir && pa.role !== pb.role) {
+        return { base: 'neighbor', offset: aProgDeltaOffsetToB };
+    }
+    assertNever({pa, pb} as never);
+  })();
+
+  if (result === undefined) return undefined;
+  const resolvedA = resolveRelationship(result, a);
+  if (!(resolvedA === b)) throw new Error(`Programming error: computed wrong relationship for ${a} and ${b}: ${result.base}${result.offset} of ${a} is actually ${resolvedA}`);
+  return result;
+}
