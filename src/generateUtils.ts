@@ -28,8 +28,9 @@ export function copyDancers(dancers: Record<ProtoDancerId, DancerState>): Record
 
 /** Resolve a relationship from a specific dancer's perspective.
  *  Returns the DancerId of the target, which may be in an adjacent hands-four. */
-export function resolveRelationship(relationship: Relationship, id: ProtoDancerId): DancerId {
-  return makeDancerId(STATIC_RELATIONSHIPS[relationship.base][id], relationship.offset);
+export function resolveRelationship(relationship: Relationship, id: DancerId): DancerId {
+  const { proto, offset } = parseDancerId(id);
+  return makeDancerId(STATIC_RELATIONSHIPS[relationship.base][proto], relationship.offset + offset);
 }
 
 /** Resolve a relationship for all scoped dancers, returning a Map from each
