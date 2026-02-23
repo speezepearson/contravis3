@@ -66,6 +66,10 @@ export const RelativeDirectionSchema = z.discriminatedUnion('kind', [
 ]);
 export type RelativeDirection = z.infer<typeof RelativeDirectionSchema>;
 
+// A direction with an additional rotational offset (in radians, CW positive)
+export const OffsetRelativeDirectionSchema = z.object({ dir: RelativeDirectionSchema, offsetRad: z.number() });
+export type OffsetRelativeDirection = z.infer<typeof OffsetRelativeDirectionSchema>;
+
 const baseFields = { id: InstructionIdSchema, beats: z.number() };
 
 export const AtomicInstructionSchema = z.discriminatedUnion('type', [
@@ -75,7 +79,7 @@ export const AtomicInstructionSchema = z.discriminatedUnion('type', [
   z.object({ ...baseFields, type: z.literal('do_si_do'), relationship: RelationshipSchema, rotations: z.number() }),
   z.object({ ...baseFields, type: z.literal('circle'), direction: HandSchema, rotations: z.number() }),
   z.object({ ...baseFields, type: z.literal('pull_by'), relationship: RelationshipSchema, hand: HandSchema }),
-  z.object({ ...baseFields, type: z.literal('step'), direction: RelativeDirectionSchema, distance: z.number(), facing: RelativeDirectionSchema, facingOffset: z.number() }),
+  z.object({ ...baseFields, type: z.literal('step'), direction: RelativeDirectionSchema, distance: z.number(), facing: OffsetRelativeDirectionSchema }),
   z.object({ ...baseFields, type: z.literal('balance'), direction: RelativeDirectionSchema, distance: z.number() }),
   z.object({ ...baseFields, type: z.literal('swing'), relationship: FoilRelationshipSchema, endFacing: RelativeDirectionSchema }),
   z.object({ ...baseFields, type: z.literal('box_the_gnat'), relationship: FoilRelationshipSchema }),

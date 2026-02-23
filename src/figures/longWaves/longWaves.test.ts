@@ -24,7 +24,7 @@ describe('long_waves', () => {
     // Let's use step to move everyone into a column and face alternating directions.
     const instructions = instr([
       // First turn to face across
-      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 },
+      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
       // Now: up_lark(-0.5,-0.5,E), up_robin(0.5,-0.5,W), down_lark(0.5,0.5,W), down_robin(-0.5,0.5,E)
       // Left column: up_lark(E) and down_robin(E) - same direction, won't work for waves
       // Right column: up_robin(W) and down_lark(W) - same direction
@@ -32,7 +32,7 @@ describe('long_waves', () => {
       // This formation is actually long lines, not long waves.
       // For long waves we need: e.g. up_lark(E) at x=0, down_robin(W) at x=0
       // Move everyone to x=0
-      { id: tid(2), beats: 0, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 },
+      { id: tid(2), beats: 0, type: 'step', direction: { kind: 'direction', value: 'across' }, distance: 0.5, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
       // Now up_lark(0,-0.5,E), down_robin(0,0.5,E) - still same direction
       // We need to flip one. Let's try a different approach entirely.
     ]);

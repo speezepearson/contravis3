@@ -13,8 +13,7 @@
           "type": "step",
           "direction": { "kind": "direction", "value": "forward" },
           "distance": 0,
-          "facing": { "kind": "direction", "value": "back" },
-          "facingOffset": 0
+          "facing": { "dir": { "kind": "direction", "value": "back" }, "offsetRad": 0 }
         }
       ],
       "robins": []

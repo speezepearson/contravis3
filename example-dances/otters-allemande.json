@@ -149,10 +149,9 @@
       "direction": { "kind": "direction", "value": "forward" },
       "distance": 0,
       "facing": {
-        "kind": "relationship",
-        "value": {"base": "neighbor", "offset": 0}
-      },
-      "facingOffset": 0
+        "dir": { "kind": "relationship", "value": {"base": "neighbor", "offset": 0} },
+        "offsetRad": 0
+      }
     },
     {
       "id": "b2000000-0000-4000-a000-000000000006",
@@ -174,10 +173,9 @@
       "direction": { "kind": "direction", "value": "forward" },
       "distance": 0,
       "facing": {
-        "kind": "relationship",
-        "value": {"base": "partner", "offset": 0}
-      },
-      "facingOffset": 0
+        "dir": { "kind": "relationship", "value": {"base": "partner", "offset": 0} },
+        "offsetRad": 0
+      }
     },
     {
       "id": "b2000000-0000-4000-a000-000000000009",
@@ -216,10 +214,9 @@
       "direction": { "kind": "direction", "value": "forward" },
       "distance": 0,
       "facing": {
-        "kind": "relationship",
-        "value": {"base": "neighbor", "offset": 0}
-      },
-      "facingOffset": 0
+        "dir": { "kind": "relationship", "value": {"base": "neighbor", "offset": 0} },
+        "offsetRad": 0
+      }
     },
     {
       "id": "b2000000-0000-4000-a000-00000000000e",

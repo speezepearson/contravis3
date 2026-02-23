@@ -9,9 +9,9 @@ export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { ty
     const d = prev.dancers[id];
     const heading = resolveHeading(instr.direction, d, id, prev.dancers);
     dancers[id].pos = d.pos.add(heading.multiply(instr.distance));
-    const base = resolveFacing(instr.facing, d, id, prev.dancers);
+    const base = resolveFacing(instr.facing.dir, d, id, prev.dancers);
     // offset is CW radians; vecti rotateByRadians is CCW, so negate
-    dancers[id].facing = base.rotateByRadians(-instr.facingOffset);
+    dancers[id].facing = base.rotateByRadians(-instr.facing.offsetRad);
   }
   return makeFinalKeyframe({
     beat: prev.beat + instr.beats,

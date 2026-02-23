@@ -22,7 +22,7 @@ describe('short_waves', () => {
     // Actually let's set up a scenario where dancers on left/right face the same way
     const instructions = instr([
       // Move dancers side by side facing the same direction
-      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'across' }, facingOffset: 0 },
+      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'across' }, offsetRad: 0 } },
       { id: tid(2), beats: 0, type: 'short_waves' },
     ]);
     const { error } = generateAllKeyframes(instructions);

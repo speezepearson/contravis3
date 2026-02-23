@@ -16,12 +16,12 @@ export function finalBalance(prev: Keyframe, instr: Extract<AtomicInstruction, {
 export function generateBalance(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'balance' }>, scope: Set<ProtoDancerId>): Keyframe[] {
   const halfBeats = instr.beats / 2;
 
-  const forward = { kind: 'direction' as const, value: 'forward' as const };
-  const stepOutInstr = { id: instr.id, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: instr.distance, facing: forward, facingOffset: 0 };
+  const forwardFacing = { dir: { kind: 'direction' as const, value: 'forward' as const }, offsetRad: 0 };
+  const stepOutInstr = { id: instr.id, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: instr.distance, facing: forwardFacing };
   const outFinal = finalStep(prev, stepOutInstr, scope);
   const outIntermediates = generateStep(prev, outFinal, stepOutInstr, scope);
 
-  const stepBackInstr = { id: instr.id, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -instr.distance, facing: forward, facingOffset: 0 };
+  const stepBackInstr = { id: instr.id, beats: halfBeats, type: 'step' as const, direction: instr.direction, distance: -instr.distance, facing: forwardFacing };
   const backFinal = finalStep(outFinal, stepBackInstr, scope);
   const backIntermediates = generateStep(outFinal, backFinal, stepBackInstr, scope);
 

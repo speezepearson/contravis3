@@ -6,7 +6,7 @@ import { tid, instr, expectFacingCloseTo } from '../testUtils';
 describe('give_and_take_into_swing', () => {
   // Set up: turn everyone to face across, so pairs are on opposite sides of the set
   function faceAcross() {
-    return { id: tid(99), beats: 0, type: 'step' as const, direction: { kind: 'direction' as const, value: 'forward' as const }, distance: 0, facing: { kind: 'direction' as const, value: 'across' as const }, facingOffset: 0 };
+    return { id: tid(99), beats: 0, type: 'step' as const, direction: { kind: 'direction' as const, value: 'forward' as const }, distance: 0, facing: { dir: { kind: 'direction' as const, value: 'across' as const }, offsetRad: 0 } };
   }
 
   it('rejects opposite as a foil relationship', () => {

@@ -16,7 +16,7 @@ export interface SubFormProps {
 export function makeDefaultInstruction(type: ActionType | 'split', id: InstructionId): Instruction {
   switch (type) {
     case 'step':
-      return InstructionSchema.parse({ id, type: 'step', beats: 0, direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 });
+      return InstructionSchema.parse({ id, type: 'step', beats: 0, direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { dir: { kind: 'direction', value: 'forward' }, offsetRad: 0 } });
     case 'take_hands':
       return InstructionSchema.parse({ id, type: 'take_hands', beats: 0, relationship: { base: 'neighbor', offset: 0 }, hand: 'right' });
     case 'drop_hands':
