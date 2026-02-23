@@ -27,6 +27,11 @@ import { SwingFields } from './figures/swing/SwingFields';
 import { BoxTheGnatFields } from './figures/boxTheGnat/BoxTheGnatFields';
 import { GiveAndTakeIntoSwingFields } from './figures/giveAndTakeIntoSwing/GiveAndTakeIntoSwingFields';
 import { MadRobinFields } from './figures/madRobin/MadRobinFields';
+import { TurnAloneFields } from './figures/turnAlone/TurnAloneFields';
+import { CaliforniaTwirlFields } from './figures/californiaTwirl/CaliforniaTwirlFields';
+import { TurnAsACoupleFields } from './figures/turnAsACouple/TurnAsACoupleFields';
+import { RightLeftThroughFields } from './figures/rightLeftThrough/RightLeftThroughFields';
+import { ShoulderRoundFields } from './figures/shoulderRound/ShoulderRoundFields';
 import { ShortWavesFields } from './figures/shortWaves/ShortWavesFields';
 import { LongWavesFields } from './figures/longWaves/LongWavesFields';
 import { LongLinesFields } from './figures/longLines/LongLinesFields';
@@ -41,13 +46,15 @@ const exampleDances: { key: string; label: string; dance: Dance }[] = Object.ent
   return { key: filename, label, dance };
 });
 
-const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'pass_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'short_waves', 'long_waves', 'long_lines', 'split'];
+const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'pass_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'turn_alone', 'california_twirl', 'turn_as_a_couple', 'right_left_through', 'shoulder_round', 'short_waves', 'long_waves', 'long_lines', 'split'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by', pass_by: 'pass by',
   step: 'step', balance: 'balance',
   box_the_gnat: 'box the gnat', give_and_take_into_swing: 'give & take into swing',
   mad_robin: 'mad robin',
+  turn_alone: 'turn alone', california_twirl: 'California twirl', turn_as_a_couple: 'turn as a couple',
+  right_left_through: 'right left through', shoulder_round: 'shoulder round',
   short_waves: 'short waves', long_waves: 'long waves', long_lines: 'long lines',
   split: 'split',
 };
@@ -291,6 +298,11 @@ function doesRequireBeatsInput(type: AtomicInstruction['type']): boolean {
     case 'pass_by': return true;
     case 'step': return true;
     case 'swing': return true;
+    case 'turn_alone': return true;
+    case 'california_twirl': return true;
+    case 'turn_as_a_couple': return true;
+    case 'right_left_through': return true;
+    case 'shoulder_round': return true;
     case 'take_hands': return false;
     case 'drop_hands': return false;
     case 'short_waves': return false;
@@ -389,6 +401,11 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
         case 'box_the_gnat': return <BoxTheGnatFields {...common} instruction={instruction} />;
         case 'give_and_take_into_swing': return <GiveAndTakeIntoSwingFields {...common} instruction={instruction} />;
         case 'mad_robin': return <MadRobinFields {...common} instruction={instruction} />;
+        case 'turn_alone': return <TurnAloneFields {...common} instruction={instruction} />;
+        case 'california_twirl': return <CaliforniaTwirlFields {...common} instruction={instruction} />;
+        case 'turn_as_a_couple': return <TurnAsACoupleFields {...common} instruction={instruction} />;
+        case 'right_left_through': return <RightLeftThroughFields {...common} instruction={instruction} />;
+        case 'shoulder_round': return <ShoulderRoundFields {...common} instruction={instruction} />;
         case 'short_waves': return <ShortWavesFields {...common} instruction={instruction} />;
         case 'long_waves': return <LongWavesFields {...common} instruction={instruction} />;
         case 'long_lines': return <LongLinesFields {...common} instruction={instruction} />;

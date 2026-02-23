@@ -115,13 +115,18 @@ export const AtomicInstructionSchema = z.discriminatedUnion('type', [
   z.object({ ...baseFields, type: z.literal('box_the_gnat'), relationship: FoilRelationshipSchema }),
   z.object({ ...baseFields, type: z.literal('give_and_take_into_swing'), relationship: FoilRelationshipSchema, role: RoleSchema, endFacing: RelativeDirectionSchema }),
   z.object({ ...baseFields, type: z.literal('mad_robin'), relationship: FoilRelationshipSchema, dir: z.enum(['larks_in_middle', 'robins_in_middle']), rotations: z.number() }),
+  z.object({ ...baseFields, type: z.literal('turn_alone') }),
+  z.object({ ...baseFields, type: z.literal('california_twirl') }),
+  z.object({ ...baseFields, type: z.literal('turn_as_a_couple') }),
+  z.object({ ...baseFields, type: z.literal('right_left_through') }),
+  z.object({ ...baseFields, type: z.literal('shoulder_round'), relationship: FoilRelationshipSchema, handedness: HandSchema, endFacing: z.enum(['larks_up_robins_down', 'larks_down_robins_up', 'larks_across_robins_out', 'larks_out_robins_across']) }),
   z.object({ ...baseFields, type: z.literal('short_waves') }),
   z.object({ ...baseFields, type: z.literal('long_waves') }),
   z.object({ ...baseFields, type: z.literal('long_lines') }),
 ]);
 export type AtomicInstruction = z.infer<typeof AtomicInstructionSchema>;
 
-export const ActionTypeSchema = z.enum(['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'pass_by', 'step', 'balance', 'swing', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'short_waves', 'long_waves', 'long_lines']);
+export const ActionTypeSchema = z.enum(['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'circle', 'pull_by', 'pass_by', 'step', 'balance', 'swing', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'turn_alone', 'california_twirl', 'turn_as_a_couple', 'right_left_through', 'shoulder_round', 'short_waves', 'long_waves', 'long_lines']);
 export type ActionType = z.infer<typeof ActionTypeSchema>;
 
 export const SplitBySchema = z.discriminatedUnion('by', [
