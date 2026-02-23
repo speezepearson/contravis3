@@ -28,7 +28,7 @@ describe('generateAllKeyframes', () => {
   describe('validateHandDistances', () => {
     it('no warning when neighbors take hands (distance ~1.0m)', () => {
       const instructions = instr([
-        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'left' },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
       const warnings = validateHandDistances(instructions, keyframes);
@@ -37,7 +37,7 @@ describe('generateAllKeyframes', () => {
 
     it('warns when dancers step apart while holding hands', () => {
       const instructions = instr([
-        { id: tid(1), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'left' },
+        { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'left' },
         { id: tid(2), beats: 2, type: 'step', direction: { kind: 'direction', value: 'back' }, distance: 0.4, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
       ]);
       const { keyframes } = generateAllKeyframes(instructions);
@@ -63,7 +63,7 @@ describe('DanceSchema', () => {
       initFormation: 'improper',
       progression: 1,
       instructions: [
-        { id: tid(1), beats: 8, type: 'swing', relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } },
+        { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
       ],
     };
     const dance = DanceSchema.parse(raw);
@@ -178,7 +178,7 @@ describe('generateAllKeyframes with initFormation', () => {
       // in improper formation -> error because neighbor is directly in front).
       const instructions = instr([
         { id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
-        { id: tid(11), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+        { id: tid(11), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' },
       ]);
       const { keyframes, error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
@@ -195,7 +195,7 @@ describe('generateAllKeyframes with initFormation', () => {
       const instructions = instr([{
         id: tid(1), type: 'split', by: 'role',
         larks: [{ id: tid(10), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 }],
-        robins: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' }],
+        robins: [{ id: tid(11), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' }],
       }]);
       const { keyframes, error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
@@ -211,7 +211,7 @@ describe('generateAllKeyframes with initFormation', () => {
     it('preserves keyframes from a successful first instruction when the second top-level instruction fails', () => {
       const instructions = instr([
         { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
-        { id: tid(2), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+        { id: tid(2), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' },
       ]);
       const { keyframes, error } = generateAllKeyframes(instructions);
       expect(error).not.toBeNull();
@@ -232,7 +232,7 @@ describe('generateAllKeyframes with initFormation', () => {
         ],
         robins: [
           { id: tid(20), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0.3, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 },
-          { id: tid(21), beats: 0, type: 'take_hands', relationship: 'neighbor', hand: 'inside' },
+          { id: tid(21), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' },
         ],
       }]);
       const { keyframes, error } = generateAllKeyframes(instructions);

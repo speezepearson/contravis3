@@ -4,18 +4,16 @@ import { NORTH, SOUTH } from '../../types';
 import { tid, instr, initialKeyframe, expectFacingCloseTo } from '../testUtils';
 
 describe('box_the_gnat', () => {
-  it('errors when pairs have the same role', () => {
-    const instructions = instr([
-      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'opposite' },
-    ]);
-    const { error } = generateAllKeyframes(instructions);
-    expect(error).not.toBeNull();
-    expect(error!.message).toMatch(/opposite roles/);
+  it('rejects opposite as a foil relationship', () => {
+    // FoilRelationshipSchema only allows 'partner' and 'neighbor'; 'opposite' should fail to parse
+    expect(() => instr([
+      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'opposite', offset: 0 } },
+    ])).toThrow();
   });
 
   it('dancers trade places after box the gnat', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -30,8 +28,8 @@ describe('box_the_gnat', () => {
   it('lark turns CW 180 deg and robin turns CCW 180 deg', () => {
     // First face neighbors toward each other, then box the gnat
     const instructions = instr([
-      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: 'neighbor' }, facingOffset: 0 },
-      { id: tid(2), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: { base: 'neighbor', offset: 0 } }, facingOffset: 0 },
+      { id: tid(2), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // After turn: up_lark faces down_robin -> facing 0 deg (up, since down_robin is north of up_lark)
@@ -44,7 +42,7 @@ describe('box_the_gnat', () => {
 
   it('path follows an ellipse (midpoint is off the major axis)', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -66,7 +64,7 @@ describe('box_the_gnat', () => {
 
   it('has right hand connections during the figure', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const mid = kfs[Math.floor(kfs.length / 2)];
@@ -76,7 +74,7 @@ describe('box_the_gnat', () => {
 
   it('drops hands on the final frame', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -85,7 +83,7 @@ describe('box_the_gnat', () => {
 
   it('minor axis is half the major axis length', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: 'neighbor' },
+      { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();

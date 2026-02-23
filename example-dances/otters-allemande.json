@@ -8,7 +8,7 @@
       "id": "a1000000-0000-4000-a000-000000000001",
       "beats": 0,
       "type": "take_hands",
-      "relationship": "neighbor",
+      "relationship": {"base": "neighbor", "offset": 0},
       "hand": "right"
     },
     {
@@ -17,7 +17,7 @@
       "type": "balance",
       "direction": {
         "kind": "relationship",
-        "value": "neighbor"
+        "value": {"base": "neighbor", "offset": 0}
       },
       "distance": 0.2
     },
@@ -25,19 +25,19 @@
       "id": "a1000000-0000-4000-a000-000000000003",
       "beats": 4,
       "type": "box_the_gnat",
-      "relationship": "neighbor"
+      "relationship": {"base": "neighbor", "offset": 0}
     },
     {
       "id": "a1000000-0000-4000-a000-000000000004",
       "beats": 0,
       "type": "drop_hands",
-      "target": "neighbor"
+      "target": {"base": "neighbor", "offset": 0}
     },
     {
       "id": "a1000000-0000-4000-a000-000000000005",
       "beats": 8,
       "type": "do_si_do",
-      "relationship": "neighbor",
+      "relationship": {"base": "neighbor", "offset": 0},
       "rotations": 1.25
     },
     {
@@ -65,7 +65,7 @@
       "id": "a2000000-0000-4000-a000-000000000003",
       "beats": 2,
       "type": "allemande",
-      "relationship": "neighbor",
+      "relationship": {"base": "neighbor", "offset": 0},
       "handedness": "right",
       "rotations": 0.5
     },
@@ -85,7 +85,7 @@
           "id": "a2000000-0000-4000-a000-000000000005",
           "beats": 2,
           "type": "allemande",
-          "relationship": "opposite",
+          "relationship": {"base": "opposite", "offset": 0},
           "handedness": "left",
           "rotations": 0.5
         }
@@ -95,7 +95,7 @@
       "id": "a2000000-0000-4000-a000-000000000006",
       "beats": 8,
       "type": "swing",
-      "relationship": "partner",
+      "relationship": {"base": "partner", "offset": 0},
       "endFacing": {
         "kind": "direction",
         "value": "across"
@@ -105,7 +105,7 @@
       "id": "b1000000-0000-4000-a000-000000000001",
       "beats": 16,
       "type": "give_and_take_into_swing",
-      "relationship": "neighbor",
+      "relationship": {"base": "neighbor", "offset": 0},
       "role": "lark",
       "endFacing": {
         "kind": "direction",
@@ -116,7 +116,7 @@
       "id": "b2000000-0000-4000-a000-000000000001",
       "beats": 0,
       "type": "take_hands",
-      "relationship": "partner",
+      "relationship": {"base": "partner", "offset": 0},
       "hand": "right"
     },
     {
@@ -125,7 +125,7 @@
       "type": "balance",
       "direction": {
         "kind": "relationship",
-        "value": "partner"
+        "value": {"base": "partner", "offset": 0}
       },
       "distance": 0.2
     },
@@ -133,7 +133,7 @@
       "id": "b2000000-0000-4000-a000-000000000003",
       "beats": 2,
       "type": "pull_by",
-      "relationship": "partner",
+      "relationship": {"base": "partner", "offset": 0},
       "hand": "right"
     },
     {
@@ -150,7 +150,7 @@
       "distance": 0,
       "facing": {
         "kind": "relationship",
-        "value": "neighbor"
+        "value": {"base": "neighbor", "offset": 0}
       },
       "facingOffset": 0
     },
@@ -158,7 +158,7 @@
       "id": "b2000000-0000-4000-a000-000000000006",
       "beats": 2,
       "type": "pull_by",
-      "relationship": "neighbor",
+      "relationship": {"base": "neighbor", "offset": 0},
       "hand": "left"
     },
     {
@@ -175,7 +175,7 @@
       "distance": 0,
       "facing": {
         "kind": "relationship",
-        "value": "partner"
+        "value": {"base": "partner", "offset": 0}
       },
       "facingOffset": 0
     },
@@ -183,7 +183,7 @@
       "id": "b2000000-0000-4000-a000-000000000009",
       "beats": 0,
       "type": "take_hands",
-      "relationship": "partner",
+      "relationship": {"base": "partner", "offset": 0},
       "hand": "right"
     },
     {
@@ -192,7 +192,7 @@
       "type": "balance",
       "direction": {
         "kind": "relationship",
-        "value": "partner"
+        "value": {"base": "partner", "offset": 0}
       },
       "distance": 0.2
     },
@@ -200,7 +200,7 @@
       "id": "b2000000-0000-4000-a000-00000000000b",
       "beats": 2,
       "type": "pull_by",
-      "relationship": "partner",
+      "relationship": {"base": "partner", "offset": 0},
       "hand": "right"
     },
     {
@@ -217,7 +217,7 @@
       "distance": 0,
       "facing": {
         "kind": "relationship",
-        "value": "neighbor"
+        "value": {"base": "neighbor", "offset": 0}
       },
       "facingOffset": 0
     },
@@ -225,7 +225,7 @@
       "id": "b2000000-0000-4000-a000-00000000000e",
       "beats": 2,
       "type": "pull_by",
-      "relationship": "neighbor",
+      "relationship": {"base": "neighbor", "offset": 0},
       "hand": "left"
     }
   ]

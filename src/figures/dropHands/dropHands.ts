@@ -18,7 +18,7 @@ export function finalDropHands(prev: Keyframe, instr: Extract<AtomicInstruction,
     const pairSet = new Set<string>();
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
-      const resolved = resolveRelationship(target, id, prev.dancers);
+      const resolved = resolveRelationship(target, id);
       const aId = makeDancerId(id, 0);
       pairSet.add(`${aId}:${resolved}`);
       pairSet.add(`${resolved}:${aId}`);

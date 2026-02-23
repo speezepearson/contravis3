@@ -5,7 +5,7 @@ import { tid, instr, initialKeyframe, expectFacingCloseTo } from '../testUtils';
 describe('pull_by', () => {
   it('dancers swap positions', () => {
     const instructions = instr([
-      { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      { id: tid(1), beats: 2, type: 'pull_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -19,7 +19,7 @@ describe('pull_by', () => {
 
   it('dancers maintain original facing', () => {
     const instructions = instr([
-      { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      { id: tid(1), beats: 2, type: 'pull_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -30,7 +30,7 @@ describe('pull_by', () => {
 
   it('has hand connections during the first half', () => {
     const instructions = instr([
-      { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      { id: tid(1), beats: 2, type: 'pull_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const mid = kfs[Math.floor(kfs.length / 2)];
@@ -40,7 +40,7 @@ describe('pull_by', () => {
 
   it('drops hand connections after the halfway point', () => {
     const instructions = instr([
-      { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      { id: tid(1), beats: 2, type: 'pull_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // Check a keyframe in the second half (3/4 through)
@@ -53,7 +53,7 @@ describe('pull_by', () => {
 
   it('right hand pull-by follows a CW elliptical path', () => {
     const instructions = instr([
-      { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'right' },
+      { id: tid(1), beats: 2, type: 'pull_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -68,7 +68,7 @@ describe('pull_by', () => {
 
   it('left hand pull-by follows a CCW elliptical path', () => {
     const instructions = instr([
-      { id: tid(1), beats: 2, type: 'pull_by', relationship: 'neighbor', hand: 'left' },
+      { id: tid(1), beats: 2, type: 'pull_by', relationship: { base: 'neighbor', offset: 0 }, hand: 'left' },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();

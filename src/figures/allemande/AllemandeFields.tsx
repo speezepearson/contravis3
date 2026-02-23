@@ -1,4 +1,4 @@
-import { InstructionSchema, RelationshipSchema, HandSchema } from '../../types';
+import { InstructionSchema, BaseRelationshipSchema, HandSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS, HAND_OPTIONS } from '../../fieldUtils';
@@ -20,6 +20,6 @@ export function AllemandeFields({ instruction, onChange, onInvalid }: SubFormPro
     {' '}
     <InlineNumber value={String(instruction.rotations)} onTextChange={v => tryCommit({ rotations: Number(v) })} onDrag={n => tryCommit({ rotations: n })} step={0.25} suffix="x" />
     {' with your '}
-    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={v => tryCommit({ relationship: RelationshipSchema.parse(v) })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={instruction.relationship.base} onChange={v => tryCommit({ relationship: { base: BaseRelationshipSchema.parse(v), offset: instruction.relationship.offset } })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
   </>);
 }

@@ -35,7 +35,16 @@ export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, Danc
 }
 
 // Who they interact with (only for actions that involve a partner)
-export const RelationshipSchema = z.enum(['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front', 'larks_left_robins_right', 'larks_right_robins_left']);
+export const FoilBaseRelationshipSchema = z.enum(['partner', 'neighbor']);
+export type FoilBaseRelationship = z.infer<typeof FoilBaseRelationshipSchema>;
+
+export const BaseRelationshipSchema = z.enum([...FoilBaseRelationshipSchema.options, 'opposite']);
+export type BaseRelationship = z.infer<typeof BaseRelationshipSchema>;
+
+export const FoilRelationshipSchema = z.object({ base: FoilBaseRelationshipSchema, offset: z.number().int() });
+export type FoilRelationship = z.infer<typeof FoilRelationshipSchema>;
+
+export const RelationshipSchema = z.object({ base: BaseRelationshipSchema, offset: z.number().int() });
 export type Relationship = z.infer<typeof RelationshipSchema>;
 
 // What to drop: a relationship (drops hand connections between those pairs),
@@ -68,9 +77,9 @@ export const AtomicInstructionSchema = z.discriminatedUnion('type', [
   z.object({ ...baseFields, type: z.literal('pull_by'), relationship: RelationshipSchema, hand: HandSchema }),
   z.object({ ...baseFields, type: z.literal('step'), direction: RelativeDirectionSchema, distance: z.number(), facing: RelativeDirectionSchema, facingOffset: z.number() }),
   z.object({ ...baseFields, type: z.literal('balance'), direction: RelativeDirectionSchema, distance: z.number() }),
-  z.object({ ...baseFields, type: z.literal('swing'), relationship: RelationshipSchema, endFacing: RelativeDirectionSchema }),
-  z.object({ ...baseFields, type: z.literal('box_the_gnat'), relationship: RelationshipSchema }),
-  z.object({ ...baseFields, type: z.literal('give_and_take_into_swing'), relationship: RelationshipSchema, role: RoleSchema, endFacing: RelativeDirectionSchema }),
+  z.object({ ...baseFields, type: z.literal('swing'), relationship: FoilRelationshipSchema, endFacing: RelativeDirectionSchema }),
+  z.object({ ...baseFields, type: z.literal('box_the_gnat'), relationship: FoilRelationshipSchema }),
+  z.object({ ...baseFields, type: z.literal('give_and_take_into_swing'), relationship: FoilRelationshipSchema, role: RoleSchema, endFacing: RelativeDirectionSchema }),
   z.object({ ...baseFields, type: z.literal('mad_robin'), dir: z.enum(['larks_in_middle', 'robins_in_middle']), with: z.enum(['larks_left', 'robins_left']), rotations: z.number() }),
   z.object({ ...baseFields, type: z.literal('short_waves') }),
   z.object({ ...baseFields, type: z.literal('long_waves') }),

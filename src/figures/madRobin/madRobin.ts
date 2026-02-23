@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, Relationship } from '../../types';
 import { type Vector, parseDancerId, dancerPosition, EAST, WEST, makeFinalKeyframe } from '../../types';
 import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../../generateUtils';
 
@@ -14,10 +14,7 @@ function setup(
   instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
   scope: Set<ProtoDancerId>,
 ) {
-  const relationship =
-    instr.with === "larks_left"
-      ? ("larks_left_robins_right" as const)
-      : ("larks_right_robins_left" as const);
+  const relationship: Relationship = { base: 'neighbor', offset: 0 };
   const pairs = resolvePairs(relationship, prev.dancers, scope, {});
 
   const cw =

@@ -1,4 +1,4 @@
-import { InstructionSchema, RelationshipSchema, TakeHandSchema } from '../../types';
+import { InstructionSchema, BaseRelationshipSchema, TakeHandSchema } from '../../types';
 import type { AtomicInstruction } from '../../types';
 import type { SubFormProps } from '../../fieldUtils';
 import { RELATIONSHIP_OPTIONS, RELATIONSHIP_LABELS, TAKE_HAND_OPTIONS } from '../../fieldUtils';
@@ -17,6 +17,6 @@ export function TakeHandsFields({ instruction, onChange, onInvalid }: SubFormPro
   return (<>
     <InlineDropdown options={TAKE_HAND_OPTIONS} value={instruction.hand} onChange={v => tryCommit({ hand: TakeHandSchema.parse(v) })} getLabel={v => v} />
     {' with your '}
-    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={instruction.relationship} onChange={v => tryCommit({ relationship: RelationshipSchema.parse(v) })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
+    <InlineDropdown options={RELATIONSHIP_OPTIONS} value={instruction.relationship.base} onChange={v => tryCommit({ relationship: { base: BaseRelationshipSchema.parse(v), offset: instruction.relationship.offset } })} getLabel={v => RELATIONSHIP_LABELS[v] ?? v} />
   </>);
 }

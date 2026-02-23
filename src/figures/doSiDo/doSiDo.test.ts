@@ -5,7 +5,7 @@ import { tid, instr, initialKeyframe, expectFacingCloseTo } from '../testUtils';
 describe('do_si_do', () => {
   it('dancers return to starting positions after 1 full rotation', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+      { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -16,7 +16,7 @@ describe('do_si_do', () => {
 
   it('dancers maintain their original facing throughout', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+      { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const init = initialKeyframe();
@@ -28,7 +28,7 @@ describe('do_si_do', () => {
 
   it('no hand connections during do-si-do', () => {
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 1 },
+      { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const mid = kfs[Math.floor(kfs.length / 2)];
@@ -37,7 +37,7 @@ describe('do_si_do', () => {
 
   it('dancers swap positions after half rotation', () => {
     const instructions = instr([
-      { id: tid(1), beats: 4, type: 'do_si_do', relationship: 'neighbor', rotations: 0.5 },
+      { id: tid(1), beats: 4, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 0.5 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     const last = kfs[kfs.length - 1];
@@ -54,7 +54,7 @@ describe('do_si_do', () => {
     // At quarter rotation CW: up_lark -> east side of ellipse, down_robin -> west side.
     // Use many beats to make easeInOut(0.5) land exactly at quarter rotation.
     const instructions = instr([
-      { id: tid(1), beats: 8, type: 'do_si_do', relationship: 'neighbor', rotations: 0.5 },
+      { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 0.5 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions);
     // Mid-animation (t=0.5, easeInOut=0.5) -> 0.25 rotations = quarter turn

@@ -1,5 +1,5 @@
-import { InstructionSchema, InstructionIdSchema, RelativeDirectionSchema } from './types';
-import type { Instruction, Relationship, RelativeDirection, DropHandsTarget, Role, InstructionId, ActionType } from './types';
+import { InstructionSchema, InstructionIdSchema, RelativeDirectionSchema, BaseRelationshipSchema } from './types';
+import type { Instruction, RelativeDirection, Role, InstructionId, ActionType, BaseRelationship, FoilBaseRelationship } from './types';
 import { assertNever } from './utils';
 
 // --- Shared sub-form types ---
@@ -18,25 +18,25 @@ export function makeDefaultInstruction(type: ActionType | 'split', id: Instructi
     case 'step':
       return InstructionSchema.parse({ id, type: 'step', beats: 0, direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'forward' }, facingOffset: 0 });
     case 'take_hands':
-      return InstructionSchema.parse({ id, type: 'take_hands', beats: 0, relationship: 'neighbor', hand: 'right' });
+      return InstructionSchema.parse({ id, type: 'take_hands', beats: 0, relationship: { base: 'neighbor', offset: 0 }, hand: 'right' });
     case 'drop_hands':
       return InstructionSchema.parse({ id, type: 'drop_hands', beats: 0, target: 'both' });
     case 'allemande':
-      return InstructionSchema.parse({ id, type: 'allemande', beats: 8, relationship: 'neighbor', handedness: 'right', rotations: 1 });
+      return InstructionSchema.parse({ id, type: 'allemande', beats: 8, relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', rotations: 1 });
     case 'do_si_do':
-      return InstructionSchema.parse({ id, type: 'do_si_do', beats: 8, relationship: 'neighbor', rotations: 1 });
+      return InstructionSchema.parse({ id, type: 'do_si_do', beats: 8, relationship: { base: 'neighbor', offset: 0 }, rotations: 1 });
     case 'circle':
       return InstructionSchema.parse({ id, type: 'circle', beats: 8, direction: 'left', rotations: 1 });
     case 'pull_by':
-      return InstructionSchema.parse({ id, type: 'pull_by', beats: 2, relationship: 'neighbor', hand: 'right' });
+      return InstructionSchema.parse({ id, type: 'pull_by', beats: 2, relationship: { base: 'neighbor', offset: 0 }, hand: 'right' });
     case 'balance':
       return InstructionSchema.parse({ id, type: 'balance', beats: 4, direction: { kind: 'direction', value: 'across' }, distance: 0.5 });
     case 'swing':
-      return InstructionSchema.parse({ id, type: 'swing', beats: 8, relationship: 'neighbor', endFacing: { kind: 'direction', value: 'across' } });
+      return InstructionSchema.parse({ id, type: 'swing', beats: 8, relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } });
     case 'box_the_gnat':
-      return InstructionSchema.parse({ id, type: 'box_the_gnat', beats: 4, relationship: 'neighbor' });
+      return InstructionSchema.parse({ id, type: 'box_the_gnat', beats: 4, relationship: { base: 'neighbor', offset: 0 } });
     case 'give_and_take_into_swing':
-      return InstructionSchema.parse({ id, type: 'give_and_take_into_swing', beats: 16, relationship: 'neighbor', role: 'lark', endFacing: { kind: 'direction', value: 'across' } });
+      return InstructionSchema.parse({ id, type: 'give_and_take_into_swing', beats: 16, relationship: { base: 'neighbor', offset: 0 }, role: 'lark', endFacing: { kind: 'direction', value: 'across' } });
     case 'mad_robin':
       return InstructionSchema.parse({ id, type: 'mad_robin', beats: 8, dir: 'larks_in_middle', with: 'larks_left', rotations: 1 });
     case 'short_waves':
@@ -61,29 +61,35 @@ export function parseDirection(text: string): RelativeDirection | null {
   if (!trimmed) return null;
   const asDir = RelativeDirectionSchema.safeParse({ kind: 'direction', value: trimmed });
   if (asDir.success) return asDir.data;
-  const asRel = RelativeDirectionSchema.safeParse({ kind: 'relationship', value: trimmed });
+  // Try parsing as a base relationship name with offset 0
+  const asRel = RelativeDirectionSchema.safeParse({ kind: 'relationship', value: { base: trimmed, offset: 0 } });
   if (asRel.success) return asRel.data;
   return null;
 }
 
 export function directionToText(dir: RelativeDirection): string {
-  return dir.value;
+  if (dir.kind === 'direction') return dir.value;
+  return dir.value.base;
 }
 
 // --- Option constants ---
 
 export const DIR_OPTIONS = ['up', 'down', 'across', 'out', 'progression', 'forward', 'back', 'right', 'left', 'partner', 'neighbor', 'opposite'];
 
-export const RELATIONSHIP_OPTIONS: Relationship[] = ['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front'];
+export const RELATIONSHIP_OPTIONS: BaseRelationship[] = ['partner', 'neighbor', 'opposite'];
+export const FOIL_RELATIONSHIP_OPTIONS: FoilBaseRelationship[] = ['partner', 'neighbor'];
 export const RELATIONSHIP_LABELS: Record<string, string> = {
   partner: 'partner', neighbor: 'neighbor', opposite: 'opposite',
-  on_right: 'on your right', on_left: 'on your left', in_front: 'in front of you',
 };
 
-export const DROP_TARGET_OPTIONS: DropHandsTarget[] = ['partner', 'neighbor', 'opposite', 'on_right', 'on_left', 'in_front', 'right', 'left', 'both'];
+/** Convert a BaseRelationship string to a Relationship object (offset 0). */
+export function parseBaseRelationship(base: string): { base: BaseRelationship; offset: number } {
+  return { base: BaseRelationshipSchema.parse(base), offset: 0 };
+}
+
+export const DROP_TARGET_OPTIONS: string[] = ['partner', 'neighbor', 'opposite', 'right', 'left', 'both'];
 export const DROP_TARGET_LABELS: Record<string, string> = {
   partner: 'partner hands', neighbor: 'neighbor hands', opposite: 'opposite hands',
-  on_right: 'on-your-right hands', on_left: 'on-your-left hands', in_front: 'in-front hands',
   right: 'right hand', left: 'left hand', both: 'both hands',
 };
 
