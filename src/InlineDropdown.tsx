@@ -14,10 +14,11 @@ interface Props {
   onChange: (value: string) => void;
   placeholder?: string;
   getLabel?: (value: string) => string;
+  onHighlight?: (value: string | null) => void;
 }
 
 export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function InlineDropdown(
-  { options, value, onChange, placeholder, getLabel },
+  { options, value, onChange, placeholder, getLabel, onHighlight },
   ref,
 ) {
   const [open, setOpen] = useState(false);
@@ -42,10 +43,17 @@ export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function I
   function handleChange(v: string) {
     onChange(v);
     setOpen(false);
+    onHighlight?.(null);
+  }
+
+  function handleOpenChange(v: boolean) {
+    setOpen(v);
+    if (v) onPopoverOpen?.();
+    if (!v) onHighlight?.(null);
   }
 
   return (
-    <Popover.Root open={open} onOpenChange={next => { setOpen(next); if (next) onPopoverOpen?.(); }}>
+    <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
         <span
           className={`inline-value${!value ? ' inline-value-placeholder' : ''}`}
@@ -64,6 +72,7 @@ export const InlineDropdown = forwardRef<InlineDropdownHandle, Props>(function I
             onChange={handleChange}
             placeholder={placeholder}
             getLabel={getLabel}
+            onHighlight={onHighlight}
           />
         </Popover.Content>
       </Popover.Portal>

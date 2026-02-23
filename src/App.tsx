@@ -4,7 +4,10 @@ import { generateAllKeyframes, validateHandDistances, validateProgression, gener
 import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { Instruction, InitFormation, InstructionId, Keyframe, Dance } from './types';
-import { splitLists, instructionDuration, InstructionSchema, DanceSchema, formatDanceParseError } from './types';
+import { splitLists, instructionDuration, InstructionSchema, DanceSchema, formatDanceParseError, ProtoDancerIdSchema, parseDancerId, BaseRelationshipSchema } from './types';
+import { resolveRelationship } from './generateUtils';
+import { decodeRelationship } from './fieldUtils';
+import { RelationshipHighlightContext } from './RelationshipHighlightContext';
 
 const DANCE_LENGTH = 64;
 const LOCALSTORAGE_KEY = 'contravis3-dance';
@@ -153,6 +156,10 @@ export default function App() {
     previewKeyframesRef.current = previewKeyframes;
   }, [previewKeyframes]);
 
+  // Relationship highlight: ref-based to avoid re-renders on fast mouse movements
+  const highlightedRelRef = useRef<string | null>(null);
+  const highlightRelRafRef = useRef(0);
+
   const draw = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -160,6 +167,30 @@ export default function App() {
     if (frame) {
       renderer.drawFrame(frame, -progressionRef.current / DANCE_LENGTH);
       setAnnotation(frame.annotation || '');
+
+      // Draw relationship highlight lines
+      const highlightedRel = highlightedRelRef.current;
+      if (highlightedRel) {
+        const decoded = decodeRelationship(highlightedRel);
+        const base = BaseRelationshipSchema.safeParse(decoded.base);
+        if (base.success) {
+          const rel = { base: base.data, offset: decoded.offset };
+          const lines: Array<{ fromX: number; fromY: number; toX: number; toY: number }> = [];
+          for (const id of ProtoDancerIdSchema.options) {
+            const targetId = resolveRelationship(rel, id);
+            const { proto: targetProto, offset } = parseDancerId(targetId);
+            const from = frame.dancers[id];
+            const to = frame.dancers[targetProto];
+            lines.push({
+              fromX: from.pos.x,
+              fromY: from.pos.y,
+              toX: to.pos.x,
+              toY: to.pos.y + offset * 2,
+            });
+          }
+          renderer.drawRelationshipLines(lines);
+        }
+      }
     }
     // Draw preview keyframes overlay
     if (previewKeyframesRef.current.length > 0) {
@@ -167,6 +198,12 @@ export default function App() {
     }
     setBeat(beatRef.current);
   }, []);
+
+  const setHighlightedRelationship = useCallback((encoded: string | null) => {
+    highlightedRelRef.current = encoded;
+    cancelAnimationFrame(highlightRelRafRef.current);
+    highlightRelRafRef.current = requestAnimationFrame(() => draw());
+  }, [draw]);
 
   // Redraw when keyframes or preview change (deferred to avoid synchronous setState in effect)
   useEffect(() => {
@@ -401,6 +438,7 @@ export default function App() {
   };
 
   return (
+    <RelationshipHighlightContext.Provider value={setHighlightedRelationship}>
     <div className="app-layout">
       {localStorageError && (
         <div className="localstorage-error">
@@ -468,5 +506,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </RelationshipHighlightContext.Provider>
   );
 }
