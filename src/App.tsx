@@ -327,6 +327,15 @@ export default function App() {
     setHoveredInstructionId(id);
   }, []);
 
+  const handleEditInstruction = useCallback((id: InstructionId) => {
+    const startBeat = findInstructionStartBeat(instructions, id);
+    if (startBeat !== null) {
+      beatRef.current = startBeat;
+      rendererRef.current?.clearTrails();
+      draw();
+    }
+  }, [instructions, draw]);
+
   const downloadGif = useCallback(() => {
     if (keyframes.length === 0) return;
     setExporting(true);
@@ -425,6 +434,7 @@ export default function App() {
     setProgression: (p: number) => { progressionRef.current = p; setProgression(p); },
     activeId: activeInstructionId(instructions, beat),
     warnings, generateError, progressionWarning, onHoverInstruction: handleHoverInstruction,
+    onEditInstruction: handleEditInstruction,
   };
 
   return (

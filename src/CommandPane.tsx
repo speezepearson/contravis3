@@ -9,6 +9,7 @@ import type { GenerateError } from './generate';
 import { z } from 'zod';
 import { assertNever } from './utils';
 import { makeDefaultInstruction, makeInstructionId } from './fieldUtils';
+import { InstructionEditContext } from './InstructionEditContext';
 import { InlineDropdown } from './InlineDropdown';
 import type { InlineDropdownHandle } from './InlineDropdown';
 import { InlineNumber } from './InlineNumber';
@@ -251,6 +252,7 @@ interface Props {
   generateError: GenerateError | null;
   progressionWarning: string | null;
   onHoverInstruction?: (id: InstructionId | null) => void;
+  onEditInstruction?: (id: InstructionId) => void;
 }
 
 function SortableItem({ id, children }: { id: InstructionId; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
@@ -395,7 +397,7 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onHoverInstruction }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onHoverInstruction, onEditInstruction }: Props) {
   const [newlyAddedId, setNewlyAddedId] = useState<InstructionId | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [pasteFeedback, setPasteFeedback] = useState('');
@@ -613,7 +615,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     const isSelected = selectedIds.has(instr.id);
     const isDraggedAway = activeDragId !== null && selectedIds.has(activeDragId) && selectedIds.size > 1 && isSelected && instr.id !== activeDragId;
     return (
-      <>
+      <InstructionEditContext.Provider value={{ onPopoverOpen: () => onEditInstruction?.(instr.id) }}>
         <div
           className={`instruction-item${options?.extraClass ? ' ' + options.extraClass : ''}${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}${isSelected ? ' selected' : ''}${isDraggedAway ? ' dragged-away' : ''}`}
           onMouseEnter={() => onHoverInstruction?.(instr.id)}
@@ -644,7 +646,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
         {generateError?.instructionId === instr.id && (
           <div className="instruction-error">{generateError.message}</div>
         )}
-      </>
+      </InstructionEditContext.Provider>
     );
   }
 

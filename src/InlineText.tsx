@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import * as Popover from '@radix-ui/react-popover';
+import { useInstructionEdit } from './InstructionEditContext';
 
 interface Props {
   value: string;
@@ -11,9 +12,10 @@ export function InlineText({ value, onChange, placeholder }: Props) {
   const [open, setOpen] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { onPopoverOpen } = useInstructionEdit();
 
   function handleOpenChange(next: boolean) {
-    if (next) setEditValue(value);
+    if (next) { setEditValue(value); onPopoverOpen?.(); }
     setOpen(next);
   }
 
