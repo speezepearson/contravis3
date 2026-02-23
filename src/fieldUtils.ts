@@ -120,13 +120,13 @@ function buildRelationshipOptions(bases: string[]): string[] {
   for (const base of bases) {
     options.push(`${base}:0`);
     if (base !== 'partner') {
-      for (let i = 1; i <= 8; i++) {
+      for (let i = 1; i <= 4; i++) {
         options.push(`${base}:${i}`, `${base}:${-i}`);
       }
     }
   }
   // shadow (partner with non-zero offset)
-  for (let i = 1; i <= 8; i++) {
+  for (let i = 1; i <= 4; i++) {
     options.push(`partner:${i}`, `partner:${-i}`);
   }
   return options;
