@@ -1,0 +1,34 @@
+{
+    "initFormation": "improper",
+    "progression": 0,
+    "instructions": [
+      {
+        "id": "a0000001-0000-4000-8000-000000000001",
+        "beats": 3,
+        "type": "step",
+        "direction": { "kind": "direction", "value": "forward" },
+        "distance": 0.2,
+        "facing": { "kind": "direction", "value": "forward" },
+        "facingOffset": 0
+      },
+      {
+        "id": "a0000001-0000-4000-8000-000000000002",
+        "beats": 1,
+        "type": "turn_alone"
+      },
+      {
+        "id": "a0000001-0000-4000-8000-000000000003",
+        "beats": 3,
+        "type": "step",
+        "direction": { "kind": "direction", "value": "forward" },
+        "distance": 0.2,
+        "facing": { "kind": "direction", "value": "forward" },
+        "facingOffset": 0
+      },
+      {
+        "id": "a0000001-0000-4000-8000-000000000004",
+        "beats": 1,
+        "type": "turn_alone"
+      }
+    ]
+  }
