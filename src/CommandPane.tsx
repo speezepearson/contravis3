@@ -37,6 +37,7 @@ import { LongWavesFields } from './figures/longWaves/LongWavesFields';
 import { LongLinesFields } from './figures/longLines/LongLinesFields';
 import { SplitFields } from './figures/split/SplitFields';
 import { CourtesyTurnFields } from './figures/courtesyTurn/CourtesyTurnFields';
+import { SquareThroughFields } from './figures/squareThrough/SquareThroughFields';
 
 const exampleDanceModules = import.meta.glob<Dance>('/example-dances/*.json', { eager: true, import: 'default' });
 const exampleDances: { key: string; label: string; dance: Dance }[] = Object.entries(exampleDanceModules).map(([path, dance]) => {
@@ -47,7 +48,7 @@ const exampleDances: { key: string; label: string; dance: Dance }[] = Object.ent
   return { key: filename, label, dance };
 });
 
-const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'pass_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'turn_alone', 'california_twirl', 'turn_as_a_couple', 'right_left_through', 'courtesy_turn', 'shoulder_round', 'short_waves', 'long_waves', 'long_lines', 'split'];
+const ACTION_OPTIONS: (ActionType | 'split')[] = ['take_hands', 'drop_hands', 'allemande', 'do_si_do', 'swing', 'circle', 'pull_by', 'pass_by', 'step', 'balance', 'box_the_gnat', 'give_and_take_into_swing', 'mad_robin', 'turn_alone', 'california_twirl', 'turn_as_a_couple', 'right_left_through', 'square_through', 'courtesy_turn', 'shoulder_round', 'short_waves', 'long_waves', 'long_lines', 'split'];
 const ACTION_LABELS: Record<string, string> = {
   take_hands: 'take hands', drop_hands: 'drop hands', allemande: 'allemande',
   do_si_do: 'do-si-do', swing: 'swing', circle: 'circle', pull_by: 'pull by', pass_by: 'pass by',
@@ -304,6 +305,7 @@ function doesRequireBeatsInput(type: AtomicInstruction['type']): boolean {
     case 'california_twirl': return true;
     case 'turn_as_a_couple': return true;
     case 'right_left_through': return true;
+    case 'square_through': return true;
     case 'courtesy_turn': return true;
     case 'shoulder_round': return true;
     case 'take_hands': return false;
@@ -408,6 +410,7 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
         case 'california_twirl': return <CaliforniaTwirlFields {...common} instruction={instruction} />;
         case 'turn_as_a_couple': return <TurnAsACoupleFields {...common} instruction={instruction} />;
         case 'right_left_through': return <RightLeftThroughFields {...common} instruction={instruction} />;
+        case 'square_through': return <SquareThroughFields {...common} instruction={instruction} />;
         case 'courtesy_turn': return <CourtesyTurnFields {...common} instruction={instruction} />;
         case 'shoulder_round': return <ShoulderRoundFields {...common} instruction={instruction} />;
         case 'short_waves': return <ShortWavesFields {...common} instruction={instruction} />;

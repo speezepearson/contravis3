@@ -49,6 +49,8 @@ export function makeDefaultInstruction(type: ActionType | 'split', id: Instructi
       return InstructionSchema.parse({ id, type: 'turn_as_a_couple', beats: 4 });
     case 'right_left_through':
       return InstructionSchema.parse({ id, type: 'right_left_through', beats: 8 });
+    case 'square_through':
+      return InstructionSchema.parse({ id, type: 'square_through', beats: 8 });
     case 'courtesy_turn':
       return InstructionSchema.parse({ id, type: 'courtesy_turn', beats: 4 });
     case 'shoulder_round':

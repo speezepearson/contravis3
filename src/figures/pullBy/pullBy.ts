@@ -6,7 +6,7 @@ type SwapDatum = {
   protoId: ProtoDancerId;
   startPos: Vector;
   targetPos: Vector;
-  originalFacing: Vector;
+  originalFacingOther: Vector;
 };
 
 function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>) {
@@ -23,7 +23,7 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_b
       protoId: id,
       startPos: da.pos,
       targetPos: targetState.pos,
-      originalFacing: da.facing,
+      originalFacingOther: targetState.pos.subtract(da.pos).normalize(),
     });
     const aId = makeDancerId(id, 0);
     const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
@@ -33,25 +33,24 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_b
     }
   }
   const handsGripping = [...prev.hands, ...pullHands];
-  const handsReleased = prev.hands;
 
-  return { swapData, handsGripping, handsReleased, lateralSign };
+  return { swapData, handsGripping, lateralSign };
 }
 
 export function finalPullBy(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
-  const { swapData, handsReleased, lateralSign } = setup(prev, instr, scope);
+  const { swapData, lateralSign } = setup(prev, instr, scope);
 
   const dancers = copyDancers(prev.dancers);
   for (const sd of swapData) {
     dancers[sd.protoId].pos = ellipsePosition(sd.startPos, sd.targetPos, lateralSign * 0.25, Math.PI);
-    dancers[sd.protoId].facing = sd.originalFacing;
+    dancers[sd.protoId].facing = sd.originalFacingOther;
   }
 
-  return makeFinalKeyframe({ beat: prev.beat + instr.beats, dancers, hands: handsReleased });
+  return makeFinalKeyframe({ beat: prev.beat + instr.beats, dancers, hands: [] });
 }
 
 export function generatePullBy(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'pull_by' }>, scope: Set<ProtoDancerId>): Keyframe[] {
-  const { swapData, handsGripping, handsReleased, lateralSign } = setup(prev, instr, scope);
+  const { swapData, handsGripping, lateralSign } = setup(prev, instr, scope);
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
   const result: Keyframe[] = [];
@@ -61,9 +60,9 @@ export function generatePullBy(prev: Keyframe, _final: FinalKeyframe, instr: Ext
     const dancers = copyDancers(prev.dancers);
     for (const sd of swapData) {
       dancers[sd.protoId].pos = ellipsePosition(sd.startPos, sd.targetPos, lateralSign * 0.25, Math.PI * easeInOut(t));
-      dancers[sd.protoId].facing = sd.originalFacing;
+      dancers[sd.protoId].facing = sd.originalFacingOther;
     }
-    const hands = t <= 0.5 ? handsGripping : handsReleased;
+    const hands = t <= 0.5 ? handsGripping : [];
     result.push({ beat, dancers, hands });
   }
   return result;

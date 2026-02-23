@@ -20,6 +20,7 @@ import { finalTurnAlone, generateTurnAlone } from './figures/turnAlone/turnAlone
 import { finalCaliforniaTwirl, generateCaliforniaTwirl } from './figures/californiaTwirl/californiaTwirl';
 import { finalTurnAsACouple, generateTurnAsACouple } from './figures/turnAsACouple/turnAsACouple';
 import { finalRightLeftThrough, generateRightLeftThrough } from './figures/rightLeftThrough/rightLeftThrough';
+import { finalSquareThrough, generateSquareThrough } from './figures/squareThrough/squareThrough';
 import { finalShoulderRound, generateShoulderRound } from './figures/shoulderRound/shoulderRound';
 import { finalShortWaves, generateShortWaves } from './figures/shortWaves/shortWaves';
 import { finalLongWaves, generateLongWaves } from './figures/longWaves/longWaves';
@@ -93,6 +94,7 @@ function computeFinalKeyframe(prev: Keyframe, instr: AtomicInstruction, scope: S
     case 'california_twirl':         return finalCaliforniaTwirl(prev, instr, scope);
     case 'turn_as_a_couple':         return finalTurnAsACouple(prev, instr, scope);
     case 'right_left_through':       return finalRightLeftThrough(prev, instr);
+    case 'square_through':           return finalSquareThrough(prev, instr);
     case 'courtesy_turn':            return finalCourtesyTurn(prev, instr, scope);
     case 'shoulder_round':           return finalShoulderRound(prev, instr, scope);
     case 'short_waves':              return finalShortWaves(prev, instr, scope);
@@ -122,6 +124,7 @@ function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, inst
     case 'california_twirl':         return generateCaliforniaTwirl(prev, final, instr, scope);
     case 'turn_as_a_couple':         return generateTurnAsACouple(prev, final, instr, scope);
     case 'right_left_through':       return generateRightLeftThrough(prev, final, instr);
+    case 'square_through':           return generateSquareThrough(prev, final, instr);
     case 'courtesy_turn':            return generateCourtesyTurn(prev, final, instr);
     case 'shoulder_round':           return generateShoulderRound(prev, final, instr, scope);
     case 'short_waves':              return generateShortWaves(prev, final, instr, scope);

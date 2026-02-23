@@ -1,0 +1,25 @@
+{
+    "initFormation": "improper",
+    "progression": 0,
+    "instructions": [
+      {
+        "id": "b0000001-0000-4000-8000-000000000000",
+        "beats": 0,
+        "type": "step",
+        "direction": { "kind": "direction", "value": "forward" },
+        "distance": 0,
+        "facing": { "kind": "direction", "value": "across" },
+        "facingOffset": 0
+      },
+      {
+        "id": "b0000001-0000-4000-8000-000000000001",
+        "beats": 8,
+        "type": "square_through"
+      },
+      {
+        "id": "b0000001-0000-4000-8000-000000000002",
+        "beats": 8,
+        "type": "square_through"
+      }
+    ]
+  }
