@@ -433,7 +433,7 @@ export default function App() {
     instructions, setInstructions, initFormation, setInitFormation, progression,
     setProgression: (p: number) => { progressionRef.current = p; setProgression(p); },
     activeId: activeInstructionId(instructions, beat),
-    warnings, generateError, progressionWarning, onHoverInstruction: handleHoverInstruction,
+    warnings, generateError, progressionWarning, keyframes, onHoverInstruction: handleHoverInstruction,
     onEditInstruction: handleEditInstruction,
   };
 

@@ -3,8 +3,8 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDro
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { InstructionSchema, DanceSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, ActionTypeSchema, splitLists, splitWithLists, formatDanceParseError } from './types';
-import type { Instruction, AtomicInstruction, SplitBy, ActionType, InitFormation, InstructionId, Dance } from './types';
+import { InstructionSchema, DanceSchema, AtomicInstructionSchema, InitFormationSchema, InstructionIdSchema, ActionTypeSchema, splitLists, splitWithLists, formatDanceParseError, instructionDuration } from './types';
+import type { Instruction, AtomicInstruction, SplitBy, ActionType, InitFormation, InstructionId, Dance, Keyframe, ProtoDancerId, DancerState } from './types';
 import type { GenerateError } from './generate';
 import { z } from 'zod';
 import { assertNever } from './utils';
@@ -251,6 +251,7 @@ interface Props {
   warnings: Map<InstructionId, string>;
   generateError: GenerateError | null;
   progressionWarning: string | null;
+  keyframes: Keyframe[];
   onHoverInstruction?: (id: InstructionId | null) => void;
   onEditInstruction?: (id: InstructionId) => void;
 }
@@ -397,7 +398,7 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
 
 // --- CommandPane ---
 
-export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, onHoverInstruction, onEditInstruction }: Props) {
+export default function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, keyframes, onHoverInstruction, onEditInstruction }: Props) {
   const [newlyAddedId, setNewlyAddedId] = useState<InstructionId | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [pasteFeedback, setPasteFeedback] = useState('');
@@ -423,6 +424,33 @@ export default function CommandPane({ instructions, setInstructions, initFormati
   }, [instructions]);
 
   const allFlatIds = useMemo(() => flatInstructionIds(instructions), [instructions]);
+
+  // Pre-compute dancer states at each instruction's start beat
+  const dancerStatesById = useMemo(() => {
+    const result = new Map<InstructionId, Record<ProtoDancerId, DancerState>>();
+    if (keyframes.length === 0) return result;
+    function keyframeAtBeat(beat: number): Record<ProtoDancerId, DancerState> {
+      let best = keyframes[0];
+      for (const kf of keyframes) {
+        if (kf.beat <= beat + 1e-6) best = kf;
+        else break;
+      }
+      return best.dancers;
+    }
+    let beat = 0;
+    for (const instr of instructions) {
+      result.set(instr.id, keyframeAtBeat(beat));
+      if (instr.type === 'split') {
+        const [listA, listB] = splitLists(instr);
+        let b = beat;
+        for (const sub of listA) { result.set(sub.id, keyframeAtBeat(b)); b += sub.beats; }
+        b = beat;
+        for (const sub of listB) { result.set(sub.id, keyframeAtBeat(b)); b += sub.beats; }
+      }
+      beat += instructionDuration(instr);
+    }
+    return result;
+  }, [instructions, keyframes]);
 
   const handleCheckboxClick = useCallback((id: InstructionId, event: React.MouseEvent) => {
     setSelectedIds(prev => {
@@ -615,7 +643,7 @@ export default function CommandPane({ instructions, setInstructions, initFormati
     const isSelected = selectedIds.has(instr.id);
     const isDraggedAway = activeDragId !== null && selectedIds.has(activeDragId) && selectedIds.size > 1 && isSelected && instr.id !== activeDragId;
     return (
-      <InstructionEditContext.Provider value={{ onPopoverOpen: () => onEditInstruction?.(instr.id) }}>
+      <InstructionEditContext.Provider value={{ onPopoverOpen: () => onEditInstruction?.(instr.id), dancerStates: dancerStatesById.get(instr.id) }}>
         <div
           className={`instruction-item${options?.extraClass ? ' ' + options.extraClass : ''}${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}${isSelected ? ' selected' : ''}${isDraggedAway ? ' dragged-away' : ''}`}
           onMouseEnter={() => onHoverInstruction?.(instr.id)}
