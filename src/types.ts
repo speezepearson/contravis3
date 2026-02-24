@@ -178,6 +178,10 @@ export function instructionDuration(instr: Instruction): number {
   return instr.beats;
 }
 
+export function danceLength(instructions: Instruction[]): number {
+  return Math.max(4, instructions.reduce((s, i) => s + instructionDuration(i), 0));
+}
+
 export const InitFormationSchema = z.enum(['improper', 'beckett']);
 export type InitFormation = z.infer<typeof InitFormationSchema>;
 

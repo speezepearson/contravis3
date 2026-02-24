@@ -12,6 +12,7 @@ const { GIFEncoder, quantize, applyPalette } = (
 export interface GifExportOptions {
   width: number;
   height: number;
+  danceLength: number;
   fps?: number;
   bpm?: number;
   smoothness?: number;
@@ -66,10 +67,11 @@ export function exportGif(
   const {
     width,
     height,
+    danceLength,
     fps = 15,
     bpm = 120,
     smoothness = 1,
-    progressionRate = -1 / 64,
+    progressionRate = -1 / danceLength,
     progression = 0,
     bgColor = DEFAULT_BG_COLOR,
     wrap = true,
@@ -87,7 +89,7 @@ export function exportGif(
 
   for (let beat = minBeat; beat <= maxBeat + beatStep / 2; beat += beatStep) {
     const clampedBeat = Math.min(beat, maxBeat);
-    const frame = getFrameAtBeat(keyframes, clampedBeat, smoothness, 64, progression, wrap);
+    const frame = getFrameAtBeat(keyframes, clampedBeat, smoothness, danceLength, progression, wrap);
     if (!frame) continue;
 
     renderer.drawFrame(frame, progressionRate);
