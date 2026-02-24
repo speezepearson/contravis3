@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
-import { Vector, makeDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
-import { copyDancers, resolvePairs } from '../../generateUtils';
+import { Vector, dancerPosition, makeFinalKeyframe } from '../../types';
+import { averagePos, copyDancers, resolvePairs } from '../../generateUtils';
 
 type OrbitDatum = { protoId: ProtoDancerId; center: Vector; initOffsetFromCenter: Vector };
 
@@ -14,11 +14,10 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allema
   const allemandHands: HandConnection[] = [];
   const orbitData: OrbitDatum[] = [];
   for (const [id, target] of pairs) {
-    const aId = makeDancerId(id, 0);
-    const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
+    const key = id < target ? `${id}:${target}` : `${target}:${id}`;
     if (!handsSeen.has(key)) {
       handsSeen.add(key);
-      allemandHands.push({ a: aId, ha: instr.handedness, b: target, hb: instr.handedness });
+      allemandHands.push({ a: id, ha: instr.handedness, b: target, hb: instr.handedness });
     }
     const da = prev.dancers[id];
     const partnerPos = dancerPosition(target, prev.dancers).pos;
@@ -33,18 +32,22 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allema
 }
 
 export function finalAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
-  const { totalAngleRad, allemandHands, orbitData } = setup(prev, instr, scope);
-
+  const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
   const dancers = copyDancers(prev.dancers);
-  for (const od of orbitData) {
-    dancers[od.protoId].pos = od.center.add(od.initOffsetFromCenter.rotateByRadians(totalAngleRad));
-    dancers[od.protoId].facing = dancers[od.protoId].pos.subtract(od.center).normalize().rotateByDegrees(instr.handedness === 'right' ? -90 : 90)
+  const hands: HandConnection[] = [];
+  for (const [proto, other] of pairs) {
+    const center = averagePos([proto, other].map(d => dancerPosition(d, prev.dancers).pos));
+    const initOffsetFromCenter = prev.dancers[proto].pos.subtract(center);
+    const finalOffsetFromCenter = initOffsetFromCenter.normalize().multiply(0.25).rotateByDegrees(360 * instr.rotations * (instr.handedness === 'right' ? -1 : 1));
+    dancers[proto].pos = center.add(finalOffsetFromCenter);
+    dancers[proto].facing = finalOffsetFromCenter.subtract(center).normalize().rotateByDegrees(90 * (instr.handedness === 'right' ? -1 : 1));
+    hands.push({ a: proto, ha: instr.handedness, b: other, hb: instr.handedness });
   }
 
   return makeFinalKeyframe({
     beat: prev.beat + instr.beats,
     dancers,
-    hands: [...prev.hands, ...allemandHands],
+    hands,
   });
 }
 

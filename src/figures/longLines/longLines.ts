@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
-import { Vector, makeDancerId, parseDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
+import { Vector, parseDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
 import { PROTO_DANCER_IDS, copyDancers, isLark, resolveInsideHand, findDancerOnSide, angleBetweenFacings } from '../../generateUtils';
 
 /**
@@ -60,13 +60,12 @@ function assertAndTakeHands(
       }
 
       // Take inside hands (deduplicated)
-      const aId = makeDancerId(id, 0);
-      const key = aId < neighbor.dancerId ? `${aId}:${neighbor.dancerId}` : `${neighbor.dancerId}:${aId}`;
+      const key = id < neighbor.dancerId ? `${id}:${neighbor.dancerId}` : `${neighbor.dancerId}:${id}`;
       if (!seen.has(key)) {
         seen.add(key);
         const ha = resolveInsideHand(d, target);
         const hb = resolveInsideHand(target, d);
-        newHands.push({ a: aId, ha, b: neighbor.dancerId, hb });
+        newHands.push({ a: id, ha, b: neighbor.dancerId, hb });
       }
     }
   }

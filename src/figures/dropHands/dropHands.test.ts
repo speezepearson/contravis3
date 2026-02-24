@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes } from '../../generate';
 import { tid, instr, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('drop_hands', () => {

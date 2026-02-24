@@ -49,13 +49,12 @@ export function finalShortWaves(prev: Keyframe, instr: Extract<AtomicInstruction
       }
 
       // Take inside hands (deduplicated)
-      const aId = makeDancerId(id, 0);
-      const key = aId < neighbor.dancerId ? `${aId}:${neighbor.dancerId}` : `${neighbor.dancerId}:${aId}`;
+      const key = id < neighbor.dancerId ? `${id}:${neighbor.dancerId}` : `${neighbor.dancerId}:${id}`;
       if (!seen.has(key)) {
         seen.add(key);
         const ha = resolveInsideHand(d, target);
         const hb = resolveInsideHand(target, d);
-        newHands.push({ a: aId, ha, b: neighbor.dancerId, hb });
+        newHands.push({ a: id, ha, b: neighbor.dancerId, hb });
       }
 
       const { proto: targetProto } = parseDancerId(neighbor.dancerId);

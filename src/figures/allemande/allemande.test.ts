@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes, initialKeyframe } from '../../generate';
-import { headingAngle } from '../../types';
+import { initialKeyframe } from '../../generate';
 import { tid, instr, expectFacingCloseTo, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('allemande', () => {
@@ -48,7 +47,6 @@ describe('allemande', () => {
     // For up_lark, neighbor is down_robin. Direction to partner from up_lark's position.
     const ul = mid.dancers['up_lark_0'];
     const dr = mid.dancers['down_robin_0'];
-    const TAU = 2 * Math.PI;
     const dirToPartner = dr.pos.subtract(ul.pos).normalize();
     // Facing should be 90 deg CCW (i.e. -pi/2) from direction to partner
     const expectedFacing = dirToPartner.rotateByRadians(Math.PI / 2);
@@ -64,7 +62,6 @@ describe('allemande', () => {
     const mid = kfs[midIdx];
     const ul = mid.dancers['up_lark_0'];
     const dr = mid.dancers['down_robin_0'];
-    const TAU = 2 * Math.PI;
     const dirToPartner = dr.pos.subtract(ul.pos).normalize();
     const expectedFacing = dirToPartner.rotateByRadians(-Math.PI / 2);
     expectFacingCloseTo(ul.facing, expectedFacing);

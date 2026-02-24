@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
-import { Vector, makeDancerId, makeFinalKeyframe } from '../../types';
+import { Vector, makeFinalKeyframe } from '../../types';
 import { PROTO_DANCER_IDS, averagePos, copyDancers, findDancerOnSide } from '../../generateUtils';
 
   type OrbitDatum = { protoId: ProtoDancerId; initOffsetFromCenter: Vector; radius: number };
@@ -9,7 +9,7 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle
   const totalAngleRad = sign * instr.rotations * 2 * Math.PI;
 
   // Compute center of all scoped dancers
-  let center = averagePos([...scope].map(id => prev.dancers[id].pos));
+  const center = averagePos([...scope].map(id => prev.dancers[id].pos));
 
   const orbitData: OrbitDatum[] = [];
   for (const id of PROTO_DANCER_IDS) {
@@ -29,7 +29,7 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'circle
     const left = findDancerOnSide(id, 'on_left', prev.dancers);
     if (!left) throw new Error(`circle: ${id} has no dancer on their left`);
     const leftId = left.dancerId;
-    hands.push({ a: makeDancerId(id, 0), ha: 'left', b: leftId, hb: 'right' });
+    hands.push({ a: id, ha: 'left', b: leftId, hb: 'right' });
     // shouldn't need to handle the dancer's right hand; the dancer on their right should take it with their left
   }
 

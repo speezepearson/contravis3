@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes, initialKeyframe } from '../../generate';
+import { initialKeyframe } from '../../generate';
 import { ProtoDancerIdSchema } from '../../types';
 import { tid, instr, mustGenerateAllKeyframes } from '../testUtils';
 

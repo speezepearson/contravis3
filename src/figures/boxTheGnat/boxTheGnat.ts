@@ -1,13 +1,13 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
-import { makeDancerId, parseDancerId, makeFinalKeyframe } from '../../types';
-import { copyDancers, ellipsePosition, resolvePairs, isLark } from '../../generateUtils';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, DancerId } from '../../types';
+import { makeFinalKeyframe, dancerPosition } from '../../types';
+import { copyDancers, ellipsePosition, isLark, resolvePairs } from '../../generateUtils';
 import { Vector } from 'vecti';
 
 type GnatPair = {
-  lark: ProtoDancerId;
-  robin: ProtoDancerId;
-  larkStart: Vector;
-  robinStart: Vector;
+  proto: ProtoDancerId;
+  foil: DancerId;
+  protoStart: Vector;
+  foilStart: Vector;
   semiMinor: number;
 };
 
@@ -15,35 +15,24 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'box_th
   const pairMap = resolvePairs(instr.relationship, prev.dancers, scope, { pairRoles: 'different' });
 
   const pairs: GnatPair[] = [];
-  const processed = new Set<ProtoDancerId>();
 
-  for (const [id] of pairMap) {
-    if (processed.has(id)) continue;
-
-    const targetId = pairMap.get(id)!;
-    const { proto: targetProto } = parseDancerId(targetId);
-
-    const lark = isLark(id) ? id : targetProto;
-    const robin = isLark(id) ? targetProto : id;
-    processed.add(lark);
-    processed.add(robin);
-
-    const larkState = prev.dancers[lark];
-    const robinState = prev.dancers[robin];
-    const dist = larkState.pos.subtract(robinState.pos).length();
+  for (const [proto, foil] of pairMap) {
+    const protoState = dancerPosition(proto, prev.dancers);
+    const foilState = dancerPosition(foil, prev.dancers);
+    const dist = protoState.pos.subtract(foilState.pos).length();
 
     pairs.push({
-      lark, robin,
-      larkStart: larkState.pos,
-      robinStart: robinState.pos,
+      proto, foil,
+      protoStart: protoState.pos,
+      foilStart: foilState.pos,
       semiMinor: dist / 4,
     });
   }
 
   // Hands during the figure: prev hands + right-to-right
   const gnatHands = [...prev.hands];
-  for (const { lark, robin } of pairs) {
-    gnatHands.push({ a: makeDancerId(lark, 0), ha: 'right', b: makeDancerId(robin, 0), hb: 'right' });
+  for (const { proto, foil } of pairs) {
+    gnatHands.push({ a: proto, ha: 'right', b: foil, hb: 'right' });
   }
 
   return { pairs, gnatHands };
@@ -54,13 +43,8 @@ export function finalBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction
 
   const dancers = copyDancers(prev.dancers);
   for (const p of pairs) {
-    // Positions swap via half-ellipse (theta = PI)
-    dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, Math.PI);
-    dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, Math.PI);
-
-    // Lark turns CW 180°, robin turns CCW 180°
-    dancers[p.lark].facing = p.larkStart.subtract(p.robinStart).normalize();
-    dancers[p.robin].facing = p.robinStart.subtract(p.larkStart).normalize();
+    dancers[p.proto].pos = p.foilStart;
+    dancers[p.proto].facing = p.protoStart.subtract(p.foilStart).normalize();
   }
 
   // Hands are dropped at the end (revert to prev.hands)
@@ -83,14 +67,10 @@ export function generateBoxTheGnat(prev: Keyframe, _final: FinalKeyframe, instr:
 
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
-      dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
-      dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
-
-      dancers[p.lark].facing = p.robinStart.subtract(p.larkStart).normalize().rotateByRadians(-Math.PI * t);
-      dancers[p.robin].facing = p.larkStart.subtract(p.robinStart).normalize().rotateByRadians(Math.PI * t);
+      dancers[p.proto].pos = ellipsePosition(p.protoStart, p.foilStart, p.semiMinor, theta);
+      dancers[p.proto].facing = p.foilStart.subtract(p.protoStart).normalize().rotateByRadians(Math.PI * t * (isLark(p.proto) ? -1 : 1));
     }
 
-    // Gnat hands held during intermediates
     result.push({ beat, dancers, hands: gnatHands });
   }
 

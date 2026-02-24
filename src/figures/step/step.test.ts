@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes, initialKeyframe } from '../../generate';
+import { initialKeyframe } from '../../generate';
 import { NORTH, EAST, SOUTH, WEST, ProtoDancerIdSchema } from '../../types';
 import { tid, instr, expectFacingCloseTo, mustGenerateAllKeyframes } from '../testUtils';
 

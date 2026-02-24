@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
-import { type Vector, makeDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
+import { type Vector, dancerPosition, makeFinalKeyframe } from '../../types';
 import { copyDancers,   ellipsePosition, resolvePairs } from '../../generateUtils';
 
 type SwapDatum = {
@@ -25,11 +25,10 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'pull_b
       targetPos: targetState.pos,
       originalFacingOther: targetState.pos.subtract(da.pos).normalize(),
     });
-    const aId = makeDancerId(id, 0);
-    const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
+    const key = id < target ? `${id}:${target}` : `${target}:${id}`;
     if (!seen.has(key)) {
       seen.add(key);
-      pullHands.push({ a: aId, ha: instr.hand, b: target, hb: instr.hand });
+      pullHands.push({ a: id, ha: instr.hand, b: target, hb: instr.hand });
     }
   }
   const handsGripping = [...prev.hands, ...pullHands];

@@ -291,7 +291,7 @@ export function ccwRadsBetween(a: Vector, b: Vector): number {
 }
 
 export const HandConnectionSchema = z.object({
-  a: DancerIdSchema,
+  a: ProtoDancerIdSchema,
   ha: HandSchema,
   b: DancerIdSchema,
   hb: HandSchema,

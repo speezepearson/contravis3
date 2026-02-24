@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
-import { makeDancerId, parseDancerId, makeFinalKeyframe } from '../../types';
+import { parseDancerId, makeFinalKeyframe } from '../../types';
 import { PROTO_DANCER_IDS, copyDancers, resolveRelationship } from '../../generateUtils';
 
 export function finalDropHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'drop_hands' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
@@ -19,9 +19,8 @@ export function finalDropHands(prev: Keyframe, instr: Extract<AtomicInstruction,
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
       const resolved = resolveRelationship(target, id);
-      const aId = makeDancerId(id, 0);
-      pairSet.add(`${aId}:${resolved}`);
-      pairSet.add(`${resolved}:${aId}`);
+      pairSet.add(`${id}:${resolved}`);
+      pairSet.add(`${resolved}:${id}`);
     }
     newHands = prev.hands.filter(h => !pairSet.has(`${h.a}:${h.b}`));
   }

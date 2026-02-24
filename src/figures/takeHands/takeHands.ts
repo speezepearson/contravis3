@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
-import { makeDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
+import { dancerPosition, makeFinalKeyframe } from '../../types';
 import { PROTO_DANCER_IDS, copyDancers, resolveRelationship, resolveInsideHand } from '../../generateUtils';
 
 export function finalTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'take_hands' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
@@ -9,15 +9,14 @@ export function finalTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction,
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
       const target = resolveRelationship(instr.relationship, id);
-      const aId = makeDancerId(id, 0);
-      const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
+      const key = id < target ? `${id}:${target}` : `${target}:${id}`;
       if (!seen.has(key)) {
         seen.add(key);
         const aState = prev.dancers[id];
         const bState = dancerPosition(target, prev.dancers);
         const ha = resolveInsideHand(aState, bState);
         const hb = resolveInsideHand(bState, aState);
-        newHands.push({ a: aId, ha, b: target, hb });
+        newHands.push({ a: id, ha, b: target, hb });
       }
     }
   } else {
@@ -25,12 +24,11 @@ export function finalTakeHands(prev: Keyframe, instr: Extract<AtomicInstruction,
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
       const target = resolveRelationship(instr.relationship, id);
-      const aId = makeDancerId(id, 0);
-      const key = aId < target ? `${aId}:${target}` : `${target}:${aId}`;
+      const key = id < target ? `${id}:${target}` : `${target}:${id}`;
       if (!seen.has(key)) {
         seen.add(key);
         for (const h of hands) {
-          newHands.push({ a: aId, ha: h, b: target, hb: h });
+          newHands.push({ a: id, ha: h, b: target, hb: h });
         }
       }
     }

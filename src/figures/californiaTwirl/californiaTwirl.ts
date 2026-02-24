@@ -1,55 +1,48 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
-import { parseDancerId, makeDancerId, makeFinalKeyframe } from '../../types';
+import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection, DancerId } from '../../types';
+import { parseDancerId, makeFinalKeyframe, dancerPosition } from '../../types';
 import { Vector } from 'vecti';
-import { copyDancers, ellipsePosition, isLark, findDancerOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
+import { copyDancers, ellipsePosition, isLark, findDancerOnSide } from '../../generateUtils';
 
 
 type TwirlPair = {
-  lark: ProtoDancerId;
-  robin: ProtoDancerId;
-  larkStart: Vector;
-  robinStart: Vector;
+  proto: ProtoDancerId;
+  foil: DancerId;
+  protoStart: Vector;
+  foilStart: Vector;
   semiMinor: number;
-  larkStartFacing: Vector;
-  robinStartFacing: Vector;
+  protoStartFacing: Vector;
+  foilStartFacing: Vector;
 };
 
 function setup(prev: Keyframe, _instr: Extract<AtomicInstruction, { type: 'california_twirl' }>, scope: Set<ProtoDancerId>) {
   const pairs: TwirlPair[] = [];
-  const processed = new Set<ProtoDancerId>();
 
-  for (const id of PROTO_DANCER_IDS) {
-    if (!scope.has(id) || processed.has(id) || !isLark(id)) continue;
-
+  for (const id of scope) {
     // Assert robin is on lark's right
-    const neighbor = findDancerOnSide(id, 'on_right', prev.dancers);
-    if (!neighbor) throw new Error(`California twirl: ${id} has no dancer on his right`);
-    const { proto: robinProto } = parseDancerId(neighbor.dancerId);
-    if (!scope.has(robinProto)) throw new Error(`California twirl: ${robinProto} not in scope`);
-    if (isLark(robinProto)) throw new Error(`California twirl: ${id}'s right neighbor ${robinProto} is a lark, expected robin`);
+    const foil = findDancerOnSide(id, 'larks_right_robins_left', prev.dancers);
+    if (!foil) throw new Error(`California twirl: ${id} has no dancer on his right`);
+    if (!scope.has(parseDancerId(foil.dancerId).proto)) throw new Error(`California twirl: ${foil.dancerId} not in scope`);
+    if (isLark(foil.dancerId) === isLark(id)) throw new Error(`California twirl: ${id}'s foil ${foil.dancerId} is same role`);
 
-    processed.add(id);
-    processed.add(robinProto);
-
-    const larkState = prev.dancers[id];
-    const robinState = prev.dancers[robinProto];
-    const dist = larkState.pos.subtract(robinState.pos).length();
+    const protoState = dancerPosition(id, prev.dancers);
+    const foilState = dancerPosition(foil.dancerId, prev.dancers);
+    const dist = protoState.pos.subtract(foilState.pos).length();
 
     pairs.push({
-      lark: id,
-      robin: robinProto,
-      larkStart: larkState.pos,
-      robinStart: robinState.pos,
+      proto: id,
+      foil: foil.dancerId,
+      protoStart: protoState.pos,
+      foilStart: foilState.pos,
       semiMinor: dist / 4,
-      larkStartFacing: larkState.facing,
-      robinStartFacing: robinState.facing,
+      protoStartFacing: protoState.facing,
+      foilStartFacing: foilState.facing,
     });
   }
 
   // Inside hands during the figure
   const insideHands: HandConnection[] = [];
-  for (const { lark, robin } of pairs) {
-    insideHands.push({ a: makeDancerId(lark, 0), ha: 'right', b: makeDancerId(robin, 0), hb: 'left' });
+  for (const { proto, foil } of pairs) {
+    insideHands.push({ a: proto, ha: isLark(proto) ? 'right' : 'left', b: foil, hb: isLark(foil) ? 'right' : 'left' });
   }
 
   return { pairs, insideHands };
@@ -61,12 +54,8 @@ export function finalCaliforniaTwirl(prev: Keyframe, instr: Extract<AtomicInstru
   const dancers = copyDancers(prev.dancers);
   for (const p of pairs) {
     // CW ellipse: positive semiMinor
-    dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, Math.PI);
-    dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, Math.PI);
-
-    // Lark turns CW 180°, robin turns CCW 180°
-    dancers[p.lark].facing = p.larkStartFacing.rotateByRadians(Math.PI);
-    dancers[p.robin].facing = p.robinStartFacing.rotateByRadians(-Math.PI);
+    dancers[p.proto].pos = ellipsePosition(p.protoStart, p.foilStart, p.semiMinor, Math.PI);
+    dancers[p.proto].facing = p.protoStartFacing.multiply(-1);
   }
 
   // End holding inside hands only (no other hands)
@@ -89,11 +78,8 @@ export function generateCaliforniaTwirl(prev: Keyframe, _final: FinalKeyframe, i
 
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
-      dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
-      dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
-
-      dancers[p.lark].facing = p.larkStartFacing.rotateByRadians(-Math.PI * t);
-      dancers[p.robin].facing = p.robinStartFacing.rotateByRadians(Math.PI * t);
+      dancers[p.proto].pos = ellipsePosition(p.protoStart, p.foilStart, p.semiMinor, theta);
+      dancers[p.proto].facing = p.protoStartFacing.rotateByRadians(Math.PI * t * (isLark(p.proto) ? -1 : 1));
     }
 
     // Inside hands + drop everything else
