@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, initialKeyframe } from '../../generate';
 import { NORTH, SOUTH } from '../../types';
-import { tid, instr, expectFacingCloseTo } from '../testUtils';
+import { tid, instr, expectFacingCloseTo, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('shoulder_round', () => {
   it('dancers maintain same center of mass', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'shoulder_round', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', endFacing: 'larks_up_robins_down' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // up_lark and down_robin are neighbors
@@ -28,7 +28,7 @@ describe('shoulder_round', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'shoulder_round', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', endFacing: 'larks_up_robins_down' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     const dist = Math.hypot(
       last.dancers['up_lark_0'].pos.x - last.dancers['down_robin_0'].pos.x,
@@ -41,7 +41,7 @@ describe('shoulder_round', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'shoulder_round', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', endFacing: 'larks_up_robins_down' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, NORTH, 1);
     expectFacingCloseTo(last.dancers['down_robin_0'].facing, SOUTH, 1);
@@ -51,7 +51,7 @@ describe('shoulder_round', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'shoulder_round', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', endFacing: 'larks_down_robins_up' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, SOUTH, 1);
     expectFacingCloseTo(last.dancers['down_robin_0'].facing, NORTH, 1);
@@ -61,7 +61,7 @@ describe('shoulder_round', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'shoulder_round', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', endFacing: 'larks_up_robins_down' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // up_lark faces NORTH. "right" from NORTH is EAST.
     // down_robin should be to the EAST of up_lark.
@@ -72,7 +72,7 @@ describe('shoulder_round', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'shoulder_round', relationship: { base: 'neighbor', offset: 0 }, handedness: 'left', endFacing: 'larks_up_robins_down' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // up_lark faces NORTH. "left" from NORTH is WEST.
     // down_robin should be to the WEST of up_lark.
@@ -83,7 +83,7 @@ describe('shoulder_round', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'shoulder_round', relationship: { base: 'neighbor', offset: 0 }, handedness: 'right', endFacing: 'larks_up_robins_down' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toEqual([]);
   });

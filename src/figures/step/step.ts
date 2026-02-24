@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
-import { makeFinalKeyframe, headingAngle, headingVector } from '../../types';
+import { makeFinalKeyframe, headingAngle, headingVector, ccwRadsBetween } from '../../types';
 import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolveHeading, resolveFacing } from '../../generateUtils';
 
 export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'step' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
@@ -34,13 +34,7 @@ export function generateStep(prev: Keyframe, final: FinalKeyframe, instr: Extrac
       dancers[id].pos = prev.dancers[id].pos.add(
         final.dancers[id].pos.subtract(prev.dancers[id].pos).multiply(tEased),
       );
-      // Interpolate facing via angles for correct shortest-arc behaviour
-      const prevAngle = headingAngle(prev.dancers[id].facing);
-      const finalAngle = headingAngle(final.dancers[id].facing);
-      let df = finalAngle - prevAngle;
-      if (df > Math.PI) df -= 2 * Math.PI;
-      if (df < -Math.PI) df += 2 * Math.PI;
-      dancers[id].facing = headingVector(prevAngle + df * tEased);
+      dancers[id].facing = prev.dancers[id].facing.rotateByRadians(ccwRadsBetween(prev.dancers[id].facing, final.dancers[id].facing) * tEased);
     }
     keyframes.push({ beat, dancers, hands: prev.hands });
   }

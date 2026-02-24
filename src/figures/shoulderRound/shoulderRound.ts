@@ -58,23 +58,15 @@ export function finalShoulderRound(prev: Keyframe, instr: Extract<AtomicInstruct
     // Compute end facing for lark to determine final positions
     // We need final positions first to resolve facing, but facing depends on position for across/out.
     // Use center position as a proxy for the side-of-set determination.
-    const larkFacing = resolveEndFacing(instr.endFacing, lark, center);
-    const robinFacing = resolveEndFacing(instr.endFacing, robin, center);
+    const larkEndFacing = resolveEndFacing(instr.endFacing, lark, center);
+    const robinEndFacing = resolveEndFacing(instr.endFacing, robin, center);
 
     // Lark and robin end 0.5m apart, same center of mass
     // They need to be on each other's [right/left] based on handedness
-    // "on each other's right" means from lark's perspective, robin is to his right
-    // lark's right is perpendicular CW from his facing
-    const larkFacingRad = headingAngle(larkFacing);
-    // Right of lark: (sin(f+pi/2), cos(f+pi/2)) = (cos(f), -sin(f))
-    // But "on each other's right" with handedness=right means robin is on lark's right
-    const sideSign = instr.handedness === 'right' ? 1 : -1;
-    const perp = new Vector(sideSign * Math.cos(larkFacingRad), sideSign * -Math.sin(larkFacingRad));
-
-    dancers[lark].pos = center.add(perp.multiply(-separation / 2));
-    dancers[robin].pos = center.add(perp.multiply(separation / 2));
-    dancers[lark].facing = larkFacing;
-    dancers[robin].facing = robinFacing;
+    dancers[lark].pos = center.add(larkEndFacing.multiply(separation / 2).rotateByDegrees(90 * (instr.handedness === 'right' ? 1 : -1)));
+    dancers[robin].pos = center.add(robinEndFacing.multiply(separation / 2).rotateByDegrees(90 * (instr.handedness === 'right' ? 1 : -1)));
+    dancers[lark].facing = larkEndFacing;
+    dancers[robin].facing = robinEndFacing;
   }
 
   // No hand connections at end

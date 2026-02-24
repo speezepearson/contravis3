@@ -1,7 +1,8 @@
-import { InstructionSchema, type Instruction } from '../types';
+import { InstructionSchema, type InitFormation, type Instruction, type Keyframe } from '../types';
 import { Vector } from 'vecti';
 import { z } from 'zod';
 import { expect } from 'vitest';
+import { generateAllKeyframes } from '../generate';
 
 export function tid(n: number): string {
   return `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -16,4 +17,10 @@ export function instr(data: unknown[]): Instruction[] {
 export function expectFacingCloseTo(actual: Vector, expected: Vector, precision = 0.01) {
   expect(actual.x).toBeCloseTo(expected.x, precision);
   expect(actual.y).toBeCloseTo(expected.y, precision);
+}
+
+export function mustGenerateAllKeyframes(instructions: Instruction[], initFormation: InitFormation): Keyframe[] {
+  const { keyframes, error } = generateAllKeyframes(instructions, initFormation);
+  expect(error).toBeNull();
+  return keyframes;
 }

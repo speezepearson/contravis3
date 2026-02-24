@@ -281,6 +281,15 @@ export function headingAngle(v: Vector): number {
   return Math.atan2(v.x, v.y);
 }
 
+export function ccwRadsBetween(a: Vector, b: Vector): number {
+  const thetaA = Math.atan2(a.y, a.x);
+  const thetaB = Math.atan2(b.y, b.x);
+  let diff = thetaB - thetaA;
+  if (diff > Math.PI) diff -= 2 * Math.PI;
+  if (diff < -Math.PI) diff += 2 * Math.PI;
+  return diff;
+}
+
 export const HandConnectionSchema = z.object({
   a: DancerIdSchema,
   ha: HandSchema,

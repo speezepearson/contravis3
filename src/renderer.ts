@@ -1,5 +1,5 @@
 import type { DancerState, Keyframe, ProtoDancerId } from './types';
-import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, headingAngle, NORTH } from './types';
+import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, headingAngle, NORTH, ccwRadsBetween } from './types';
 
 const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark_0:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
@@ -312,14 +312,7 @@ export class Renderer {
 
 /** Lerp between two facing vectors via the short arc. */
 function lerpFacing(a: Vector, b: Vector, t: number): Vector {
-  // Use angle-based lerp to handle wraparound correctly
-  const aRad = headingAngle(a);
-  const bRad = headingAngle(b);
-  let diff = bRad - aRad;
-  if (diff > Math.PI) diff -= 2 * Math.PI;
-  if (diff < -Math.PI) diff += 2 * Math.PI;
-  const rad = aRad + diff * t;
-  return new Vector(Math.sin(rad), Math.cos(rad));
+  return a.rotateByRadians(ccwRadsBetween(a, b) * t);
 }
 
 /** Linear interpolation between keyframes (no smoothing). */

@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { Vector } from 'vecti';
 import { generateAllKeyframes, initialKeyframe, validateHandDistances, validateProgression } from './generate';
 import { DanceSchema, NORTH, EAST, SOUTH, WEST } from './types';
-import { tid, instr } from './figures/testUtils';
+import { tid, instr, mustGenerateAllKeyframes } from './figures/testUtils';
 
 describe('generateAllKeyframes', () => {
   it('returns just the initial keyframe when no instructions', () => {
-    const { keyframes: kfs } = generateAllKeyframes([], 'improper');
+    const kfs = mustGenerateAllKeyframes([], 'improper');
     expect(kfs).toHaveLength(1);
     expect(kfs[0].beat).toBe(0);
     expect(kfs[0].dancers).toEqual(initialKeyframe('improper').dancers);
@@ -19,7 +19,7 @@ describe('generateAllKeyframes', () => {
         { id: tid(1), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'up' }, facingOffset: 0 },
         { id: tid(2), beats: 4, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'direction', value: 'down' }, facingOffset: 0 },
       ]);
-      const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+      const kfs = mustGenerateAllKeyframes(instructions, 'improper');
       expect(kfs[0].beat).toBe(0);
       expect(kfs[kfs.length - 1].beat).toBe(8);
     });
@@ -109,7 +109,7 @@ describe('DanceSchema', () => {
 
 describe('generateAllKeyframes with initFormation', () => {
   it('uses improper formation by default (no initFormation)', () => {
-    const { keyframes: kfs } = generateAllKeyframes([], 'improper');
+    const kfs = mustGenerateAllKeyframes([], 'improper');
     expect(kfs).toHaveLength(1);
     // Improper: ups face north (0), downs face south (180)
     expect(kfs[0].dancers.up_lark_0.facing).toEqual(NORTH);
@@ -117,14 +117,14 @@ describe('generateAllKeyframes with initFormation', () => {
   });
 
   it('uses improper formation when initFormation is "improper"', () => {
-    const { keyframes: kfs } = generateAllKeyframes([], 'improper');
+    const kfs = mustGenerateAllKeyframes([], 'improper');
     expect(kfs).toHaveLength(1);
     expect(kfs[0].dancers.up_lark_0).toEqual({ pos: new Vector(-0.5, -0.5), facing: NORTH });
     expect(kfs[0].dancers.down_lark_0).toEqual({ pos: new Vector(0.5, 0.5), facing: SOUTH });
   });
 
   it('uses beckett formation when initFormation is "beckett"', () => {
-    const { keyframes: kfs } = generateAllKeyframes([], 'beckett');
+    const kfs = mustGenerateAllKeyframes([], 'beckett');
     expect(kfs).toHaveLength(1);
     // Beckett: everyone faces across (east-west) instead of up-down
     // Ups face east (90), downs face west (270)
@@ -135,7 +135,7 @@ describe('generateAllKeyframes with initFormation', () => {
   });
 
   it('beckett formation has correct positions', () => {
-    const { keyframes: kfs } = generateAllKeyframes([], 'beckett');
+    const kfs = mustGenerateAllKeyframes([], 'beckett');
     // Beckett = improper rotated 90 deg CW: (x,y) -> (y, -x), facing -> facing+90
     expect(kfs[0].dancers.up_lark_0).toEqual({ pos: new Vector(-0.5,  0.5), facing: EAST });
     expect(kfs[0].dancers.up_robin_0).toEqual({ pos: new Vector(-0.5, -0.5), facing: EAST });

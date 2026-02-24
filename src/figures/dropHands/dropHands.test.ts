@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes } from '../../generate';
-import { tid, instr } from '../testUtils';
+import { tid, instr, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('drop_hands', () => {
   it('removes hand connections for the relationship', () => {
@@ -8,7 +8,7 @@ describe('drop_hands', () => {
       { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
       { id: tid(2), beats: 0, type: 'drop_hands', target: { base: 'neighbor', offset: 0 } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toHaveLength(0);
   });
@@ -19,7 +19,7 @@ describe('drop_hands', () => {
       { id: tid(2), beats: 0, type: 'take_hands', relationship: { base: 'partner', offset: 0 }, hand: 'left' },
       { id: tid(3), beats: 0, type: 'drop_hands', target: { base: 'neighbor', offset: 0 } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toHaveLength(2);
     expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'up_robin_0', hb: 'left' });
@@ -32,7 +32,7 @@ describe('drop_hands', () => {
       { id: tid(2), beats: 0, type: 'take_hands', relationship: { base: 'partner', offset: 0 }, hand: 'left' },
       { id: tid(3), beats: 0, type: 'drop_hands', target: 'right' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // Only partner left-hand connections remain
     expect(last.hands).toHaveLength(2);
@@ -46,7 +46,7 @@ describe('drop_hands', () => {
       { id: tid(2), beats: 0, type: 'take_hands', relationship: { base: 'partner', offset: 0 }, hand: 'left' },
       { id: tid(3), beats: 0, type: 'drop_hands', target: 'both' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toHaveLength(0);
   });

@@ -308,6 +308,15 @@ export default function App() {
     }
   }, [instructions]);
 
+  const handleSkipToInstruction = useCallback((id: InstructionId) => {
+    const startBeat = findInstructionStartBeat(instructions, id);
+    if (startBeat !== null) {
+      beatRef.current = startBeat;
+      rendererRef.current?.clearTrails();
+      drawRef.current();
+    }
+  }, [instructions]);
+
   const downloadGif = useCallback(() => {
     if (keyframes.length === 0) return;
     setExporting(true);
@@ -406,6 +415,7 @@ export default function App() {
     activeId: activeInstructionId(instructions, beat),
     warnings, generateError, progressionWarning, keyframes, onHoverInstruction: handleHoverInstruction,
     onEditInstruction: handleEditInstruction,
+    onSkipToInstruction: handleSkipToInstruction,
   };
 
   return (

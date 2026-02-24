@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, initialKeyframe } from '../../generate';
-import { tid, instr } from '../testUtils';
+import { tid, instr, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('take_hands', () => {
   it('adds hand connections for neighbor pairs', () => {
     const instructions = instr([
       { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'right' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     expect(kfs).toHaveLength(2);
     const last = kfs[kfs.length - 1];
     expect(last.beat).toBe(0);
@@ -21,7 +21,7 @@ describe('take_hands', () => {
     const instructions = instr([
       { id: tid(1), beats: 2, type: 'take_hands', relationship: { base: 'partner', offset: 0 }, hand: 'left' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.beat).toBe(2);
     expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'up_robin_0', hb: 'left' });
@@ -35,7 +35,7 @@ describe('take_hands', () => {
     const instructions = instr([
       { id: tid(1), beats: 0, type: 'take_hands', relationship: { base: 'partner', offset: 0 }, hand: 'inside' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toHaveLength(2);
     expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'up_robin_0', hb: 'left' });
@@ -64,7 +64,7 @@ describe('take_hands', () => {
       { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: { base: 'partner', offset: 0 } }, facingOffset: 0 },
       { id: tid(2), beats: 0, type: 'take_hands', relationship: { base: 'neighbor', offset: 0 }, hand: 'inside' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toHaveLength(2);
     expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'left', b: 'down_robin_0', hb: 'right' });

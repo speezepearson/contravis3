@@ -265,6 +265,7 @@ interface Props {
   keyframes: Keyframe[];
   onHoverInstruction?: (id: InstructionId | null) => void;
   onEditInstruction?: (id: InstructionId) => void;
+  onSkipToInstruction?: (id: InstructionId) => void;
 }
 
 function SortableItem({ id, children }: { id: InstructionId; children: (dragHandleProps: Record<string, unknown>) => React.ReactNode }) {
@@ -425,7 +426,7 @@ function InlineForm({ instruction, onChange, autoFocusAction, allowContainers = 
 
 // --- CommandPane ---
 
-export default memo(function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, keyframes, onHoverInstruction, onEditInstruction }: Props) {
+export default memo(function CommandPane({ instructions, setInstructions, initFormation, setInitFormation, progression, setProgression, activeId, warnings, generateError, progressionWarning, keyframes, onHoverInstruction, onEditInstruction, onSkipToInstruction }: Props) {
   const [newlyAddedId, setNewlyAddedId] = useState<InstructionId | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [pasteFeedback, setPasteFeedback] = useState('');
@@ -673,6 +674,7 @@ export default memo(function CommandPane({ instructions, setInstructions, initFo
       <InstructionEditContext.Provider value={{ onPopoverOpen: () => onEditInstruction?.(instr.id), dancerStates: dancerStatesById.get(instr.id) }}>
         <div
           className={`instruction-item${options?.extraClass ? ' ' + options.extraClass : ''}${instr.id === activeId ? ' active' : ''}${dimmedIds.has(instr.id) ? ' dimmed' : ''}${isSelected ? ' selected' : ''}${isDraggedAway ? ' dragged-away' : ''}`}
+          onClick={() => onSkipToInstruction?.(instr.id)}
           onMouseEnter={() => onHoverInstruction?.(instr.id)}
           onMouseLeave={() => onHoverInstruction?.(null)}
         >
@@ -712,9 +714,13 @@ export default memo(function CommandPane({ instructions, setInstructions, initFo
           <label>Load dance: </label>
           <select
             value=""
-            onChange={e => { if (e.target.value) loadExampleDance(e.target.value); }}
+            onChange={e => {
+              if (e.target.value === '__clear__') { setInstructions([]); }
+              else if (e.target.value) { loadExampleDance(e.target.value); }
+            }}
           >
             <option value="">-- select --</option>
+            <option value="__clear__">&lt;clear&gt;</option>
             {exampleDances.map(d => (
               <option key={d.key} value={d.key}>{d.label}</option>
             ))}

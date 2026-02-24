@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, initialKeyframe } from '../../generate';
 import { NORTH, EAST, WEST, headingAngle } from '../../types';
-import { tid, instr, expectFacingCloseTo } from '../testUtils';
+import { tid, instr, expectFacingCloseTo, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('swing', () => {
   it('produces multiple keyframes spanning the beat count', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     expect(kfs.length).toBeGreaterThan(2);
     expect(kfs[kfs.length - 1].beat).toBeCloseTo(8, 5);
   });
@@ -17,7 +17,7 @@ describe('swing', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // up_lark/down_robin pair
@@ -40,7 +40,7 @@ describe('swing', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     // Check at beat 4 (midpoint, solidly in phase 1)
     const mid = kfs.reduce((best, kf) =>
       Math.abs(kf.beat - 4) < Math.abs(best.beat - 4) ? kf : best
@@ -61,7 +61,7 @@ describe('swing', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // up_lark (x < 0): across = 90 deg (east)
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, EAST, 0);
@@ -75,7 +75,7 @@ describe('swing', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // up_lark faces 90 deg (east), right = south (-y)
     // robin (down_robin) should be 1.0m to lark's right
@@ -99,7 +99,7 @@ describe('swing', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'partner', offset: 0 }, endFacing: { kind: 'direction', value: 'up' } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // Both dancers in each pair should face up (0 deg)
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, NORTH, 0);
@@ -119,7 +119,7 @@ describe('swing', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'swing', relationship: { base: 'neighbor', offset: 0 }, endFacing: { kind: 'direction', value: 'across' } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     // up_lark starts south of CoM (-0.5, 0). CW from south goes west (decreasing x).
     const early = kfs[2]; // a few frames in
     expect(early.dancers['up_lark_0'].pos.x).toBeLessThan(-0.5);

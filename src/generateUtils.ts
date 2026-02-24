@@ -186,16 +186,14 @@ export function findDancerOnSide(
   const BIAS = 0.777 * Math.PI / 2; // ~70°, bias towards "in front"
   const lark = isLark(id);
   const angleOffset =
-    side === 'on_right' ? BIAS :
-    side === 'on_left' ? -BIAS :
+    side === 'on_right' ? -BIAS :
+    side === 'on_left' ? BIAS :
     side === 'in_front' ? 0 :
-    side === 'larks_left_robins_right' ? (lark ? -BIAS : BIAS) :
-    side === 'larks_right_robins_left' ? (lark ? BIAS : -BIAS) :
+    side === 'larks_left_robins_right' ? (lark ? BIAS : -BIAS) :
+    side === 'larks_right_robins_left' ? (lark ? -BIAS : BIAS) :
     assertNever(side);
   const d = dancers[id];
-  const headingRad = headingAngle(d.facing) + angleOffset;
-  const ux = Math.sin(headingRad);
-  const uy = Math.cos(headingRad);
+  const heading = d.facing.rotateByRadians(angleOffset);
 
   let bestScore = Infinity;
   let bestTarget: { dancerId: DancerId; dist: number } | null = null;
@@ -207,12 +205,11 @@ export function findDancerOnSide(
     for (let o = oBest - 2; o <= oBest + 2; o++) {
       const targetId = makeDancerId(otherId, o);
       const targetPos = dancerPosition(targetId, dancers);
-      const dx = targetPos.pos.x - d.pos.x;
-      const dy = targetPos.pos.y - d.pos.y;
-      const r = Math.sqrt(dx * dx + dy * dy);
+      const disp = targetPos.pos.subtract(d.pos);
+      const r = disp.length();
       if (r > 1.2 || r < 1e-9) continue;
 
-      const cosTheta = (ux * dx + uy * dy) / r;
+      const cosTheta = heading.dot(disp) / r;
       if (cosTheta < 0) continue;
       const cos2Theta = 2 * cosTheta * cosTheta - 1;
       if (cos2Theta < 0.01) continue;

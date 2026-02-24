@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
-import { Vector, makeDancerId, dancerPosition, headingVector, makeFinalKeyframe } from '../../types';
+import { Vector, makeDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
 import { copyDancers, easeInOut, resolvePairs } from '../../generateUtils';
 
 type OrbitDatum = { protoId: ProtoDancerId; center: Vector; initOffsetFromCenter: Vector };

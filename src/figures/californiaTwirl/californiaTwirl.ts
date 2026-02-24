@@ -10,8 +10,8 @@ type TwirlPair = {
   larkStart: Vector;
   robinStart: Vector;
   semiMinor: number;
-  larkStartFacingRad: number;
-  robinStartFacingRad: number;
+  larkStartFacing: Vector;
+  robinStartFacing: Vector;
 };
 
 function setup(prev: Keyframe, _instr: Extract<AtomicInstruction, { type: 'california_twirl' }>, scope: Set<ProtoDancerId>) {
@@ -41,8 +41,8 @@ function setup(prev: Keyframe, _instr: Extract<AtomicInstruction, { type: 'calif
       larkStart: larkState.pos,
       robinStart: robinState.pos,
       semiMinor: dist / 4,
-      larkStartFacingRad: headingAngle(larkState.facing),
-      robinStartFacingRad: headingAngle(robinState.facing),
+      larkStartFacing: larkState.facing,
+      robinStartFacing: robinState.facing,
     });
   }
 
@@ -65,8 +65,8 @@ export function finalCaliforniaTwirl(prev: Keyframe, instr: Extract<AtomicInstru
     dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, Math.PI);
 
     // Lark turns CW 180°, robin turns CCW 180°
-    dancers[p.lark].facing = headingVector(p.larkStartFacingRad + Math.PI);
-    dancers[p.robin].facing = headingVector(p.robinStartFacingRad - Math.PI);
+    dancers[p.lark].facing = p.larkStartFacing.rotateByRadians(Math.PI);
+    dancers[p.robin].facing = p.robinStartFacing.rotateByRadians(-Math.PI);
   }
 
   // End holding inside hands only (no other hands)
@@ -93,8 +93,8 @@ export function generateCaliforniaTwirl(prev: Keyframe, _final: FinalKeyframe, i
       dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
       dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
 
-      dancers[p.lark].facing = headingVector(p.larkStartFacingRad + Math.PI * tEased);
-      dancers[p.robin].facing = headingVector(p.robinStartFacingRad - Math.PI * tEased);
+      dancers[p.lark].facing = p.larkStartFacing.rotateByRadians(-Math.PI * tEased);
+      dancers[p.robin].facing = p.robinStartFacing.rotateByRadians(Math.PI * tEased);
     }
 
     // Inside hands + drop everything else

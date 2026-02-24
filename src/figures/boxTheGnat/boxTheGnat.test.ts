@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, initialKeyframe } from '../../generate';
 import { NORTH, SOUTH } from '../../types';
-import { tid, instr, expectFacingCloseTo } from '../testUtils';
+import { tid, instr, expectFacingCloseTo, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('box_the_gnat', () => {
   it('rejects opposite as a foil relationship', () => {
@@ -15,7 +15,7 @@ describe('box_the_gnat', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // up_lark <-> down_robin should swap positions
@@ -31,7 +31,7 @@ describe('box_the_gnat', () => {
       { id: tid(1), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: { base: 'neighbor', offset: 0 } }, facingOffset: 0 },
       { id: tid(2), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     // After turn: up_lark faces down_robin -> facing 0 deg (up, since down_robin is north of up_lark)
     // After box the gnat: lark turns CW 180 deg -> facing 180 deg
     const last = kfs[kfs.length - 1];
@@ -44,7 +44,7 @@ describe('box_the_gnat', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     // At the midpoint of the motion, dancers should be displaced perpendicular to the
     // line connecting their start positions (the minor axis of the ellipse)
@@ -66,7 +66,7 @@ describe('box_the_gnat', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const mid = kfs[Math.floor(kfs.length / 2)];
     expect(mid.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'down_robin_0', hb: 'right' });
     expect(mid.hands).toContainEqual({ a: 'down_lark_0', ha: 'right', b: 'up_robin_0', hb: 'right' });
@@ -76,7 +76,7 @@ describe('box_the_gnat', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toHaveLength(0);
   });
@@ -85,7 +85,7 @@ describe('box_the_gnat', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'box_the_gnat', relationship: { base: 'neighbor', offset: 0 } },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     // Major axis length for up_lark <-> down_robin = distance between them
     const majorLen = Math.hypot(

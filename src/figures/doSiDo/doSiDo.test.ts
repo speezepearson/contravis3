@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, initialKeyframe } from '../../generate';
-import { tid, instr, expectFacingCloseTo } from '../testUtils';
+import { tid, instr, expectFacingCloseTo, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('do_si_do', () => {
   it('dancers return to starting positions after 1 full rotation', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1 },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(init.dancers['up_lark_0'].pos.x, 1);
@@ -18,7 +18,7 @@ describe('do_si_do', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1 },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     // Check mid-animation: facing should stay at initial values
     const mid = kfs[Math.floor(kfs.length / 2)];
@@ -30,7 +30,7 @@ describe('do_si_do', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 1 },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const mid = kfs[Math.floor(kfs.length / 2)];
     expect(mid.hands).toHaveLength(0);
   });
@@ -39,7 +39,7 @@ describe('do_si_do', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 0.5 },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // up_lark (-0.5,-0.5) neighbors down_robin (-0.5,0.5) -- half orbit swaps them
     expect(last.dancers['up_lark_0'].pos.x).toBeCloseTo(-0.5, 1);
@@ -56,7 +56,7 @@ describe('do_si_do', () => {
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 0.5 },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     // Mid-animation (t=0.5, easeInOut=0.5) -> 0.25 rotations = quarter turn
     const mid = kfs[Math.floor(kfs.length / 2)];
     // CW orbit: up_lark (south of center) moves west first -> at quarter turn, west side

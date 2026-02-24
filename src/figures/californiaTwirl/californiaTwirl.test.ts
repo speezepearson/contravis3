@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes, initialKeyframe } from '../../generate';
+import { initialKeyframe } from '../../generate';
 import { SOUTH } from '../../types';
-import { tid, instr, expectFacingCloseTo } from '../testUtils';
+import { tid, instr, expectFacingCloseTo, mustGenerateAllKeyframes } from '../testUtils';
 
 describe('california_twirl', () => {
   // In improper formation, up_lark is at (-0.5,-0.5) facing NORTH,
@@ -13,7 +13,7 @@ describe('california_twirl', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'california_twirl' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     const last = kfs[kfs.length - 1];
     // up_lark and up_robin swap
@@ -27,7 +27,7 @@ describe('california_twirl', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'california_twirl' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     // up_lark started facing NORTH, turns CW 180 -> SOUTH
     expectFacingCloseTo(last.dancers['up_lark_0'].facing, SOUTH, 1);
@@ -39,7 +39,7 @@ describe('california_twirl', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'california_twirl' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const last = kfs[kfs.length - 1];
     expect(last.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'up_robin_0', hb: 'left' });
     expect(last.hands).toContainEqual({ a: 'down_lark_0', ha: 'right', b: 'down_robin_0', hb: 'left' });
@@ -50,7 +50,7 @@ describe('california_twirl', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'california_twirl' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const mid = kfs[Math.floor(kfs.length / 2)];
     expect(mid.hands).toContainEqual({ a: 'up_lark_0', ha: 'right', b: 'up_robin_0', hb: 'left' });
   });
@@ -59,7 +59,7 @@ describe('california_twirl', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'california_twirl' },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
     const init = initialKeyframe('improper');
     const mid = kfs[Math.floor(kfs.length / 2)];
     // up_lark and up_robin are side by side horizontally at y=-0.5
