@@ -178,7 +178,9 @@ export default function App() {
   }, [keyframes, smoothness, DANCE_LENGTH, progression, wrap, previewKeyframes]);
 
   // Keep drawRef in sync so stable callbacks can always call the latest draw
-  drawRef.current = draw;
+  useEffect(() => {
+    drawRef.current = draw;
+  });
 
   const setHighlightedRelationship = useCallback((encoded: string | null) => {
     highlightedRelRef.current = encoded;
@@ -232,21 +234,23 @@ export default function App() {
   // Animation loop — animateRef holds the latest version so the rAF callback
   // can self-schedule without stale closures.
   const animateRef = useRef<(timestamp: number) => void>(undefined);
-  animateRef.current = (timestamp: number) => {
-    if (lastTimestampRef.current === null) lastTimestampRef.current = timestamp;
+  useEffect(() => {
+    animateRef.current = (timestamp: number) => {
+      if (lastTimestampRef.current === null) lastTimestampRef.current = timestamp;
 
-    const dt = (timestamp - lastTimestampRef.current) / 1000;
-    lastTimestampRef.current = timestamp;
+      const dt = (timestamp - lastTimestampRef.current) / 1000;
+      lastTimestampRef.current = timestamp;
 
-    beatRef.current += dt * (bpm / 60);
-    if (beatRef.current > DANCE_LENGTH) {
-      beatRef.current = 0;
-      rendererRef.current?.clearTrails();
-    }
+      beatRef.current += dt * (bpm / 60);
+      if (beatRef.current > DANCE_LENGTH) {
+        beatRef.current = 0;
+        rendererRef.current?.clearTrails();
+      }
 
-    drawRef.current();
-    rafRef.current = requestAnimationFrame((ts) => animateRef.current!(ts));
-  };
+      drawRef.current();
+      rafRef.current = requestAnimationFrame((ts) => animateRef.current!(ts));
+    };
+  });
 
   // Start/stop animation loop as a side effect of playing state
   useEffect(() => {
