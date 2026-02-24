@@ -75,9 +75,9 @@ export default function App() {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
   const beatRef = useRef(0);
-  const playingRef = useRef(false);
   const lastTimestampRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
+  const drawRef = useRef<() => void>(() => {});
 
   const [initialLoadResult] = useState(() => loadDanceFromLocalStorage());
   const [localStorageError, setLocalStorageError] = useState<string | null>(
@@ -111,18 +111,10 @@ export default function App() {
 
   const [hoveredInstructionId, setHoveredInstructionId] = useState<InstructionId | null>(null);
 
-  const bpmRef = useRef(90);
-  const smoothnessRef = useRef(1);
-  const progressionRef = useRef(1);
-  const wrapRef = useRef(true);
-
   const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
   const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
-  useEffect(() => { wrapRef.current = !progressionWarning; }, [progressionWarning]);
-
-  const minBeat = 0;
-  const maxBeat = DANCE_LENGTH;
+  const wrap = !progressionWarning;
 
   // Compute preview keyframes when hovering over an instruction
   const previewKeyframes = useMemo(() => {
@@ -142,20 +134,6 @@ export default function App() {
     return generateInstructionPreview(instr, prevKeyframe, scope) ?? [];
   }, [hoveredInstructionId, instructions, keyframes]);
 
-  // Keep a ref to keyframes for the animation loop
-  const keyframesRef = useRef(keyframes);
-  const minBeatRef = useRef(minBeat);
-  const maxBeatRef = useRef(maxBeat);
-  const previewKeyframesRef = useRef<Keyframe[]>([]);
-  useEffect(() => {
-    keyframesRef.current = keyframes;
-    minBeatRef.current = minBeat;
-    maxBeatRef.current = maxBeat;
-  }, [keyframes, minBeat, maxBeat]);
-  useEffect(() => {
-    previewKeyframesRef.current = previewKeyframes;
-  }, [previewKeyframes]);
-
   // Relationship highlight: ref-based to avoid re-renders on fast mouse movements
   const highlightedRelRef = useRef<string | null>(null);
   const highlightRelRafRef = useRef(0);
@@ -163,9 +141,9 @@ export default function App() {
   const draw = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    const frame = getFrameAtBeat(keyframesRef.current, beatRef.current, smoothnessRef.current, DANCE_LENGTH, progressionRef.current, wrapRef.current);
+    const frame = getFrameAtBeat(keyframes, beatRef.current, smoothness / 100, DANCE_LENGTH, progression, wrap);
     if (frame) {
-      renderer.drawFrame(frame, -progressionRef.current / DANCE_LENGTH);
+      renderer.drawFrame(frame, -progression / DANCE_LENGTH);
       setAnnotation(frame.annotation || '');
 
       // Draw relationship highlight lines
@@ -193,23 +171,26 @@ export default function App() {
       }
     }
     // Draw preview keyframes overlay
-    if (previewKeyframesRef.current.length > 0) {
-      renderer.drawPreviewKeyframes(previewKeyframesRef.current);
+    if (previewKeyframes.length > 0) {
+      renderer.drawPreviewKeyframes(previewKeyframes);
     }
     setBeat(beatRef.current);
-  }, []);
+  }, [keyframes, smoothness, progression, wrap, previewKeyframes]);
+
+  // Keep drawRef in sync so stable callbacks can always call the latest draw
+  drawRef.current = draw;
 
   const setHighlightedRelationship = useCallback((encoded: string | null) => {
     highlightedRelRef.current = encoded;
     cancelAnimationFrame(highlightRelRafRef.current);
-    highlightRelRafRef.current = requestAnimationFrame(() => draw());
-  }, [draw]);
+    highlightRelRafRef.current = requestAnimationFrame(() => drawRef.current());
+  }, []);
 
   // Redraw when keyframes or preview change (deferred to avoid synchronous setState in effect)
   useEffect(() => {
-    const id = requestAnimationFrame(() => draw());
+    const id = requestAnimationFrame(() => drawRef.current());
     return () => cancelAnimationFrame(id);
-  }, [keyframes, previewKeyframes, draw]);
+  }, [keyframes, previewKeyframes]);
 
   // Initialize renderer + ResizeObserver
   useEffect(() => {
@@ -230,7 +211,7 @@ export default function App() {
       } else {
         rendererRef.current.resize(w, h);
       }
-      draw();
+      drawRef.current();
     };
 
     applySize();
@@ -246,63 +227,58 @@ export default function App() {
       observer.disconnect();
       cancelAnimationFrame(resizeRaf);
     };
-  }, [draw]);
+  }, []);
 
-  // Animation loop – stored in a ref so the rAF callback can self-schedule
-  // without referencing a variable before its declaration completes.
+  // Animation loop — animateRef holds the latest version so the rAF callback
+  // can self-schedule without stale closures.
   const animateRef = useRef<(timestamp: number) => void>(undefined);
+  animateRef.current = (timestamp: number) => {
+    if (lastTimestampRef.current === null) lastTimestampRef.current = timestamp;
+
+    const dt = (timestamp - lastTimestampRef.current) / 1000;
+    lastTimestampRef.current = timestamp;
+
+    beatRef.current += dt * (bpm / 60);
+    if (beatRef.current > DANCE_LENGTH) {
+      beatRef.current = 0;
+      rendererRef.current?.clearTrails();
+    }
+
+    drawRef.current();
+    rafRef.current = requestAnimationFrame((ts) => animateRef.current!(ts));
+  };
+
+  // Start/stop animation loop as a side effect of playing state
   useEffect(() => {
-    animateRef.current = (timestamp: number) => {
-      if (!playingRef.current) return;
-      if (lastTimestampRef.current === null) lastTimestampRef.current = timestamp;
-
-      const dt = (timestamp - lastTimestampRef.current) / 1000;
-      lastTimestampRef.current = timestamp;
-
-      beatRef.current += dt * (bpmRef.current / 60);
-      if (beatRef.current > maxBeatRef.current) {
-        beatRef.current = minBeatRef.current;
-        rendererRef.current?.clearTrails();
-      }
-
-      draw();
-      rafRef.current = requestAnimationFrame((ts) => animateRef.current!(ts));
-    };
-  }, [draw]);
-
-  const togglePlay = useCallback(() => {
-    const next = !playingRef.current;
-    playingRef.current = next;
-    setPlaying(next);
-    if (next) {
+    if (playing) {
       lastTimestampRef.current = null;
       rafRef.current = requestAnimationFrame((ts) => animateRef.current!(ts));
     } else {
       cancelAnimationFrame(rafRef.current);
     }
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [playing]);
+
+  const togglePlay = useCallback(() => {
+    setPlaying(prev => !prev);
   }, []);
 
   const stepFwd = useCallback(() => {
-    beatRef.current = Math.min(beatRef.current + 0.25, maxBeatRef.current);
-    draw();
-  }, [draw]);
+    beatRef.current = Math.min(beatRef.current + 0.25, DANCE_LENGTH);
+    drawRef.current();
+  }, []);
 
   const stepBack = useCallback(() => {
-    beatRef.current = Math.max(beatRef.current - 0.25, minBeatRef.current);
-    draw();
-  }, [draw]);
+    beatRef.current = Math.max(beatRef.current - 0.25, 0);
+    drawRef.current();
+  }, []);
 
   const scrub = useCallback((val: number) => {
-    const range = maxBeatRef.current - minBeatRef.current;
-    if (range <= 0) {
-      beatRef.current = minBeatRef.current;
-    } else {
-      const pct = val / 1000;
-      beatRef.current = minBeatRef.current + pct * range;
-    }
+    const pct = val / 1000;
+    beatRef.current = pct * DANCE_LENGTH;
     rendererRef.current?.clearTrails();
-    draw();
-  }, [draw]);
+    drawRef.current();
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -318,10 +294,6 @@ export default function App() {
     return () => document.removeEventListener('keydown', handler);
   }, [togglePlay, stepFwd, stepBack]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
 
   const handleHoverInstruction = useCallback((id: InstructionId | null) => {
     setHoveredInstructionId(id);
@@ -332,9 +304,9 @@ export default function App() {
     if (startBeat !== null) {
       beatRef.current = startBeat;
       rendererRef.current?.clearTrails();
-      draw();
+      drawRef.current();
     }
-  }, [instructions, draw]);
+  }, [instructions]);
 
   const downloadGif = useCallback(() => {
     if (keyframes.length === 0) return;
@@ -351,10 +323,10 @@ export default function App() {
         width: w,
         height: h,
         bpm,
-        smoothness: smoothnessRef.current,
-        progressionRate: -progressionRef.current / DANCE_LENGTH,
-        progression: progressionRef.current,
-        wrap: wrapRef.current,
+        smoothness: smoothness / 100,
+        progressionRate: -progression / DANCE_LENGTH,
+        progression,
+        wrap,
       });
       const blob = new Blob([gifBytes.buffer as ArrayBuffer], { type: 'image/gif' });
       const url = URL.createObjectURL(blob);
@@ -365,10 +337,10 @@ export default function App() {
       URL.revokeObjectURL(url);
       setExporting(false);
     }, 50);
-  }, [keyframes, bpm]);
+  }, [keyframes, bpm, smoothness, progression, wrap]);
 
-  const scrubberValue = maxBeat > minBeat
-    ? Math.round((beat - minBeat) / (maxBeat - minBeat) * 1000)
+  const scrubberValue = DANCE_LENGTH > 0
+    ? Math.round(beat / DANCE_LENGTH * 1000)
     : 0;
 
   const desktopControlsBlock = (
@@ -398,7 +370,7 @@ export default function App() {
           min={60}
           max={120}
           value={bpm}
-          onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
+          onChange={e => setBpm(Number(e.target.value))}
         />
       </div>
       <div className="controls">
@@ -408,7 +380,7 @@ export default function App() {
           min={0}
           max={200}
           value={smoothness}
-          onChange={e => { const v = Number(e.target.value); smoothnessRef.current = v / 100; setSmoothness(v); }}
+          onChange={e => setSmoothness(Number(e.target.value))}
         />
       </div>
       <div className="legend">
@@ -430,8 +402,7 @@ export default function App() {
   );
 
   const commandPaneProps = {
-    instructions, setInstructions, initFormation, setInitFormation, progression,
-    setProgression: (p: number) => { progressionRef.current = p; setProgression(p); },
+    instructions, setInstructions, initFormation, setInitFormation, progression, setProgression,
     activeId: activeInstructionId(instructions, beat),
     warnings, generateError, progressionWarning, keyframes, onHoverInstruction: handleHoverInstruction,
     onEditInstruction: handleEditInstruction,
@@ -488,7 +459,7 @@ export default function App() {
             min={60}
             max={120}
             value={bpm}
-            onChange={e => { const v = Number(e.target.value); bpmRef.current = v; setBpm(v); }}
+            onChange={e => setBpm(Number(e.target.value))}
           />
         </div>
         <button className="drawer-toggle" onClick={() => setDrawerOpen(true)}>
