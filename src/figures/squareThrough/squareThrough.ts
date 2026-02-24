@@ -1,5 +1,5 @@
 import { type Keyframe, type FinalKeyframe, type AtomicInstruction, WEST, EAST } from '../../types';
-import { findDancerOnSide, ALL_DANCERS, getRelationship, copyDancers, PROTO_DANCER_IDS } from '../../generateUtils';
+import { findDancerOnSide, ALL_DANCERS, getRelationship, copyDancers, PROTO_DANCER_IDS, sampleIntermediates } from '../../generateUtils';
 import { finalPullBy, generatePullBy } from '../pullBy/pullBy';
 import { finalBalance, generateBalance } from '../balance/balance';
 import { finalDropHands, generateDropHands } from '../dropHands/dropHands';
@@ -66,7 +66,7 @@ export function generateSquareThrough(
   let prevFinal = prev;
 
   let nextFinal = finalStep(prevFinal, face, ALL_DANCERS);
-  keyframes.push(...generateStep(prev, nextFinal, face, ALL_DANCERS), nextFinal);
+  keyframes.push(...sampleIntermediates(generateStep(prev, nextFinal, face, ALL_DANCERS), face.beats), nextFinal);
   prevFinal = nextFinal;
 
   nextFinal = finalDropHands(prevFinal, drop, ALL_DANCERS);
@@ -82,11 +82,11 @@ export function generateSquareThrough(
   prevFinal = nextFinal;
 
   nextFinal = finalPullBy(prevFinal, pullRight, ALL_DANCERS);
-  keyframes.push(...generatePullBy(prevFinal, nextFinal, pullRight, ALL_DANCERS), nextFinal);
+  keyframes.push(...sampleIntermediates(generatePullBy(prevFinal, nextFinal, pullRight, ALL_DANCERS), pullRight.beats), nextFinal);
   prevFinal = nextFinal;
 
   nextFinal = finalPullBy(prevFinal, pullLeft, ALL_DANCERS);
-  keyframes.push(...generatePullBy(prevFinal, nextFinal, pullLeft, ALL_DANCERS), nextFinal);
+  keyframes.push(...sampleIntermediates(generatePullBy(prevFinal, nextFinal, pullLeft, ALL_DANCERS), pullLeft.beats), nextFinal);
 
   return keyframes;
 }

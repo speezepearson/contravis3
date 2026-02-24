@@ -1,8 +1,19 @@
-import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId, DirectionalRelationship } from './types';
+import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId, DirectionalRelationship, Keyframe, KeyframeFn } from './types';
 import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, otherRole, otherDir } from './types';
 import { assertNever } from './utils';
 
 export const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;
+
+/** Sample a KeyframeFn at regular intervals, or pass through a Keyframe[] unchanged. */
+export function sampleIntermediates(intermediates: Keyframe[] | KeyframeFn, beats: number): Keyframe[] {
+  if (typeof intermediates !== 'function') return intermediates;
+  const nFrames = Math.max(1, Math.round(beats / 0.25));
+  const result: Keyframe[] = [];
+  for (let i = 1; i < nFrames; i++) {
+    result.push(intermediates(i / nFrames));
+  }
+  return result;
+}
 
 const UPS = new Set<ProtoDancerId>(['up_lark_0', 'up_robin_0']);
 

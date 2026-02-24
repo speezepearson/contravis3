@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { type Vector, parseDancerId, dancerPosition, EAST, WEST, makeFinalKeyframe } from '../../types';
 import { copyDancers, ellipsePosition, resolvePairs } from '../../generateUtils';
 
@@ -93,13 +93,10 @@ export function generateMadRobin(
   _final: FinalKeyframe,
   instr: Extract<AtomicInstruction, { type: "mad_robin" }>,
   scope: Set<ProtoDancerId>,
-): Keyframe[] {
+): KeyframeFn {
   const { totalAngleRad, orbitData } = setup(prev, instr, scope);
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  const result: Keyframe[] = [];
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
+  return (t: number) => {
     const beat = prev.beat + t * instr.beats;
     const phi = t * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
@@ -107,7 +104,6 @@ export function generateMadRobin(
       dancers[od.protoId].pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, phi);
       dancers[od.protoId].facing = od.acrossFacing;
     }
-    result.push({ beat, dancers, hands: prev.hands });
-  }
-  return result;
+    return { beat, dancers, hands: prev.hands };
+  };
 }

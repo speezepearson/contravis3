@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { Vector, parseDancerId, makeFinalKeyframe } from '../../types';
 import { copyDancers, resolvePairs, isLark } from '../../generateUtils';
 import { finalSwing, generateSwing } from '../swing/swing';
@@ -134,44 +134,24 @@ export function finalGiveAndTakeIntoSwing(prev: Keyframe, instr: Extract<AtomicI
   });
 }
 
-export function generateGiveAndTakeIntoSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateGiveAndTakeIntoSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'give_and_take_into_swing' }>, scope: Set<ProtoDancerId>): KeyframeFn {
   const walkBeats = 1;
   const swingBeats = instr.beats - walkBeats;
   const pairs = resolvePairsForGT(prev, instr, scope);
 
-  // Phase 1: walk — face each other immediately, drawee walks halfway
+  // Walk setup: face each other immediately
   const walkStartDancers = copyDancers(prev.dancers);
   for (const { drawer, drawee } of pairs) {
     const drawerState = prev.dancers[drawer];
     const draweeState = prev.dancers[drawee];
-    const toDrawee = draweeState.pos.subtract(drawerState.pos);
-    const toDrawer = drawerState.pos.subtract(draweeState.pos);
-    walkStartDancers[drawer].facing = toDrawee.normalize();
-    walkStartDancers[drawee].facing = toDrawer.normalize();
-  }
-  const walkStart: Keyframe = { beat: prev.beat, dancers: walkStartDancers, hands: prev.hands };
-
-  const walkNFrames = Math.max(1, Math.round(walkBeats / 0.25));
-  const walkFrames: Keyframe[] = [];
-  for (let i = 1; i <= walkNFrames; i++) {
-    const t = i / walkNFrames;
-    const beat = prev.beat + t * walkBeats;
-    const dancers = copyDancers(walkStart.dancers);
-    for (const { drawer, drawee } of pairs) {
-      const draweeStart = prev.dancers[drawee];
-      const drawerPos = prev.dancers[drawer];
-      const halfway = drawerPos.pos.add(draweeStart.pos).multiply(0.5);
-      dancers[drawee].pos = draweeStart.pos.add(halfway.subtract(draweeStart.pos).multiply(t));
-      dancers[drawee].facing = walkStart.dancers[drawee].facing;
-      dancers[drawer].pos = drawerPos.pos;
-      dancers[drawer].facing = walkStart.dancers[drawer].facing;
-    }
-    walkFrames.push({ beat, dancers, hands: prev.hands });
+    walkStartDancers[drawer].facing = draweeState.pos.subtract(drawerState.pos).normalize();
+    walkStartDancers[drawee].facing = drawerState.pos.subtract(draweeState.pos).normalize();
   }
 
-  // Phase 2: swing from the meeting point, with CoM drift
-  const afterWalk = walkFrames.length > 0 ? walkFrames[walkFrames.length - 1] : walkStart;
+  // Compute afterWalk state for the swing phase
+  const afterWalk = computeAfterWalk(prev, pairs, walkBeats);
 
+  // Swing setup
   const swingInstr: Extract<AtomicInstruction, { type: 'swing' }> = {
     id: instr.id,
     beats: swingBeats,
@@ -180,17 +160,33 @@ export function generateGiveAndTakeIntoSwing(prev: Keyframe, _final: FinalKeyfra
     endFacing: instr.endFacing,
   };
   const swingFinal = finalSwing(afterWalk, swingInstr, scope);
-  const rawSwingIntermediates = generateSwing(afterWalk, swingFinal, swingInstr, scope);
+  const swingFn = generateSwing(afterWalk, swingFinal, swingInstr, scope);
 
   const driftData = computeDriftData(prev, afterWalk, pairs);
 
-  // Apply drift to swing intermediates
-  // Total swing frames = intermediates + 1 (for the swing final that becomes the G&T final)
-  const nTotalSwingFrames = rawSwingIntermediates.length + 1;
-  const shiftedSwingIntermediates = rawSwingIntermediates.map((kf, idx) => {
-    const t = (idx + 1) / nTotalSwingFrames;
-    return applyDrift(kf, driftData, t);
-  });
+  return (t: number) => {
+    const elapsedBeats = t * instr.beats;
 
-  return [...walkFrames, ...shiftedSwingIntermediates];
+    if (elapsedBeats <= walkBeats) {
+      // Walk phase: drawee walks halfway to drawer
+      const tWalk = elapsedBeats / walkBeats;
+      const beat = prev.beat + elapsedBeats;
+      const dancers = copyDancers(walkStartDancers);
+      for (const { drawer, drawee } of pairs) {
+        const draweeStart = prev.dancers[drawee];
+        const drawerPos = prev.dancers[drawer];
+        const halfway = drawerPos.pos.add(draweeStart.pos).multiply(0.5);
+        dancers[drawee].pos = draweeStart.pos.add(halfway.subtract(draweeStart.pos).multiply(tWalk));
+        dancers[drawee].facing = walkStartDancers[drawee].facing;
+        dancers[drawer].pos = drawerPos.pos;
+        dancers[drawer].facing = walkStartDancers[drawer].facing;
+      }
+      return { beat, dancers, hands: prev.hands };
+    } else {
+      // Swing phase with CoM drift
+      const tSwing = (elapsedBeats - walkBeats) / swingBeats;
+      const swingKf = swingFn(tSwing);
+      return applyDrift(swingKf, driftData, tSwing);
+    }
+  };
 }

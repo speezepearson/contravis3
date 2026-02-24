@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
 import { Vector, makeDancerId, makeFinalKeyframe } from '../../types';
 import { PROTO_DANCER_IDS, averagePos, copyDancers, findDancerOnSide } from '../../generateUtils';
 
@@ -48,22 +48,17 @@ export function finalCircle(prev: Keyframe, instr: Extract<AtomicInstruction, { 
   return makeFinalKeyframe({ beat: prev.beat + instr.beats, dancers, hands });
 }
 
-export function generateCircle(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'circle' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateCircle(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'circle' }>, scope: Set<ProtoDancerId>): KeyframeFn {
   const { totalAngleRad, center, orbitData, hands } = setup(prev, instr, scope);
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  const result: Keyframe[] = [];
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
+  return (t: number) => {
     const beat = prev.beat + t * instr.beats;
     const angleOffset = t * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
       dancers[od.protoId].pos = center.add(od.initOffsetFromCenter.rotateByRadians(angleOffset));
-      // Face center
       dancers[od.protoId].facing = center.subtract(dancers[od.protoId].pos).normalize();
     }
-    result.push({ beat, dancers, hands });
-  }
-  return result;
+    return { beat, dancers, hands };
+  };
 }

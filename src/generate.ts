@@ -1,7 +1,7 @@
-import type { Instruction, AtomicInstruction, Keyframe, FinalKeyframe, HandConnection, ProtoDancerId, InitFormation, InstructionId } from './types';
+import type { Instruction, AtomicInstruction, Keyframe, KeyframeFn, FinalKeyframe, HandConnection, ProtoDancerId, InitFormation, InstructionId } from './types';
 import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, splitLists, NORTH, EAST, SOUTH, WEST } from './types';
 import { assertNever } from './utils';
-import { ALL_DANCERS, SPLIT_GROUPS } from './generateUtils';
+import { ALL_DANCERS, SPLIT_GROUPS, sampleIntermediates } from './generateUtils';
 
 import { finalTakeHands, generateTakeHands } from './figures/takeHands/takeHands';
 import { finalDropHands, generateDropHands } from './figures/dropHands/dropHands';
@@ -109,7 +109,7 @@ function computeFinalKeyframe(prev: Keyframe, instr: AtomicInstruction, scope: S
 }
 
 /** Compute the intermediate keyframes for a figure (not including the final). */
-function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
+function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] | KeyframeFn {
   switch (instr.type) {
     case 'take_hands':  return generateTakeHands(prev, final, instr, scope);
     case 'drop_hands':  return generateDropHands(prev, final, instr, scope);
@@ -141,7 +141,7 @@ function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, inst
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
   const final = computeFinalKeyframe(prev, instr, scope);
   const intermediates = computeIntermediateKeyframes(prev, final, instr, scope);
-  return [...intermediates, final];
+  return [...sampleIntermediates(intermediates, instr.beats), final];
 }
 
 function processInstructions(prev: Keyframe, instructions: AtomicInstruction[], scope: Set<ProtoDancerId>): Keyframe[] {

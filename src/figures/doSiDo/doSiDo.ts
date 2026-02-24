@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { type Vector, dancerPosition, makeFinalKeyframe } from '../../types';
 import { copyDancers, ellipsePosition, resolvePairs } from '../../generateUtils';
 
@@ -47,13 +47,10 @@ export function finalDoSiDo(prev: Keyframe, instr: Extract<AtomicInstruction, { 
   });
 }
 
-export function generateDoSiDo(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'do_si_do' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateDoSiDo(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'do_si_do' }>, scope: Set<ProtoDancerId>): KeyframeFn {
   const { totalAngleRad, orbitData } = setup(prev, instr, scope);
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  const result: Keyframe[] = [];
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
+  return (t: number) => {
     const beat = prev.beat + t * instr.beats;
     const phase = t * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
@@ -61,7 +58,6 @@ export function generateDoSiDo(prev: Keyframe, _final: FinalKeyframe, instr: Ext
       dancers[od.protoId].pos = ellipsePosition(od.startPos, od.partnerPos, od.semiMinor, phase);
       dancers[od.protoId].facing = od.originalFacing;
     }
-    result.push({ beat, dancers, hands: prev.hands });
-  }
-  return result;
+    return { beat, dancers, hands: prev.hands };
+  };
 }

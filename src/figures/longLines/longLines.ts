@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
 import { Vector, makeDancerId, parseDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
 import { PROTO_DANCER_IDS, copyDancers, isLark, resolveInsideHand, findDancerOnSide, angleBetweenFacings } from '../../generateUtils';
 
@@ -85,10 +85,8 @@ export function finalLongLines(prev: Keyframe, instr: Extract<AtomicInstruction,
   });
 }
 
-export function generateLongLines(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'long_lines' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateLongLines(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'long_lines' }>, scope: Set<ProtoDancerId>): KeyframeFn {
   const hands = assertAndTakeHands(prev, scope);
-  const halfBeats = instr.beats / 2;
-  const nFramesPerHalf = Math.max(1, Math.round(halfBeats / 0.25));
 
   // Compute "forward" (middle) positions: each dancer moves to x=±0.2
   // keeping their y and facing
@@ -99,39 +97,30 @@ export function generateLongLines(prev: Keyframe, _final: FinalKeyframe, instr: 
     middleDancers[id].pos = new Vector(sign * 0.2, middleDancers[id].pos.y);
   }
 
-  const result: Keyframe[] = [];
-
-  // Phase 1: step toward middle
-  for (let i = 1; i < nFramesPerHalf; i++) {
-    const t = i / nFramesPerHalf;
-    const beat = prev.beat + t * halfBeats;
+  return (t: number) => {
+    const beat = prev.beat + t * instr.beats;
     const dancers = copyDancers(prev.dancers);
-    for (const id of PROTO_DANCER_IDS) {
-      if (!scope.has(id)) continue;
-      dancers[id].pos = prev.dancers[id].pos.add(
-        middleDancers[id].pos.subtract(prev.dancers[id].pos).multiply(t),
-      );
+
+    if (t <= 0.5) {
+      // Phase 1: step toward middle
+      const tPhase = t / 0.5;
+      for (const id of PROTO_DANCER_IDS) {
+        if (!scope.has(id)) continue;
+        dancers[id].pos = prev.dancers[id].pos.add(
+          middleDancers[id].pos.subtract(prev.dancers[id].pos).multiply(tPhase),
+        );
+      }
+    } else {
+      // Phase 2: step back out
+      const tPhase = (t - 0.5) / 0.5;
+      for (const id of PROTO_DANCER_IDS) {
+        if (!scope.has(id)) continue;
+        dancers[id].pos = middleDancers[id].pos.add(
+          prev.dancers[id].pos.subtract(middleDancers[id].pos).multiply(tPhase),
+        );
+      }
     }
-    result.push({ beat, dancers, hands });
-  }
 
-  // Midpoint keyframe
-  const midKf: Keyframe = { beat: prev.beat + halfBeats, dancers: middleDancers, hands };
-  result.push(midKf);
-
-  // Phase 2: step back out
-  for (let i = 1; i < nFramesPerHalf; i++) {
-    const t = i / nFramesPerHalf;
-    const beat = prev.beat + halfBeats + t * halfBeats;
-    const dancers = copyDancers(middleDancers);
-    for (const id of PROTO_DANCER_IDS) {
-      if (!scope.has(id)) continue;
-      dancers[id].pos = middleDancers[id].pos.add(
-        prev.dancers[id].pos.subtract(middleDancers[id].pos).multiply(t),
-      );
-    }
-    result.push({ beat, dancers, hands });
-  }
-
-  return result;
+    return { beat, dancers, hands };
+  };
 }

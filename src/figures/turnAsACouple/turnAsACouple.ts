@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { finalCaliforniaTwirl, generateCaliforniaTwirl } from '../californiaTwirl/californiaTwirl';
 
 // Turn as a couple is just an alias for California twirl.
@@ -15,6 +15,6 @@ export function finalTurnAsACouple(prev: Keyframe, instr: TurnAsACoupleInstr, sc
   return finalCaliforniaTwirl(prev, asTwirl(instr), scope);
 }
 
-export function generateTurnAsACouple(prev: Keyframe, final: FinalKeyframe, instr: TurnAsACoupleInstr, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateTurnAsACouple(prev: Keyframe, final: FinalKeyframe, instr: TurnAsACoupleInstr, scope: Set<ProtoDancerId>): KeyframeFn {
   return generateCaliforniaTwirl(prev, final, asTwirl(instr), scope);
 }

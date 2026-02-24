@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction } from '../../types';
-import { findDancerOnSide, ALL_DANCERS, getRelationship } from '../../generateUtils';
+import { findDancerOnSide, ALL_DANCERS, getRelationship, sampleIntermediates } from '../../generateUtils';
 import { finalPullBy, generatePullBy } from '../pullBy/pullBy';
 import { finalCourtesyTurn, generateCourtesyTurn } from '../courtesyTurn/courtesyTurn';
 import { finalDropHands, generateDropHands } from '../dropHands/dropHands';
@@ -52,10 +52,10 @@ export function generateRightLeftThrough(
   keyframes.push(...generateDropHands(keyframes[keyframes.length-1], dropHandsFinal, breakdown.dropHandsInstr, ALL_DANCERS), dropHandsFinal);
 
   const pullByFinal = finalPullBy(keyframes[keyframes.length-1], breakdown.pullByInstr, ALL_DANCERS);
-  keyframes.push(...generatePullBy(keyframes[keyframes.length-1], pullByFinal, breakdown.pullByInstr, ALL_DANCERS), pullByFinal);
+  keyframes.push(...sampleIntermediates(generatePullBy(keyframes[keyframes.length-1], pullByFinal, breakdown.pullByInstr, ALL_DANCERS), breakdown.pullByInstr.beats), pullByFinal);
 
   const courtesyTurnFinal = finalCourtesyTurn(keyframes[keyframes.length-1], breakdown.courtesyTurnInstr, ALL_DANCERS);
-  keyframes.push(...generateCourtesyTurn(keyframes[keyframes.length-1], courtesyTurnFinal, breakdown.courtesyTurnInstr), courtesyTurnFinal);
+  keyframes.push(...sampleIntermediates(generateCourtesyTurn(keyframes[keyframes.length-1], courtesyTurnFinal, breakdown.courtesyTurnInstr), breakdown.courtesyTurnInstr.beats), courtesyTurnFinal);
 
   return keyframes;
 }

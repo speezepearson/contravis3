@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
 import { Vector, makeDancerId, parseDancerId, headingAngle, headingVector, makeFinalKeyframe } from '../../types';
 import { copyDancers, resolveFacing, resolvePairs, isLark } from '../../generateUtils';
 
@@ -88,22 +88,16 @@ export function finalSwing(prev: Keyframe, instr: Extract<AtomicInstruction, { t
   });
 }
 
-export function generateSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'swing' }>, scope: Set<ProtoDancerId>): KeyframeFn {
   const { pairs, swingHands } = setup(prev, instr, scope);
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  const result: Keyframe[] = [];
-
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
+  return (t: number) => {
     const beat = prev.beat + t * instr.beats;
     const elapsed = t * instr.beats;
-
     const dancers = copyDancers(prev.dancers);
 
     for (const pair of pairs) {
       const { lark, robin, center, f0, omega, endFacing, phase2Start, phase2Duration } = pair;
-
       const larkFacingRad = f0 + omega * elapsed;
 
       if (elapsed <= phase2Start) {
@@ -144,8 +138,6 @@ export function generateSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extr
       }
     }
 
-    result.push({ beat, dancers, hands: swingHands });
-  }
-
-  return result;
+    return { beat, dancers, hands: swingHands };
+  };
 }

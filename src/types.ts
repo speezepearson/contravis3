@@ -306,6 +306,11 @@ export const KeyframeSchema = z.object({
 });
 export type Keyframe = z.infer<typeof KeyframeSchema>;
 
+/** A function that computes intermediate keyframes dynamically.
+ *  t is a normalized parameter in (0, 1): 0 corresponds to prev, 1 to final.
+ *  The orchestrator samples this at regular intervals to produce Keyframe[]. */
+export type KeyframeFn = (t: number) => Keyframe;
+
 /** A branded Keyframe that represents the authoritative final state of a figure.
  *  Figure generators receive this to ensure the final state is computed
  *  independently from intermediate keyframes. */

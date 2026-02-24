@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection, DancerId } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection, DancerId } from '../../types';
 import { Vector, makeFinalKeyframe, dancerPosition } from '../../types';
 import { copyDancers, isLark, findDancerOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
 
@@ -39,7 +39,7 @@ export function generateCourtesyTurn(
   prev: Keyframe,
   _final: FinalKeyframe,
   instr: Extract<AtomicInstruction, { type: 'courtesy_turn' }>,
-): Keyframe[] {
+): KeyframeFn {
   const totalBeats = instr.beats;
 
   const pairs: {
@@ -67,33 +67,21 @@ export function generateCourtesyTurn(
     });
   }
 
-  // Generate intermediate keyframes (not including the final)
-  const nFrames = Math.max(1, Math.round(totalBeats / 0.25));
-  const result: Keyframe[] = [];
-
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
+  return (t: number) => {
     const beat = prev.beat + t * totalBeats;
-    const elapsed = t * totalBeats;
     const dancers = copyDancers(prev.dancers);
-
-    const tPhase = elapsed / totalBeats;
     const hands: HandConnection[] = [];
 
     for (const { proto, foil, center, radius } of pairs) {
-      const facing = prev.dancers[proto].facing.rotateByRadians(tPhase * Math.PI);
-
+      const facing = prev.dancers[proto].facing.rotateByRadians(t * Math.PI);
       dancers[proto].facing = facing;
       dancers[proto].pos = center.add(facing
           .multiply(radius)
           .rotateByRadians(Math.PI/2 * (isLark(proto) ? 1 : -1)));
-
       hands.push({ a: proto, ha: 'left', b: foil, hb: 'left' });
       hands.push({ a: proto, ha: 'right', b: foil, hb: 'right' });
     }
 
-    result.push({ beat, dancers, hands });
-  }
-
-  return result;
+    return { beat, dancers, hands };
+  };
 }

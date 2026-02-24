@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
 import { parseDancerId, makeDancerId, makeFinalKeyframe } from '../../types';
 import { Vector } from 'vecti';
 import { copyDancers, ellipsePosition, isLark, findDancerOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
@@ -77,27 +77,19 @@ export function finalCaliforniaTwirl(prev: Keyframe, instr: Extract<AtomicInstru
   });
 }
 
-export function generateCaliforniaTwirl(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'california_twirl' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateCaliforniaTwirl(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'california_twirl' }>, scope: Set<ProtoDancerId>): KeyframeFn {
   const { pairs, insideHands } = setup(prev, instr, scope);
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  const result: Keyframe[] = [];
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
+  return (t: number) => {
     const beat = prev.beat + t * instr.beats;
     const theta = Math.PI * t;
-
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
       dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
       dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
-
       dancers[p.lark].facing = p.larkStartFacing.rotateByRadians(-Math.PI * t);
       dancers[p.robin].facing = p.robinStartFacing.rotateByRadians(Math.PI * t);
     }
-
-    // Inside hands + drop everything else
-    result.push({ beat, dancers, hands: insideHands });
-  }
-  return result;
+    return { beat, dancers, hands: insideHands };
+  };
 }

@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
 import { Vector, makeDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
 import { copyDancers, resolvePairs } from '../../generateUtils';
 
@@ -48,25 +48,18 @@ export function finalAllemande(prev: Keyframe, instr: Extract<AtomicInstruction,
   });
 }
 
-export function generateAllemande(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateAllemande(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>): KeyframeFn {
   const { totalAngleRad, allemandHands, orbitData } = setup(prev, instr, scope);
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
   const hands = [...prev.hands, ...allemandHands];
 
-  const result: Keyframe[] = [];
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
+  return (t: number) => {
     const beat = prev.beat + t * instr.beats;
     const angleOffset = t * totalAngleRad;
-
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
       dancers[od.protoId].pos = od.center.add(od.initOffsetFromCenter.rotateByRadians(angleOffset));
       dancers[od.protoId].facing = dancers[od.protoId].pos.subtract(od.center).normalize().rotateByDegrees(instr.handedness === 'right' ? -90 : 90)
     }
-
-    result.push({ beat, dancers, hands });
-  }
-
-  return result;
+    return { beat, dancers, hands };
+  };
 }

@@ -1,4 +1,4 @@
-import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
+import type { Keyframe, KeyframeFn, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { makeDancerId, parseDancerId, makeFinalKeyframe } from '../../types';
 import { copyDancers, ellipsePosition, resolvePairs, isLark } from '../../generateUtils';
 import { Vector } from 'vecti';
@@ -71,28 +71,19 @@ export function finalBoxTheGnat(prev: Keyframe, instr: Extract<AtomicInstruction
   });
 }
 
-export function generateBoxTheGnat(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'box_the_gnat' }>, scope: Set<ProtoDancerId>): Keyframe[] {
+export function generateBoxTheGnat(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'box_the_gnat' }>, scope: Set<ProtoDancerId>): KeyframeFn {
   const { pairs, gnatHands } = setup(prev, instr, scope);
-  const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
 
-  const result: Keyframe[] = [];
-  for (let i = 1; i < nFrames; i++) {
-    const t = i / nFrames;
+  return (t: number) => {
     const beat = prev.beat + t * instr.beats;
     const theta = Math.PI * t;
-
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
       dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
       dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
-
       dancers[p.lark].facing = p.robinStart.subtract(p.larkStart).normalize().rotateByRadians(-Math.PI * t);
       dancers[p.robin].facing = p.larkStart.subtract(p.robinStart).normalize().rotateByRadians(Math.PI * t);
     }
-
-    // Gnat hands held during intermediates
-    result.push({ beat, dancers, hands: gnatHands });
-  }
-
-  return result;
+    return { beat, dancers, hands: gnatHands };
+  };
 }
