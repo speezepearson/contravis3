@@ -140,7 +140,12 @@ function computeIntermediateKeyframes(prev: Keyframe, final: FinalKeyframe, inst
 
 function processAtomicInstruction(prev: Keyframe, instr: AtomicInstruction, scope: Set<ProtoDancerId>): Keyframe[] {
   const final = computeFinalKeyframe(prev, instr, scope);
-  const intermediates = computeIntermediateKeyframes(prev, final, instr, scope);
+  let intermediates: Keyframe[];
+  try {
+    intermediates = computeIntermediateKeyframes(prev, final, instr, scope);
+  } catch {
+    intermediates = [];
+  }
   return [...intermediates, final];
 }
 
