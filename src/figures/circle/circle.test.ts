@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { generateAllKeyframes, initialKeyframe } from '../../generate';
-import { ProtoDancerIdSchema, headingAngle } from '../../types';
-import { tid, instr } from '../testUtils';
+import { ALL_DANCERS, generateAllKeyframes, initialKeyframe } from '../../generate';
+import { AtomicInstructionSchema, InstructionSchema, ProtoDancerIdSchema, Vector, dancerPosition, headingAngle } from '../../types';
+import { tid, instr, expectFacingCloseTo } from '../testUtils';
+import { averagePos, resolveRelationship } from '../../generateUtils';
+import z from 'zod';
+
+const FACE_OPPOSITE = AtomicInstructionSchema.parse({ id: tid(0), beats: 0, type: 'step', direction: { kind: 'direction', value: 'forward' }, distance: 0, facing: { kind: 'relationship', value: { base: 'opposite', offset: 0 } }, facingOffset: 0 })
 
 describe('circle', () => {
   it('dancers return to starting positions after full circle', () => {
-    const instructions = instr([
+    const instructions = AtomicInstructionSchema.array().parse([
+      FACE_OPPOSITE,
       { id: tid(1), beats: 8, type: 'circle', direction: 'left', rotations: 1 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
@@ -18,7 +23,8 @@ describe('circle', () => {
   });
 
   it('circle left moves clockwise', () => {
-    const instructions = instr([
+    const instructions = AtomicInstructionSchema.array().parse([
+      FACE_OPPOSITE,
       { id: tid(1), beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
@@ -29,7 +35,8 @@ describe('circle', () => {
   });
 
   it('circle right moves counter-clockwise', () => {
-    const instructions = instr([
+    const instructions = AtomicInstructionSchema.array().parse([
+      FACE_OPPOSITE,
       { id: tid(1), beats: 8, type: 'circle', direction: 'right', rotations: 0.25 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
@@ -40,28 +47,31 @@ describe('circle', () => {
   });
 
   it('dancers face center throughout', () => {
-    const instructions = instr([
+    const instructions = AtomicInstructionSchema.array().parse([
+      FACE_OPPOSITE,
       { id: tid(1), beats: 8, type: 'circle', direction: 'left', rotations: 0.25 },
     ]);
     const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
     const mid = kfs[Math.floor(kfs.length / 2)];
-    // Each dancer should face toward center (0,0)
-    for (const id of ['up_lark_0', 'up_robin_0', 'down_lark_0', 'down_robin_0'] as const) {
+    const center = averagePos([...ALL_DANCERS].map(id => dancerPosition(id, mid.dancers).pos));
+    // Each dancer should face toward center
+    for (const id of ALL_DANCERS) {
       const d = mid.dancers[id];
-      const TAU = 2 * Math.PI;
-      const angleToCenter = ((Math.atan2(-d.pos.x, -d.pos.y)) % TAU + TAU) % TAU;
-      const facing = ((headingAngle(d.facing) % TAU) + TAU) % TAU;
-      expect(facing).toBeCloseTo(angleToCenter, 0);
+      expectFacingCloseTo(d.facing, center.subtract(d.pos).normalize());
     }
   });
 
   it('has hand connections forming a ring', () => {
-    const instructions = instr([
+    const instructions = InstructionSchema.array().parse([
+      FACE_OPPOSITE,
       { id: tid(1), beats: 8, type: 'circle', direction: 'left', rotations: 1 },
     ]);
-    const { keyframes: kfs } = generateAllKeyframes(instructions, 'improper');
+    const keyframes = generateAllKeyframes(instructions, 'improper');
+    expect(keyframes.error).toBeNull();
+    const kfs = keyframes.keyframes;
     const mid = kfs[Math.floor(kfs.length / 2)];
     // Should have 4 hand connections (ring of 4 dancers)
+    console.log('mid.hands', mid.hands);
     expect(mid.hands).toHaveLength(4);
   });
 });

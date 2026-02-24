@@ -7,7 +7,6 @@ type ShoulderPair = {
   robin: ProtoDancerId;
   center: Vector;
   dist: number;
-  larkAngle0: number; // heading angle of lark-from-center
 };
 
 function resolveEndFacing(endFacing: string, id: ProtoDancerId, pos: Vector): Vector {
@@ -43,11 +42,7 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'should
     const center = larkState.pos.add(robinState.pos).multiply(0.5);
     const dist = larkState.pos.subtract(robinState.pos).length();
 
-    // Angle of lark from center in heading convention
-    const larkDelta = larkState.pos.subtract(center);
-    const larkAngle0 = Math.atan2(larkDelta.x, larkDelta.y);
-
-    pairs.push({ lark, robin, center, dist, larkAngle0 });
+    pairs.push({ lark, robin, center, dist });
   }
 
   return { pairs, lateralSign };
@@ -74,17 +69,10 @@ export function finalShoulderRound(prev: Keyframe, instr: Extract<AtomicInstruct
     // Right of lark: (sin(f+pi/2), cos(f+pi/2)) = (cos(f), -sin(f))
     // But "on each other's right" with handedness=right means robin is on lark's right
     const sideSign = instr.handedness === 'right' ? 1 : -1;
-    const perpX = sideSign * Math.cos(larkFacingRad);
-    const perpY = sideSign * -Math.sin(larkFacingRad);
+    const perp = new Vector(sideSign * Math.cos(larkFacingRad), sideSign * -Math.sin(larkFacingRad));
 
-    dancers[lark].pos = new Vector(
-      center.x - (separation / 2) * perpX,
-      center.y - (separation / 2) * perpY,
-    );
-    dancers[robin].pos = new Vector(
-      center.x + (separation / 2) * perpX,
-      center.y + (separation / 2) * perpY,
-    );
+    dancers[lark].pos = center.add(perp.multiply(-separation / 2));
+    dancers[robin].pos = center.add(perp.multiply(separation / 2));
     dancers[lark].facing = larkFacing;
     dancers[robin].facing = robinFacing;
   }
@@ -134,10 +122,8 @@ export function generateShoulderRound(prev: Keyframe, final: FinalKeyframe, inst
         const theta = (Math.PI / 2) * tPhase;
 
         // Face each other
-        const toRobin = robinState.pos.subtract(larkState.pos);
-        const facingRad = Math.atan2(toRobin.x, toRobin.y);
-        dancers[lark].facing = headingVector(facingRad);
-        dancers[robin].facing = headingVector(facingRad + Math.PI);
+        dancers[lark].facing = robinState.pos.subtract(larkState.pos).normalize();
+        dancers[robin].facing = larkState.pos.subtract(robinState.pos).normalize();
 
         // Ellipse with lateralSign determines CW vs CCW path
         dancers[lark].pos = ellipsePosition(larkState.pos, robinState.pos, lateralSign * dist / 4, theta);
@@ -148,43 +134,35 @@ export function generateShoulderRound(prev: Keyframe, final: FinalKeyframe, inst
         const approachLark = ellipsePosition(larkState.pos, robinState.pos, lateralSign * dist / 4, Math.PI / 2);
         const approachRobin = ellipsePosition(robinState.pos, larkState.pos, lateralSign * dist / 4, Math.PI / 2);
         const revolveCenter = approachLark.add(approachRobin).multiply(0.5);
-        const revolveRadius = approachLark.subtract(revolveCenter).length();
 
         // Initial angle of lark from revolve center
         const larkRevolveDelta = approachLark.subtract(revolveCenter);
-        const larkRevolveAngle0 = Math.atan2(larkRevolveDelta.x, larkRevolveDelta.y);
 
         const tPhase = (elapsed - approachBeats) / revolveBeats;
 
         // Compute target angle from final keyframe
         const finalLarkDelta = final.dancers[lark].pos.subtract(revolveCenter);
-        const finalLarkAngle = Math.atan2(finalLarkDelta.x, finalLarkDelta.y);
 
         // Total revolve angle
         // Omega ~ pi/2 per beat (1 rotation per 4 beats)
         const omega = Math.PI / 2;
         const baseAngle = omega * revolveBeats;
         // CW for right shoulder, CCW for left shoulder
-        const revolveSign = instr.handedness === 'right' ? 1 : -1;
-        const neededAngle = revolveSign * (finalLarkAngle - larkRevolveAngle0);
-        const n = Math.round((revolveSign * baseAngle - neededAngle) / (2 * Math.PI));
-        const totalAngle = neededAngle + n * 2 * Math.PI;
+        const revolveSign = instr.handedness === 'right' ? -1 : 1;
+        const neededRads = revolveSign * (headingAngle(finalLarkDelta) - headingAngle(larkRevolveDelta));
+        const nRots = Math.round((revolveSign * baseAngle - neededRads) / (2 * Math.PI));
+        const totalAngle = neededRads + nRots * 2 * Math.PI;
+        console.log({tPhase, totalAngle})
 
-        const currentAngle = larkRevolveAngle0 + totalAngle * tPhase;
-        const robinCurrentAngle = currentAngle + Math.PI;
+        const currentLarkFacing = larkRevolveDelta.normalize().rotateByRadians(revolveSign * Math.PI / 2 + totalAngle*tPhase);
+        const currentRobinFacing = currentLarkFacing.multiply(-1);
 
-        dancers[lark].pos = new Vector(
-          revolveCenter.x + revolveRadius * Math.sin(currentAngle),
-          revolveCenter.y + revolveRadius * Math.cos(currentAngle),
-        );
-        dancers[robin].pos = new Vector(
-          revolveCenter.x + revolveRadius * Math.sin(robinCurrentAngle),
-          revolveCenter.y + revolveRadius * Math.cos(robinCurrentAngle),
-        );
+        dancers[lark].pos = revolveCenter.add(larkRevolveDelta.rotateByRadians(totalAngle*tPhase));
+        dancers[robin].pos = revolveCenter.add(larkRevolveDelta.rotateByRadians(totalAngle*tPhase + Math.PI));
 
         // Face tangent to the orbit
-        dancers[lark].facing = headingVector(currentAngle + revolveSign * Math.PI / 2);
-        dancers[robin].facing = headingVector(robinCurrentAngle + revolveSign * Math.PI / 2);
+        dancers[lark].facing = currentLarkFacing;
+        dancers[robin].facing = currentRobinFacing;
       }
     }
 

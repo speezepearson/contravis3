@@ -13,7 +13,7 @@ export function instr(data: unknown[]): Instruction[] {
 }
 
 /** Assert that a facing vector is close to an expected vector. */
-export function expectFacingCloseTo(actual: Vector, expected: Vector, precision = 5) {
+export function expectFacingCloseTo(actual: Vector, expected: Vector, precision = 0.01) {
   expect(actual.x).toBeCloseTo(expected.x, precision);
   expect(actual.y).toBeCloseTo(expected.y, precision);
 }

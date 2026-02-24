@@ -2,10 +2,10 @@ import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoD
 import { Vector, makeDancerId, dancerPosition, headingVector, makeFinalKeyframe } from '../../types';
 import { copyDancers, easeInOut, resolvePairs } from '../../generateUtils';
 
-type OrbitDatum = { protoId: ProtoDancerId; center: Vector; startAngle: number; radius: number };
+type OrbitDatum = { protoId: ProtoDancerId; center: Vector; initOffsetFromCenter: Vector };
 
 function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>) {
-  const totalAngleRad = instr.rotations * 2 * Math.PI * (instr.handedness === 'right' ? 1 : -1);
+  const totalAngleRad = instr.rotations * 2 * Math.PI * (instr.handedness === 'right' ? -1 : 1);
   // shoulderOffset: right-hand allemande → face 90° CCW from center (i.e. -π/2), left → 90° CW (+π/2)
   const shoulderOffset = instr.handedness === 'right' ? -Math.PI / 2 : Math.PI / 2;
   const pairs = resolvePairs(instr.relationship, prev.dancers, scope, {});
@@ -23,11 +23,9 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allema
     const da = prev.dancers[id];
     const partnerPos = dancerPosition(target, prev.dancers).pos;
     const center = da.pos.add(partnerPos).multiply(0.5);
-    const delta = da.pos.subtract(center);
     orbitData.push({
       protoId: id, center,
-      startAngle: Math.atan2(delta.x, delta.y),
-      radius: delta.length(),
+      initOffsetFromCenter: da.pos.subtract(center),
     });
   }
 
@@ -35,17 +33,12 @@ function setup(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allema
 }
 
 export function finalAllemande(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
-  const { totalAngleRad, shoulderOffset, allemandHands, orbitData } = setup(prev, instr, scope);
+  const { totalAngleRad, allemandHands, orbitData } = setup(prev, instr, scope);
 
   const dancers = copyDancers(prev.dancers);
   for (const od of orbitData) {
-    const angle = od.startAngle + totalAngleRad;
-    dancers[od.protoId].pos = new Vector(
-      od.center.x + od.radius * Math.sin(angle),
-      od.center.y + od.radius * Math.cos(angle),
-    );
-    const dirToCenter = Math.atan2(od.center.x - dancers[od.protoId].pos.x, od.center.y - dancers[od.protoId].pos.y);
-    dancers[od.protoId].facing = headingVector(dirToCenter + shoulderOffset);
+    dancers[od.protoId].pos = od.center.add(od.initOffsetFromCenter.rotateByRadians(totalAngleRad));
+    dancers[od.protoId].facing = dancers[od.protoId].pos.subtract(od.center).normalize().rotateByDegrees(instr.handedness === 'right' ? -90 : 90)
   }
 
   return makeFinalKeyframe({
@@ -56,7 +49,7 @@ export function finalAllemande(prev: Keyframe, instr: Extract<AtomicInstruction,
 }
 
 export function generateAllemande(prev: Keyframe, _final: FinalKeyframe, instr: Extract<AtomicInstruction, { type: 'allemande' }>, scope: Set<ProtoDancerId>): Keyframe[] {
-  const { totalAngleRad, shoulderOffset, allemandHands, orbitData } = setup(prev, instr, scope);
+  const { totalAngleRad, allemandHands, orbitData } = setup(prev, instr, scope);
   const nFrames = Math.max(1, Math.round(instr.beats / 0.25));
   const hands = [...prev.hands, ...allemandHands];
 
@@ -69,13 +62,8 @@ export function generateAllemande(prev: Keyframe, _final: FinalKeyframe, instr: 
 
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
-      const angle = od.startAngle + angleOffset;
-      dancers[od.protoId].pos = new Vector(
-        od.center.x + od.radius * Math.sin(angle),
-        od.center.y + od.radius * Math.cos(angle),
-      );
-      const dirToCenter = Math.atan2(od.center.x - dancers[od.protoId].pos.x, od.center.y - dancers[od.protoId].pos.y);
-      dancers[od.protoId].facing = headingVector(dirToCenter + shoulderOffset);
+      dancers[od.protoId].pos = od.center.add(od.initOffsetFromCenter.rotateByRadians(angleOffset));
+      dancers[od.protoId].facing = dancers[od.protoId].pos.subtract(od.center).normalize().rotateByDegrees(instr.handedness === 'right' ? -90 : 90)
     }
 
     result.push({ beat, dancers, hands });

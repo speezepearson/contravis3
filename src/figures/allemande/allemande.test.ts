@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateAllKeyframes, initialKeyframe } from '../../generate';
 import { headingAngle } from '../../types';
-import { tid, instr } from '../testUtils';
+import { tid, instr, expectFacingCloseTo } from '../testUtils';
 
 describe('allemande', () => {
   it('produces multiple keyframes for the arc', () => {
@@ -49,11 +49,10 @@ describe('allemande', () => {
     const ul = mid.dancers['up_lark_0'];
     const dr = mid.dancers['down_robin_0'];
     const TAU = 2 * Math.PI;
-    const dirToPartner = Math.atan2(dr.pos.x - ul.pos.x, dr.pos.y - ul.pos.y);
+    const dirToPartner = dr.pos.subtract(ul.pos).normalize();
     // Facing should be 90 deg CCW (i.e. -pi/2) from direction to partner
-    const expectedFacing = ((dirToPartner - Math.PI / 2) % TAU + TAU) % TAU;
-    const actualFacing = ((headingAngle(ul.facing) % TAU) + TAU) % TAU;
-    expect(actualFacing).toBeCloseTo(expectedFacing, 0);
+    const expectedFacing = dirToPartner.rotateByRadians(Math.PI / 2);
+    expectFacingCloseTo(ul.facing, expectedFacing);
   });
 
   it('allemande left: left shoulder faces partner (facing is 90 deg CW from direction to partner)', () => {

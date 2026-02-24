@@ -108,16 +108,14 @@ export function generateSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extr
 
       if (elapsed <= phase2Start) {
         // Phase 1: regular swing orbit
-        dancers[lark].pos = new Vector(
-          center.x - FRONT * Math.sin(larkFacingRad) - RIGHT * Math.cos(larkFacingRad),
-          center.y - FRONT * Math.cos(larkFacingRad) + RIGHT * Math.sin(larkFacingRad),
+        dancers[lark].pos = center.add(
+          new Vector(-RIGHT, -FRONT).rotateByRadians(-larkFacingRad)
         );
         dancers[lark].facing = headingVector(larkFacingRad);
 
         const robinFacingRad = larkFacingRad + Math.PI;
-        dancers[robin].pos = new Vector(
-          center.x + FRONT * Math.sin(larkFacingRad) + RIGHT * Math.cos(larkFacingRad),
-          center.y + FRONT * Math.cos(larkFacingRad) - RIGHT * Math.sin(larkFacingRad),
+        dancers[robin].pos = center.add(
+          new Vector(RIGHT, FRONT).rotateByRadians(-larkFacingRad)
         );
         dancers[robin].facing = headingVector(robinFacingRad);
       } else {
@@ -125,9 +123,8 @@ export function generateSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extr
         const tLocal = (elapsed - phase2Start) / phase2Duration;
 
         const fP1End = f0 + omega * phase2Start;
-        const larkP1End = new Vector(
-          center.x - FRONT * Math.sin(fP1End) - RIGHT * Math.cos(fP1End),
-          center.y - FRONT * Math.cos(fP1End) + RIGHT * Math.sin(fP1End),
+        const larkP1End = center.add(
+          new Vector(-RIGHT, -FRONT).rotateByRadians(fP1End)
         );
 
         const larkFinal = center.add(endFacing.multiply(0.5).rotateByDegrees(90));
@@ -141,9 +138,8 @@ export function generateSwing(prev: Keyframe, _final: FinalKeyframe, instr: Extr
         const robinFront = 0.3 * (1 - tLocal);
         const robinRight = 0.2 + 0.8 * tLocal;
 
-        dancers[robin].pos = new Vector(
-          dancers[lark].pos.x + robinFront * Math.sin(larkFacingRad) + robinRight * Math.cos(larkFacingRad),
-          dancers[lark].pos.y + robinFront * Math.cos(larkFacingRad) - robinRight * Math.sin(larkFacingRad),
+        dancers[robin].pos = dancers[lark].pos.add(
+          new Vector(robinRight, robinFront).rotateByRadians(-larkFacingRad)
         );
       }
     }

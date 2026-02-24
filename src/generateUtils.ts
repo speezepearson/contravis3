@@ -256,3 +256,7 @@ export function getRelationship(a: DancerId, b: DancerId): Relationship | undefi
   if (!(resolvedA === b)) throw new Error(`Programming error: computed wrong relationship for ${a} and ${b}: ${result.base}${result.offset} of ${a} is actually ${resolvedA}`);
   return result;
 }
+
+export function averagePos(positions: Vector[]): Vector {
+  return positions.reduce((a, b) => a.add(b), new Vector(0, 0)).multiply(1 / positions.length);
+}
