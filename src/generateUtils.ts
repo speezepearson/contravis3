@@ -1,5 +1,5 @@
 import type { Relationship, RelativeDirection, DancerState, ProtoDancerId, DancerId, DirectionalRelationship } from './types';
-import { Vector, makeDancerId, parseDancerId, dancerPosition, headingAngle, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, otherRole, otherDir } from './types';
+import { Vector, makeDancerId, parseDancerId, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, EAST, SOUTH, WEST, otherRole, otherDir } from './types';
 import { assertNever } from './utils';
 
 export const PROTO_DANCER_IDS = ProtoDancerIdSchema.options;

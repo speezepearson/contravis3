@@ -1,5 +1,5 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
-import { Vector, parseDancerId, headingAngle, headingVector, makeFinalKeyframe, NORTH, SOUTH, EAST, WEST } from '../../types';
+import { Vector, parseDancerId, headingAngle, makeFinalKeyframe, NORTH, SOUTH, EAST, WEST } from '../../types';
 import { copyDancers, ellipsePosition, resolvePairs, isLark } from '../../generateUtils';
 
 type ShoulderPair = {

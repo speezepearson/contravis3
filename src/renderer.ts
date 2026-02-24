@@ -1,5 +1,5 @@
 import type { DancerState, Keyframe, ProtoDancerId } from './types';
-import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, headingAngle, NORTH, ccwRadsBetween } from './types';
+import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, NORTH, ccwRadsBetween } from './types';
 
 const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark_0:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
