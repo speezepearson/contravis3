@@ -4,12 +4,11 @@ import { generateAllKeyframes, validateHandDistances, validateProgression, gener
 import { exportGif } from './exportGif';
 import CommandPane from './CommandPane';
 import type { Instruction, InitFormation, InstructionId, Keyframe, Dance } from './types';
-import { splitLists, instructionDuration, InstructionSchema, DanceSchema, formatDanceParseError, ProtoDancerIdSchema, parseDancerId, BaseRelationshipSchema } from './types';
+import { splitLists, instructionDuration, danceLength, InstructionSchema, DanceSchema, formatDanceParseError, ProtoDancerIdSchema, parseDancerId, BaseRelationshipSchema } from './types';
 import { resolveRelationship } from './generateUtils';
 import { decodeRelationship } from './fieldUtils';
 import { RelationshipHighlightContext } from './RelationshipHighlightContext';
 
-const DANCE_LENGTH = 64;
 const LOCALSTORAGE_KEY = 'contravis3-dance';
 
 function loadDanceFromLocalStorage(): { dance: Dance } | { error: string } | null {
@@ -112,6 +111,7 @@ export default function App() {
   const [hoveredInstructionId, setHoveredInstructionId] = useState<InstructionId | null>(null);
 
   const { keyframes, error: generateError } = useMemo(() => generateAllKeyframes(instructions, initFormation), [instructions, initFormation]);
+  const DANCE_LENGTH = useMemo(() => danceLength(instructions), [instructions]);
   const warnings = useMemo(() => validateHandDistances(instructions, keyframes), [instructions, keyframes]);
   const progressionWarning = useMemo(() => validateProgression(keyframes, initFormation, progression), [keyframes, initFormation, progression]);
   const wrap = !progressionWarning;
@@ -175,7 +175,7 @@ export default function App() {
       renderer.drawPreviewKeyframes(previewKeyframes);
     }
     setBeat(beatRef.current);
-  }, [keyframes, smoothness, progression, wrap, previewKeyframes]);
+  }, [keyframes, smoothness, DANCE_LENGTH, progression, wrap, previewKeyframes]);
 
   // Keep drawRef in sync so stable callbacks can always call the latest draw
   drawRef.current = draw;
@@ -266,7 +266,7 @@ export default function App() {
   const stepFwd = useCallback(() => {
     beatRef.current = Math.min(beatRef.current + 0.25, DANCE_LENGTH);
     drawRef.current();
-  }, []);
+  }, [DANCE_LENGTH]);
 
   const stepBack = useCallback(() => {
     beatRef.current = Math.max(beatRef.current - 0.25, 0);
@@ -278,7 +278,7 @@ export default function App() {
     beatRef.current = pct * DANCE_LENGTH;
     rendererRef.current?.clearTrails();
     drawRef.current();
-  }, []);
+  }, [DANCE_LENGTH]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -331,6 +331,7 @@ export default function App() {
       const gifBytes = exportGif(keyframes, offCtx, {
         width: w,
         height: h,
+        danceLength: DANCE_LENGTH,
         bpm,
         smoothness: smoothness / 100,
         progressionRate: -progression / DANCE_LENGTH,
@@ -346,7 +347,7 @@ export default function App() {
       URL.revokeObjectURL(url);
       setExporting(false);
     }, 50);
-  }, [keyframes, bpm, smoothness, progression, wrap]);
+  }, [keyframes, bpm, smoothness, DANCE_LENGTH, progression, wrap]);
 
   const scrubberValue = DANCE_LENGTH > 0
     ? Math.round(beat / DANCE_LENGTH * 1000)
