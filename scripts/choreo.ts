@@ -435,9 +435,7 @@ function cmdList(args: string[]): void {
     const beat = beatMap.get(instr.id) ?? '?';
     const dur = instructionDuration(instr);
 
-    if (instr.type === 'group') {
-      console.log(`${indent}[beat ${beat}] GROUP "${instr.label}" (${dur} beats)  id=${instr.id}`);
-    } else if (instr.type === 'split') {
+    if (instr.type === 'split') {
       console.log(`${indent}[beat ${beat}] SPLIT by ${instr.by} (${dur} beats)  id=${instr.id}`);
     } else {
       const details = summarizeInstruction(instr);
@@ -447,7 +445,7 @@ function cmdList(args: string[]): void {
 }
 
 function summarizeInstruction(instr: Instruction): string {
-  if (instr.type === 'group' || instr.type === 'split') return '';
+  if (instr.type === 'split') return '';
   switch (instr.type) {
     case 'take_hands': return `${instr.relationship} ${instr.hand}`;
     case 'drop_hands': return `${instr.target}`;
@@ -455,9 +453,8 @@ function summarizeInstruction(instr: Instruction): string {
     case 'do_si_do': return `${instr.relationship} ${instr.rotations}x`;
     case 'circle': return `${instr.direction} ${instr.rotations}x`;
     case 'pull_by': return `${instr.relationship} ${instr.hand}`;
-    case 'turn': return `toward ${JSON.stringify(instr.target)}`;
     case 'step': return `${JSON.stringify(instr.direction)} ${instr.distance}m`;
-    case 'balance': return `${JSON.stringify(instr.direction)} ${instr.distance}m`;
+    case 'balance': return `${instr.relationship} ${instr.distance}m`;
     case 'swing': return `${instr.relationship} endFacing=${JSON.stringify(instr.endFacing)}`;
     case 'box_the_gnat': return `${instr.relationship}`;
     case 'give_and_take_into_swing': return `${instr.relationship} ${instr.role}`;
