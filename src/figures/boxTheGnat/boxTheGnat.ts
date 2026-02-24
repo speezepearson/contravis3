@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
-import { makeDancerId, parseDancerId, headingVector, makeFinalKeyframe, dancerPosition } from '../../types';
-import { copyDancers, easeInOut, ellipsePosition, resolvePairs, isLark } from '../../generateUtils';
+import { makeDancerId, parseDancerId, makeFinalKeyframe } from '../../types';
+import { copyDancers, ellipsePosition, resolvePairs, isLark } from '../../generateUtils';
 import { Vector } from 'vecti';
 
 type GnatPair = {
@@ -79,16 +79,15 @@ export function generateBoxTheGnat(prev: Keyframe, _final: FinalKeyframe, instr:
   for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const tEased = easeInOut(t);
-    const theta = Math.PI * tEased;
+    const theta = Math.PI * t;
 
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
       dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
       dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
 
-      dancers[p.lark].facing = p.robinStart.subtract(p.larkStart).normalize().rotateByRadians(-Math.PI * tEased);
-      dancers[p.robin].facing = p.larkStart.subtract(p.robinStart).normalize().rotateByRadians(Math.PI * tEased);
+      dancers[p.lark].facing = p.robinStart.subtract(p.larkStart).normalize().rotateByRadians(-Math.PI * t);
+      dancers[p.robin].facing = p.larkStart.subtract(p.robinStart).normalize().rotateByRadians(Math.PI * t);
     }
 
     // Gnat hands held during intermediates

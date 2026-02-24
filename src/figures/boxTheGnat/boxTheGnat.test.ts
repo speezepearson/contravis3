@@ -106,10 +106,6 @@ describe('box_the_gnat', () => {
       mid.dancers['up_lark_0'].pos.x - centerX,
       mid.dancers['up_lark_0'].pos.y - centerY,
     );
-    // At the eased midpoint, the position isn't exactly at semi-minor because of easing
-    // At t=0.5 with easeInOut, theta = pi * easeInOut(0.5) = pi * 0.5 = pi/2
-    // position = a*cos(pi/2)*major + b*sin(pi/2)*minor = b*minor
-    // So at the midpoint, displacement should equal semi-minor = majorLen/4
     expect(perpDisp).toBeCloseTo(majorLen / 4, 1);
   });
 });

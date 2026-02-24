@@ -1,7 +1,7 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
-import { parseDancerId, makeDancerId, headingAngle, headingVector, makeFinalKeyframe } from '../../types';
+import { parseDancerId, makeDancerId, makeFinalKeyframe } from '../../types';
 import { Vector } from 'vecti';
-import { copyDancers, easeInOut, ellipsePosition, isLark, findDancerOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
+import { copyDancers, ellipsePosition, isLark, findDancerOnSide, PROTO_DANCER_IDS } from '../../generateUtils';
 
 
 type TwirlPair = {
@@ -85,16 +85,15 @@ export function generateCaliforniaTwirl(prev: Keyframe, _final: FinalKeyframe, i
   for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const tEased = easeInOut(t);
-    const theta = Math.PI * tEased;
+    const theta = Math.PI * t;
 
     const dancers = copyDancers(prev.dancers);
     for (const p of pairs) {
       dancers[p.lark].pos = ellipsePosition(p.larkStart, p.robinStart, p.semiMinor, theta);
       dancers[p.robin].pos = ellipsePosition(p.robinStart, p.larkStart, p.semiMinor, theta);
 
-      dancers[p.lark].facing = p.larkStartFacing.rotateByRadians(-Math.PI * tEased);
-      dancers[p.robin].facing = p.robinStartFacing.rotateByRadians(Math.PI * tEased);
+      dancers[p.lark].facing = p.larkStartFacing.rotateByRadians(-Math.PI * t);
+      dancers[p.robin].facing = p.robinStartFacing.rotateByRadians(Math.PI * t);
     }
 
     // Inside hands + drop everything else

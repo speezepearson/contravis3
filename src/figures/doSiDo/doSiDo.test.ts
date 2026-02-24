@@ -52,12 +52,11 @@ describe('do_si_do', () => {
     // up_lark (-0.5,-0.5) and down_robin (-0.5,0.5) are neighbors on the same vertical axis.
     // Center = (-0.5, 0), semiMajor (along y) = 0.5, semiMinor (along x) = 0.25.
     // At quarter rotation CW: up_lark -> east side of ellipse, down_robin -> west side.
-    // Use many beats to make easeInOut(0.5) land exactly at quarter rotation.
     const instructions = instr([
       { id: tid(1), beats: 8, type: 'do_si_do', relationship: { base: 'neighbor', offset: 0 }, rotations: 0.5 },
     ]);
     const kfs = mustGenerateAllKeyframes(instructions, 'improper');
-    // Mid-animation (t=0.5, easeInOut=0.5) -> 0.25 rotations = quarter turn
+    // Mid-animation (t=0.5) -> 0.25 rotations = quarter turn
     const mid = kfs[Math.floor(kfs.length / 2)];
     // CW orbit: up_lark (south of center) moves west first -> at quarter turn, west side
     expect(mid.dancers['up_lark_0'].pos.x).toBeCloseTo(-0.75, 1); // 0.25m west of center

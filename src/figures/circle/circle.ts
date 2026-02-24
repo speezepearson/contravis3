@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
 import { Vector, makeDancerId, makeFinalKeyframe } from '../../types';
-import { PROTO_DANCER_IDS, averagePos, copyDancers, easeInOut, findDancerOnSide } from '../../generateUtils';
+import { PROTO_DANCER_IDS, averagePos, copyDancers, findDancerOnSide } from '../../generateUtils';
 
   type OrbitDatum = { protoId: ProtoDancerId; initOffsetFromCenter: Vector; radius: number };
 
@@ -56,8 +56,7 @@ export function generateCircle(prev: Keyframe, _final: FinalKeyframe, instr: Ext
   for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const tEased = easeInOut(t);
-    const angleOffset = tEased * totalAngleRad;
+    const angleOffset = t * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
       dancers[od.protoId].pos = center.add(od.initOffsetFromCenter.rotateByRadians(angleOffset));

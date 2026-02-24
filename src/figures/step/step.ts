@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
-import { makeFinalKeyframe, headingAngle, headingVector, ccwRadsBetween } from '../../types';
-import { PROTO_DANCER_IDS, copyDancers, easeInOut, resolveHeading, resolveFacing } from '../../generateUtils';
+import { makeFinalKeyframe, ccwRadsBetween } from '../../types';
+import { PROTO_DANCER_IDS, copyDancers, resolveHeading, resolveFacing } from '../../generateUtils';
 
 export function finalStep(prev: Keyframe, instr: Extract<AtomicInstruction, { type: 'step' }>, scope: Set<ProtoDancerId>): FinalKeyframe {
   const dancers = copyDancers(prev.dancers);
@@ -27,14 +27,13 @@ export function generateStep(prev: Keyframe, final: FinalKeyframe, instr: Extrac
   for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const tEased = easeInOut(t);
     const dancers = copyDancers(prev.dancers);
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
       dancers[id].pos = prev.dancers[id].pos.add(
-        final.dancers[id].pos.subtract(prev.dancers[id].pos).multiply(tEased),
+        final.dancers[id].pos.subtract(prev.dancers[id].pos).multiply(t),
       );
-      dancers[id].facing = prev.dancers[id].facing.rotateByRadians(ccwRadsBetween(prev.dancers[id].facing, final.dancers[id].facing) * tEased);
+      dancers[id].facing = prev.dancers[id].facing.rotateByRadians(ccwRadsBetween(prev.dancers[id].facing, final.dancers[id].facing) * t);
     }
     keyframes.push({ beat, dancers, hands: prev.hands });
   }

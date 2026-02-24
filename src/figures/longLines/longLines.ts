@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId, HandConnection } from '../../types';
 import { Vector, makeDancerId, parseDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
-import { PROTO_DANCER_IDS, copyDancers, isLark, easeInOut, resolveInsideHand, findDancerOnSide, angleBetweenFacings } from '../../generateUtils';
+import { PROTO_DANCER_IDS, copyDancers, isLark, resolveInsideHand, findDancerOnSide, angleBetweenFacings } from '../../generateUtils';
 
 /**
  * Long lines forward and back: 8 beats by default.
@@ -105,12 +105,11 @@ export function generateLongLines(prev: Keyframe, _final: FinalKeyframe, instr: 
   for (let i = 1; i < nFramesPerHalf; i++) {
     const t = i / nFramesPerHalf;
     const beat = prev.beat + t * halfBeats;
-    const tEased = easeInOut(t);
     const dancers = copyDancers(prev.dancers);
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
       dancers[id].pos = prev.dancers[id].pos.add(
-        middleDancers[id].pos.subtract(prev.dancers[id].pos).multiply(tEased),
+        middleDancers[id].pos.subtract(prev.dancers[id].pos).multiply(t),
       );
     }
     result.push({ beat, dancers, hands });
@@ -124,12 +123,11 @@ export function generateLongLines(prev: Keyframe, _final: FinalKeyframe, instr: 
   for (let i = 1; i < nFramesPerHalf; i++) {
     const t = i / nFramesPerHalf;
     const beat = prev.beat + halfBeats + t * halfBeats;
-    const tEased = easeInOut(t);
     const dancers = copyDancers(middleDancers);
     for (const id of PROTO_DANCER_IDS) {
       if (!scope.has(id)) continue;
       dancers[id].pos = middleDancers[id].pos.add(
-        prev.dancers[id].pos.subtract(middleDancers[id].pos).multiply(tEased),
+        prev.dancers[id].pos.subtract(middleDancers[id].pos).multiply(t),
       );
     }
     result.push({ beat, dancers, hands });

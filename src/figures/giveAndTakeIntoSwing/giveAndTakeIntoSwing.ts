@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { Vector, parseDancerId, makeFinalKeyframe } from '../../types';
-import { copyDancers, easeInOut, resolvePairs, isLark } from '../../generateUtils';
+import { copyDancers, resolvePairs, isLark } from '../../generateUtils';
 import { finalSwing, generateSwing } from '../swing/swing';
 
 type GTPair = {
@@ -96,11 +96,10 @@ function computeDriftData(prev: Keyframe, afterWalk: Keyframe, pairs: GTPair[]):
 }
 
 function applyDrift(kf: Keyframe, driftData: DriftDatum[], t: number): Keyframe {
-  const tEased = easeInOut(t);
   const dancers = copyDancers(kf.dancers);
   for (const { lark, robin, finalCenter, startCenter } of driftData) {
     const currentCenter = kf.dancers[lark].pos.add(kf.dancers[robin].pos).multiply(0.5);
-    const targetCenter = startCenter.add(finalCenter.subtract(startCenter).multiply(tEased));
+    const targetCenter = startCenter.add(finalCenter.subtract(startCenter).multiply(t));
     const shift = targetCenter.subtract(currentCenter);
     dancers[lark].pos = dancers[lark].pos.add(shift);
     dancers[robin].pos = dancers[robin].pos.add(shift);
@@ -157,13 +156,12 @@ export function generateGiveAndTakeIntoSwing(prev: Keyframe, _final: FinalKeyfra
   for (let i = 1; i <= walkNFrames; i++) {
     const t = i / walkNFrames;
     const beat = prev.beat + t * walkBeats;
-    const tEased = easeInOut(t);
     const dancers = copyDancers(walkStart.dancers);
     for (const { drawer, drawee } of pairs) {
       const draweeStart = prev.dancers[drawee];
       const drawerPos = prev.dancers[drawer];
       const halfway = drawerPos.pos.add(draweeStart.pos).multiply(0.5);
-      dancers[drawee].pos = draweeStart.pos.add(halfway.subtract(draweeStart.pos).multiply(tEased));
+      dancers[drawee].pos = draweeStart.pos.add(halfway.subtract(draweeStart.pos).multiply(t));
       dancers[drawee].facing = walkStart.dancers[drawee].facing;
       dancers[drawer].pos = drawerPos.pos;
       dancers[drawer].facing = walkStart.dancers[drawer].facing;

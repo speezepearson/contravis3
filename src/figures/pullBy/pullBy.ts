@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
 import { type Vector, makeDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
-import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../../generateUtils';
+import { copyDancers,   ellipsePosition, resolvePairs } from '../../generateUtils';
 
 type SwapDatum = {
   protoId: ProtoDancerId;
@@ -59,7 +59,7 @@ export function generatePullBy(prev: Keyframe, _final: FinalKeyframe, instr: Ext
     const beat = prev.beat + t * instr.beats;
     const dancers = copyDancers(prev.dancers);
     for (const sd of swapData) {
-      dancers[sd.protoId].pos = ellipsePosition(sd.startPos, sd.targetPos, lateralSign * 0.25, Math.PI * easeInOut(t));
+      dancers[sd.protoId].pos = ellipsePosition(sd.startPos, sd.targetPos, lateralSign * 0.25, Math.PI * t);
       dancers[sd.protoId].facing = sd.originalFacingOther;
     }
     const hands = t <= 0.5 ? handsGripping : [];

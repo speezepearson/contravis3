@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, ProtoDancerId } from '../../types';
 import { type Vector, parseDancerId, dancerPosition, EAST, WEST, makeFinalKeyframe } from '../../types';
-import { copyDancers, easeInOut, ellipsePosition, resolvePairs } from '../../generateUtils';
+import { copyDancers, ellipsePosition, resolvePairs } from '../../generateUtils';
 
 type OrbitDatum = {
   protoId: ProtoDancerId;
@@ -101,7 +101,7 @@ export function generateMadRobin(
   for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const phi = easeInOut(t) * totalAngleRad;
+    const phi = t * totalAngleRad;
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {
       dancers[od.protoId].pos = ellipsePosition(od.startPos, od.partnerPos, 0.25, phi);

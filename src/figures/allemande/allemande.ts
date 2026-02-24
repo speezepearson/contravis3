@@ -1,6 +1,6 @@
 import type { Keyframe, FinalKeyframe, AtomicInstruction, HandConnection, ProtoDancerId } from '../../types';
 import { Vector, makeDancerId, dancerPosition, makeFinalKeyframe } from '../../types';
-import { copyDancers, easeInOut, resolvePairs } from '../../generateUtils';
+import { copyDancers, resolvePairs } from '../../generateUtils';
 
 type OrbitDatum = { protoId: ProtoDancerId; center: Vector; initOffsetFromCenter: Vector };
 
@@ -57,8 +57,7 @@ export function generateAllemande(prev: Keyframe, _final: FinalKeyframe, instr: 
   for (let i = 1; i < nFrames; i++) {
     const t = i / nFrames;
     const beat = prev.beat + t * instr.beats;
-    const tEased = easeInOut(t);
-    const angleOffset = tEased * totalAngleRad;
+    const angleOffset = t * totalAngleRad;
 
     const dancers = copyDancers(prev.dancers);
     for (const od of orbitData) {

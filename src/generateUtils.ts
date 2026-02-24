@@ -92,10 +92,6 @@ export function resolvePairs(
   return result;
 }
 
-export function easeInOut(t: number): number {
-  return (1 - Math.cos(t * Math.PI)) / 2;
-}
-
 /** Position on an ellipse whose major axis runs from `a` to `b`.
  *  phi=0 → a, phi=π → b, phi=2π → a again. */
 export function ellipsePosition(
