@@ -1,5 +1,5 @@
 import type { DancerState, Keyframe, ProtoDancerId } from './types';
-import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, headingAngle } from './types';
+import { Vector, dancerPosition, ProtoDancerIdSchema, buildDancerRecord, headingAngle, NORTH } from './types';
 
 const COLORS: Record<ProtoDancerId, { fill: string; stroke: string; label: string }> = {
   up_lark_0:    { fill: '#4a90d9', stroke: '#6ab0ff', label: 'UL' },
@@ -375,7 +375,7 @@ function applyProgression(frame: Keyframe, cycle: number, progression: number): 
   const dancers = buildDancerRecord(id => {
     const d = frame.dancers[id];
     const sign = id.startsWith('up_') ? 1 : -1;
-    return { pos: new Vector(d.pos.x, d.pos.y + sign * dy), facing: d.facing };
+    return { pos: d.pos.add(NORTH.multiply(sign*dy)), facing: d.facing };
   });
   return { ...frame, dancers };
 }

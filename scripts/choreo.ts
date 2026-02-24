@@ -193,10 +193,8 @@ function formatKeyframe(kf: Keyframe): string {
 
     // on left, on right, in front (relative to facing)
     const f = d.facing;
-    // left = 90° CCW from facing: (-facing.y, facing.x)
-    lines.push(neighborInfo('on left', protoId, d, others, new Vector(-f.y, f.x)));
-    // right = 90° CW from facing: (facing.y, -facing.x)
-    lines.push(neighborInfo('on right', protoId, d, others, new Vector(f.y, -f.x)));
+    lines.push(neighborInfo('on left', protoId, d, others, f.rotateByDegrees(-90)));
+    lines.push(neighborInfo('on right', protoId, d, others, f.rotateByDegrees(90)));
     lines.push(neighborInfo('in front', protoId, d, others, f));
     lines.push('');
   }

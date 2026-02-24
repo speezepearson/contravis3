@@ -49,7 +49,7 @@ export function makeDancerId(proto: ProtoDancerId | {dir: ProgressionDir, role: 
 export function dancerPosition(id: DancerId, dancers: Record<ProtoDancerId, DancerState>): DancerState {
   const { proto, offset } = parseDancerId(id);
   const b = dancers[proto];
-  return { pos: new Vector(b.pos.x, b.pos.y + offset * 2), facing: b.facing };
+  return { pos: b.pos.add(NORTH.multiply(offset*2)), facing: b.facing };
 }
 
 // Who they interact with (only for actions that involve a partner)

@@ -130,8 +130,8 @@ export function resolveHeading(dir: RelativeDirection, d: DancerState, id: Proto
       case 'progression':      return UPS.has(id) ? NORTH : SOUTH;
       case 'forward':          return d.facing;
       case 'back':             return d.facing.multiply(-1);
-      case 'right':            return new Vector(d.facing.y, -d.facing.x);
-      case 'left':             return new Vector(-d.facing.y, d.facing.x);
+      case 'right':            return d.facing.rotateByDegrees(-90);
+      case 'left':             return d.facing.rotateByDegrees(90);
       default:                 return assertNever(v);
     }
   }
