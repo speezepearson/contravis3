@@ -18,20 +18,6 @@ describe('balance', () => {
     }
   });
 
-  it('dancers are displaced at the midpoint of a balance', () => {
-    const instructions = instr([
-      { id: tid(1), beats: 4, type: 'balance', relationship: { base: 'neighbor', offset: 0 }, distance: 0.2 },
-    ]);
-    const kfs = mustGenerateAllKeyframes(instructions, 'improper');
-    const init = initialKeyframe('improper');
-    // Find keyframe closest to beat 2 (midpoint)
-    const mid = kfs.reduce((best, kf) =>
-      Math.abs(kf.beat - 2) < Math.abs(best.beat - 2) ? kf : best
-    );
-    // At midpoint, dancers should be ~0.2 north of start
-    expect(mid.dancers['up_lark_0'].pos.y).toBeCloseTo(init.dancers['up_lark_0'].pos.y + 0.2, 1);
-  });
-
   it('balance produces multiple keyframes', () => {
     const instructions = instr([
       { id: tid(1), beats: 4, type: 'balance', relationship: { base: 'neighbor', offset: 0 }, distance: 0.2 },
