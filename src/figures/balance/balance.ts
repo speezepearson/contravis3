@@ -19,7 +19,8 @@ export function generateBalance(prev: Keyframe, _final: FinalKeyframe, instr: Ex
   for (const id of scope) {
     const d = prev.dancers[id];
     const target = resolveRelationship(instr.relationship, id);
-    const stepVec = dancerPosition(target, prev.dancers).pos.subtract(d.pos).normalize().multiply(instr.distance);
+    const dispToTarget = dancerPosition(target, prev.dancers).pos.subtract(d.pos);
+    const stepVec = dispToTarget.normalize().multiply(Math.min(dispToTarget.length() * 0.3, dispToTarget.length()/2 - 0.1));
     steppedDancers[id].pos = d.pos.add(stepVec);
   }
 
